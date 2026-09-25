@@ -245,7 +245,7 @@ stdlib-only venv, so third-party imports fail.
 
 **Fused backend:** only packages pre-baked into the Fused runtime are available.
 
-The extras installed on the host (`fused[aws]`, `fused[arrow]`, …) do **not**
+The extras installed on the host (`fused[aws]`, `fused[data]`, …) do **not**
 change what the executed code can import.
 
 ## Project venvs on the local backend

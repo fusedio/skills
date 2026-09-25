@@ -36,8 +36,8 @@ Both plugins drive the `fused` CLI. Install it once, with the extras for what yo
 
 ```sh
 uv tool install 'fused[aws]'          # agent-core on an AWS environment
-uv tool install 'fused[aws,ai]'       # ...plus `fused code verify --spec`
-uv tool install 'fused[vector]'       # workbench SDK (geopandas, shapely, pandas)
+uv tool install 'fused[aws,verify]'   # ...plus `fused code verify --spec`
+uv tool install 'fused[geo]'          # workbench SDK (geopandas, shapely, pandas)
 ```
 
 Then open a new Claude Code session. `fused` is now permanently on your PATH — Claude can find it in any future session without reinstalling.
@@ -46,13 +46,13 @@ Plain `uv tool install fused` gives you the CLI with the local backend and `fuse
 
 | Extra | Needed for |
 |---|---|
-| `aws` | any AWS environment (Lambda, S3, Secrets Manager, `infra`, `share` on AWS); includes `arrow` |
-| `arrow` | `fused files schema`, and `fused.run()` returning a DataFrame |
-| `ai` | `fused code verify --spec` (LLM spec check) |
+| `data` | pyarrow, pandas, numpy: `fused files schema`, and `fused.run()` returning a DataFrame |
+| `aws` | any AWS environment (Lambda, S3, Secrets Manager, `infra`, `share` on AWS); includes `data` |
+| `verify` | `fused code verify --spec` (the LLM spec check, via anthropic) and the `ty` type checker |
+| `geo` | the workbench SDK's geo stack (geopandas, shapely, rasterio, xarray, ...); includes `data`. `vector`, `raster` and `batch` still work as aliases |
+| `workbench` | selenium and fastmcp for the `fused workbench` CLI's JSON-UI and MCP commands |
 | `local` | local-backend secrets on hosts with no OS keychain (Linux/WSL) |
-| `verify` | the `ty` type checker (no current CLI command runs it) |
-| `vector`, `raster`, `batch` | the workbench SDK's geo stacks; `vector` avoids `ModuleNotFoundError: No module named 'pandas'` when a workbench UDF's DataFrame result is deserialized locally |
-| `all` | the geo stacks plus selenium and fastmcp — it does **not** include `aws`, `ai` or `verify` |
+| `all` | everything except `local` |
 
 Extras are host packages only. Code you run on Lambda or in a project venv gets its packages from the environment image (`fused env update -p …`) or the project (`fused project add-dep …`).
 

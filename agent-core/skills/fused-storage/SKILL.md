@@ -54,7 +54,7 @@ fused files count --bucket my-data --prefix events/ --ext .parquet
 Column schema + metadata for a **Parquet, Arrow IPC, or CSV** file — read this to
 learn column names/dtypes (and row count for Parquet/CSV) before writing a query.
 Arrow IPC reports record-batch count rather than a row count. Requires pyarrow on
-the host: install `fused[arrow]` (the `aws` extra includes it).
+the host: install `fused[data]` (the `aws` extra includes it).
 
 ### `fused files get --bucket B --key K [--expires-in 3600]`
 

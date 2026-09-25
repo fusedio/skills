@@ -1136,15 +1136,15 @@ Optional features need extras installed **on the host** where you run `fused`
 
 | Extra | Installs | Needed for |
 |---|---|---|
-| `aws` | boto3, pyjwt[crypto], pyarrow | any AWS environment (Lambda, S3, Secrets Manager, `infra`, `share` on AWS) |
-| `arrow` | pyarrow | `files schema`, and `fused.run()` returning a DataFrame (included in `aws`) |
-| `ai` | anthropic | `code verify --spec` (the LLM spec check) |
-| `verify` | ty | the type checker; no current CLI command runs it |
+| `data` | pyarrow, pandas, numpy | `files schema`, and `fused.run()` returning a DataFrame (included in `aws`) |
+| `aws` | boto3 + `data` | any AWS environment (Lambda, S3, Secrets Manager, `infra`, `share` on AWS) |
+| `verify` | anthropic, ty | `code verify --spec` (the LLM spec check) and the type checker |
 | `local` | keyrings.alt | local-backend secrets where there is no OS keychain (Linux/WSL; stores unencrypted) |
-| `batch`, `raster`, `vector` | geo stacks + pyarrow | the legacy workbench geo SDK |
-| `all` | geo stacks, selenium, fastmcp, pyarrow | everything above except `aws`, `ai` and `verify` |
+| `geo` | geo stacks + `data` | the legacy workbench geo SDK (`batch`, `raster`, `vector` are aliases) |
+| `workbench` | selenium, fastmcp | the `fused workbench` CLI's JSON-UI and MCP commands |
+| `all` | every extra except `local` | everything, without the plaintext secrets fallback |
 
-Combine them as needed, e.g. `uv tool install 'fused[aws,ai]'`. `fused app serve`
+Combine them as needed, e.g. `uv tool install 'fused[aws,verify]'`. `fused app serve`
 needs no extra.
 
 ---

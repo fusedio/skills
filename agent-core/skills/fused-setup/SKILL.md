@@ -106,15 +106,15 @@ else is opt-in:
 | Extra | Pulls in | Needed for |
 |---|---|---|
 | *(none)* | CLI, local backend, `fused app serve` | Local-backend work; the `fused` (hosted) backend |
-| `aws` | boto3, `pyjwt[crypto]`, and `arrow` | The **AWS backend** (`--backend aws`): Lambda execution, S3, Secrets Manager, `infra …`, `share …` on AWS |
-| `arrow` | pyarrow | `fused files schema`; calling `fused.run()` on a UDF that returns a DataFrame |
-| `ai` | anthropic | `fused code verify --spec` (the LLM spec review). Without it, `--spec` yields a `spec/review-error` warning |
+| `data` | pyarrow, pandas, numpy | `fused files schema`; calling `fused.run()` on a UDF that returns a DataFrame |
+| `aws` | boto3 + `data` | The **AWS backend** (`--backend aws`): Lambda execution, S3, Secrets Manager, `infra …`, `share …` on AWS |
+| `verify` | anthropic, ty | `fused code verify --spec` (the LLM spec review; without it, `--spec` yields a `spec/review-error` warning) and the type-checker scanner |
 | `local` | keyrings.alt | Local-backend secrets on Linux/WSL hosts with no OS keychain (stores them unencrypted — dev only) |
-| `verify` | ty | The type-checker scanner. No current CLI command runs it (`code verify` skips type checking), so you can skip this extra |
-| `vector`, `raster`, `batch` | geo stacks (geopandas, shapely, rasterio, xarray, …) + `arrow` | The vendored workbench SDK's geo helpers on the host |
-| `all` | the geo stacks, fastmcp, and `arrow` | Everything geo. It does **not** include `aws`, `ai`, or `verify` — add those explicitly |
+| `geo` | geopandas, shapely, rasterio, xarray, … + `data` | The vendored workbench SDK's geo helpers on the host. `vector`, `raster` and `batch` still work as aliases; prefer `geo` |
+| `workbench` | selenium, fastmcp | The `fused workbench` CLI's JSON-UI and MCP commands |
+| `all` | every extra except `local` | Everything, without the plaintext secrets fallback |
 
-A typical AWS user installs `'fused[aws,ai]'`; a local-only user needs no extras
+A typical AWS user installs `'fused[aws,verify]'`; a local-only user needs no extras
 (add `local` on a keychain-less Linux box).
 
 > **Host extras are not sandbox packages.** What your code can import inside

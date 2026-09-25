@@ -96,7 +96,7 @@ per-rule severity overrides (`rules`) and the OSV endpoint.
 | `input/path-traversal` | BLOCK | yes (`--input-file`) | Input filename contains `..` sequences |
 | `input/zip-bomb` | BLOCK | yes (`--input-file`) | Input archive expands to an unsafe size |
 | `spec/mismatch` | BLOCK | yes (`--spec`) | LLM judges the code doesn't match the spec |
-| `spec/review-error` | WARN | yes (`--spec`) | LLM call failed (missing key, missing `ai` extra, API error) |
+| `spec/review-error` | WARN | yes (`--spec`) | LLM call failed (missing key, missing `verify` extra, API error) |
 | `input/pii` | WARN | no | — |
 | `code/type-error` | WARN | no | — |
 | `spec/required` | BLOCK | no | — |
@@ -127,7 +127,7 @@ When to use spec checks:
 - Before running expensive or destructive code
 
 Requirements:
-- The **`ai` extra** on the host (`fused[ai]`, which installs `anthropic`).
+- The **`verify` extra** on the host (`fused[verify]`, which installs `anthropic`).
   Without it the check emits a `spec/review-error` warning instead of a verdict.
 - An Anthropic API key, resolved in order: `ANTHROPIC_API_KEY` (or
   `ANTHROPIC_AUTH_TOKEN`) in the shell, then the `anthropic-api-key` secret in the

@@ -5,7 +5,7 @@ description: Reference for the legacy Fused Python SDK command line interface, n
 
 # Fused CLI (workbench)
 
-> **Namespace note:** The Fused repo was consolidated with OpenFused. The bare `fused` command is now the OpenFused agent toolkit; the legacy proprietary SDK CLI documented here lives under **`fused workbench`** (e.g. `fused workbench canvas push`, `fused workbench run`). The package and install command are unchanged (`uv tool install 'fused[vector]'`). For the new top-level toolkit, see the `agent-core` plugin's `fused-cli` skill.
+> **Namespace note:** The Fused repo was consolidated with OpenFused. The bare `fused` command is now the OpenFused agent toolkit; the legacy proprietary SDK CLI documented here lives under **`fused workbench`** (e.g. `fused workbench canvas push`, `fused workbench run`). The package and install command are unchanged (`uv tool install 'fused[geo]'`). For the new top-level toolkit, see the `agent-core` plugin's `fused-cli` skill.
 
 > **The app may already provide `fused` — check before installing.** If the environment variable `FUSED_RENDER_FUSED_CLI_DIR` is set, `fused` is supplied by the fused-render app as a **pre-release** build, and the app prepends that wrapper directory to `PATH` for every child process. In that case: do **not** install fused, do **not** run `uv tool install`, and do **not** run (or ask the user to run) `fused workbench claude plugin add` — the app registers the Claude plugin itself. If `fused` looks broken there, report the problem to the user instead of installing over it: an install cannot take effect anyway, because the app's wrapper directory always wins on `PATH`.
 
@@ -14,7 +14,7 @@ description: Reference for the legacy Fused Python SDK command line interface, n
 **Before any task that requires the CLI or authentication, run `fused workbench whoami`** to confirm the CLI is available and authenticated. If the command is not found — and `FUSED_RENDER_FUSED_CLI_DIR` is **not** set (see the note above; if it is set, stop and report to the user instead):
 
 ```sh
-uv tool install 'fused[vector]' --upgrade  # permanently installs (or repairs) fused on PATH
+uv tool install 'fused[geo]' --upgrade  # permanently installs (or repairs) fused on PATH
 fused workbench claude plugin add                     # re-registers the Claude plugin
 ```
 
@@ -25,7 +25,7 @@ Then open a new Claude Code session. This is the complete reinstall — no other
 `fused` is installed as part of the `fused` Python package. The CLI ships in `fused>=2`, which requires **Python 3.10 or newer** — on Python 3.9 `pip install fused` falls back to a 1.x release that has no `fused` entry point. If `fused` is not on `PATH`, locate or install it before running any commands:
 
 1. **Check PATH first:** `which fused` — if found, use it directly.
-2. **Not found? Install permanently (recommended)** — unless `FUSED_RENDER_FUSED_CLI_DIR` is set, in which case skip installing entirely (see the note above): `uv tool install 'fused[vector]'` — installs fused as a persistent tool so it is always on PATH, even in new sessions. The `vector` extra bundles `geopandas`/`pandas`/`shapely` so local `fused workbench run` works (without it, deserializing a result DataFrame raises `ModuleNotFoundError: No module named 'pandas'`). Requires `uv` ([install instructions](https://docs.astral.sh/uv/getting-started/installation/)).
+2. **Not found? Install permanently (recommended)** — unless `FUSED_RENDER_FUSED_CLI_DIR` is set, in which case skip installing entirely (see the note above): `uv tool install 'fused[geo]'` — installs fused as a persistent tool so it is always on PATH, even in new sessions. The `vector` extra bundles `geopandas`/`pandas`/`shapely` so local `fused workbench run` works (without it, deserializing a result DataFrame raises `ModuleNotFoundError: No module named 'pandas'`). Requires `uv` ([install instructions](https://docs.astral.sh/uv/getting-started/installation/)).
 3. **Quick one-off (no permanent install):** `uvx fused` — runs the latest version without touching PATH. Use this only when you don't need `fused` to persist across sessions.
 4. **Project venv:** if the project uses a `.venv`, run `uv run fused` or `.venv/bin/fused`. Confirm the venv is Python 3.10+ (`.venv/bin/python --version`); if it's 3.9, recreate it with `uv venv --python 3.11 .venv` before installing.
 5. **Conda env:** the binary may live inside a conda environment (`~/miniforge3/envs/<env>/bin/fused`). Activate the env or call the full path. If the env is on Python 3.9, create a new one with `conda create -n fused python=3.11`.
@@ -35,7 +35,7 @@ Then open a new Claude Code session. This is the complete reinstall — no other
 On Windows the same rules apply, with a few differences:
 
 - **Check PATH:** use `where fused` (not `which`) in cmd/PowerShell.
-- **Python Launcher:** Windows ships a `py` launcher — use `py --version` to check the active version and `py -3.11 -m pip install "fused[vector]>=2"` to target a specific version.
+- **Python Launcher:** Windows ships a `py` launcher — use `py --version` to check the active version and `py -3.11 -m pip install "fused[geo]>=2"` to target a specific version.
 - **`fused` not found after `pip install`:** the Scripts directory (`%APPDATA%\Python\Python3XX\Scripts\` or `%LocalAppData%\Programs\Python\Python3XX\Scripts\`) is often not on PATH. Run `python -m site --user-scripts` to print the exact path, then add it to PATH (search "environment variables" in the Start menu → edit the `Path` user variable) and open a new terminal.
 - **Install `uv` on Windows (if not present):**
   ```powershell
@@ -172,9 +172,9 @@ Inspect, validate, and render JSON-UI widget component schemas (the same schemas
 
 Manage Fused for Claude Code via the `claude` CLI.
 
-**First-time install (skip entirely if `FUSED_RENDER_FUSED_CLI_DIR` is set — the app installs and registers everything itself; see the note at the top):** `uv tool install 'fused[vector]'` then `fused workbench claude plugin add` — this permanently installs `fused` on PATH so Claude can find it in every future session. After opening a new Claude Code session, verify with `fused workbench whoami`.
+**First-time install (skip entirely if `FUSED_RENDER_FUSED_CLI_DIR` is set — the app installs and registers everything itself; see the note at the top):** `uv tool install 'fused[geo]'` then `fused workbench claude plugin add` — this permanently installs `fused` on PATH so Claude can find it in every future session. After opening a new Claude Code session, verify with `fused workbench whoami`.
 
-**If fused is not found in a new session** and `FUSED_RENDER_FUSED_CLI_DIR` is **not** set: run `uv tool install 'fused[vector]'` (no other context needed) then `fused workbench claude plugin add`, and open a new session. If that variable *is* set, do neither — report the problem to the user.
+**If fused is not found in a new session** and `FUSED_RENDER_FUSED_CLI_DIR` is **not** set: run `uv tool install 'fused[geo]'` (no other context needed) then `fused workbench claude plugin add`, and open a new session. If that variable *is* set, do neither — report the problem to the user.
 
 | Subcommand | Purpose |
 | --- | --- |
@@ -256,20 +256,20 @@ Options:
 - `--stdin` — read UDF source from stdin instead of passing `UDF` (do not pass `UDF` with `--stdin`)
 - `--verbose / --no-verbose` — show UDF stdout/stderr (default on)
 
-> **`fused[vector]` required for local result deserialization.** When running via `uv run`, the result DataFrame is deserialized locally and requires `pandas` to be available in that environment. Without it you get `ModuleNotFoundError: No module named 'pandas'` even if the UDF itself doesn't use pandas. Install `fused[vector]` — it pulls in `geopandas` (and therefore `pandas`), plus `shapely`, which most UDFs need:
+> **`fused[geo]` (or `fused[data]`) required for local result deserialization.** When running via `uv run`, the result DataFrame is deserialized locally and requires `pandas` to be available in that environment. Without it you get `ModuleNotFoundError: No module named 'pandas'` even if the UDF itself doesn't use pandas. Install `fused[geo]` — it pulls in `pandas`/`pyarrow` (the `data` extra) plus `geopandas` and `shapely`, which most UDFs need (`fused[vector]` still works as an alias):
 >
 > ```bash
-> uv run --no-project --with 'fused[vector]' fused workbench run my_canvas my_udf --param=value
+> uv run --no-project --with 'fused[geo]' fused workbench run my_canvas my_udf --param=value
 > ```
 >
-> `--no-project` avoids pulling in the current directory's dependencies, which can conflict with fused's requirements. If you only need plain `pandas` and not the geospatial stack, `--with fused --with pandas` also works.
+> `--no-project` avoids pulling in the current directory's dependencies, which can conflict with fused's requirements. If you only need plain DataFrames and not the geospatial stack, `--with 'fused[data]'` is enough.
 
 Additionally, `fused workbench run` accepts **arbitrary keyword args matching the UDF's signature**, e.g. `--abc=123` is forwarded as the `abc` parameter to the UDF. These pass-through args are not listed in `--help`.
 
-When running locally via `uv run`, install `fused[vector]` if the UDF returns a DataFrame — the CLI needs pandas to deserialize the result, and the error (`ModuleNotFoundError: No module named 'pandas'`) appears at result-read time, not inside the UDF itself. `fused[vector]` bundles `pandas` (via `geopandas`) along with `shapely`, covering both plain and geospatial DataFrames:
+When running locally via `uv run`, install `fused[geo]` if the UDF returns a DataFrame — the CLI needs pandas to deserialize the result, and the error (`ModuleNotFoundError: No module named 'pandas'`) appears at result-read time, not inside the UDF itself. `fused[geo]` bundles `pandas`/`pyarrow` along with `geopandas` and `shapely`, covering both plain and geospatial DataFrames:
 
 ```bash
-uv run --with 'fused[vector]' fused workbench run my_canvas my_udf --param=value
+uv run --with 'fused[geo]' fused workbench run my_canvas my_udf --param=value
 ```
 
 ## `fused workbench udf-schema CANVAS UDF`
