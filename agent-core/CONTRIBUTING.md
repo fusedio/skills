@@ -20,7 +20,7 @@ there:
   Start from a copy of the repo skill if you like, give it a new `name`, and
   evolve it freely. Load it alongside this plugin.
 - **A new Fused project** — if you're adding domain UDFs or a custom
-  task/run/widget flow, create a project in your environment (see
+  domain workflow, create a project in your environment (see
   `fused-projects`) rather than baking team-specific behavior into a shipped
   skill. The skills are the shared substrate; your behavior belongs in your own
   project on top of them.

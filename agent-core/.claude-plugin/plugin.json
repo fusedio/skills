@@ -1,6 +1,6 @@
 {
   "name": "agent-core",
-  "description": "Skills for working with Fused as a Claude Code plugin: usage/guide skills for setting up Fused and building projects end-to-end (guide, setup, infra, cli, projects, execute, verify, storage, widgets, feedback). Load with `claude --plugin-dir <path-to-this-repo>`.",
+  "description": "Skills for working with Fused as a Claude Code plugin: usage/guide skills for setting up Fused and building projects end-to-end (guide, setup, infra, cli, projects, execute, verify, storage). Load with `claude --plugin-dir <path-to-this-repo>`.",
   "author": {
     "name": "Fused"
   },

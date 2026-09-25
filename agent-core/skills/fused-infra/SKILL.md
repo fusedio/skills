@@ -78,7 +78,7 @@ The policy is **re-applied on every `infra apply`**, so it self-heals if manuall
 
 **Name**: auto-derived as `<prefix without trailing dash>-cache` (e.g. `openfused-cache`), or set explicitly with `--cache-bucket` / `--no-cache-bucket`.
 
-**Why**: `execute_code` supports an `input_files` parameter that uploads local files into the Lambda execution context. Those files are staged in this bucket as a temporary zip, then downloaded and extracted inside Lambda before user code runs.
+**Why**: `fused code run` / `code test` accept `--input-file` (repeatable), which uploads local files into the Lambda execution context. Those files are staged in this bucket as a temporary zip, then downloaded and extracted inside Lambda before user code runs.
 
 **When managed**: `infra apply` creates the bucket if it does not exist. S3 bucket creation is region-aware (us-east-1 does not accept a `LocationConstraint`).
 
@@ -100,7 +100,7 @@ Rules are merged idempotently: any customer-defined rule (one whose ID does not 
 
 ## Lifecycle
 
-> When invoked as MCP tools (`infra_plan`, `infra_apply`, `env_create`, `infra_build_image`, `infra_lambda_reset`, `infra_teardown`), these long-running operations stream live progress notifications to the client as each resource change, build step, or deletion happens. Progress reporting is best-effort: a disconnected client never aborts the operation.
+> These operations are CLI commands only (`fused infra plan|apply|build-image|lambda-reset|teardown|serve`, `fused env create`). There are no MCP tool equivalents.
 
 ### On `env create` (AWS, default)
 1. Config is written to `~/.openfused/envs.json`.
@@ -108,7 +108,7 @@ Rules are merged idempotently: any customer-defined rule (one whose ID does not 
 
 Pass `--no-provision` to skip step 2 (useful when the role already exists or you want to review the plan first).
 
-### On first `execute_code` call
+### On first `fused code run` call
 If `infra apply` has not already created it, the `<prefix>container` function is created lazily on the first call from the env's `docker_image` and waited on until `Active` (~15–30 s). With no image configured, the call fails with guidance to run `fused infra build-image` first. Subsequent calls reuse the function.
 
 ### `infra plan`
@@ -125,7 +125,7 @@ Deletes Lambda functions (all matching `<prefix>*`), the IAM role and its inline
 ### `infra build-image`
 Builds a Docker image and pushes it to ECR, then writes the resulting digest URI back into the resolved env's `docker_image` field. The next `infra apply` will update the `<prefix>container` Lambda function to use it.
 
-By default the build runs remotely in **AWS CodeBuild** — no Docker daemon needed on the host. Pass `--builder local` (or set the env's `builder` to `local`) to fall back to a host `docker build` instead. CodeBuild builds in your own account, requires a cache bucket (the build source is uploaded there under `codebuild-source/`), and pushes via a service role whose ECR push is **scoped to just this env's repo** (the broad Lambda-execution ECR-pull grant stays `*`). The CodeBuild project (`<prefix>build`) + role are provisioned on demand and also appear in `infra plan`/`infra apply` and are removed by `infra teardown`. It accepts a user Dockerfile via `--context-dir`/`--dockerfile`. With no cache bucket (a deliberate `--no-cache-bucket`), the CodeBuild build fails fast with guidance to set one or pass `--builder local`. Limitation: concurrent same-tag builds aren't supported (digest resolved by mutable tag). The managed Fused-hosted build server (per-tenant ECR + immutable tags) is designed but not yet implemented.
+By default the build runs remotely in **AWS CodeBuild** — no Docker daemon needed on the host. Pass `--builder local` (or set the env's `builder` to `local`) to fall back to a host `docker build` instead. CodeBuild builds in your own account, requires a cache bucket (the build source is uploaded there under `codebuild-source/`), and pushes via a service role whose ECR push is **scoped to just this env's repo** (the broad Lambda-execution ECR-pull grant stays `*`). The CodeBuild project (`<prefix>build`) + role are provisioned on demand and also appear in `infra plan`/`infra apply` and are removed by `infra teardown`. It accepts a user Dockerfile via `--context-dir`/`--dockerfile`. With no cache bucket (a deliberate `--no-cache-bucket`), the CodeBuild build fails fast with guidance to set one or pass `--builder local`. Limitation: concurrent same-tag builds aren't supported (digest resolved by mutable tag).
 
 ---
 
@@ -159,8 +159,8 @@ The AWS credentials used to run `infra apply` / `teardown` must have:
 For a **local environment** (`backend: "local"`), "infra" is the
 data/secrets/venvs directories and the cached venv holding the env's `packages`,
 managed by `LocalPythonInfraManager`. No cloud resources; the only
-prerequisites are a Python interpreter and (optionally) uv. The same `infra_*`
-MCP tools and `fused infra` CLI commands dispatch to it.
+prerequisites are a Python interpreter and uv (project venvs are uv-managed). The
+same `fused infra` CLI commands dispatch to it.
 
 | What's managed | Detail |
 |---|---|

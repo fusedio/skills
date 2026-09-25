@@ -2,10 +2,10 @@
 
 The `fused-marketplace` ships two Claude Code plugins:
 
-- **[`agent-core`](agent-core/)** — the primary plugin. Usage/guide skills for building with **Fused** end-to-end: setup, infra, the `fused` CLI/MCP toolkit, project authoring, execution, verification, storage, and widgets.
+- **[`agent-core`](agent-core/)** — the primary plugin. Usage/guide skills for building with **Fused** end-to-end: setup, infra, the `fused` CLI, project authoring, execution, verification, and storage.
 - **[`workbench`](workbench/)** — legacy skills for the Fused **workbench** SDK CLI (`fused workbench …`): canvas.toml, JSON-UI widgets, UDFs, and integrations.
 
-> **Heads up — CLI namespace change.** The original Fused repo was consolidated with OpenFused and now ships as a single `fused` package. The bare `fused` command is now the **OpenFused agent toolkit**; the legacy proprietary SDK CLI now lives under **`fused workbench`** (e.g. `fused canvas push` → `fused workbench canvas push`). The package and install command (`uv tool install 'fused[vector]'`) are unchanged.
+> **Heads up — CLI namespace change.** The original Fused repo was consolidated with OpenFused and now ships as a single `fused` package. The bare `fused` command is now the **OpenFused agent toolkit**; the legacy proprietary SDK CLI now lives under **`fused workbench`** (e.g. `fused canvas push` → `fused workbench canvas push`). The package name is unchanged; see below for which extras to install.
 
 ## Install the plugins
 
@@ -32,15 +32,29 @@ claude --plugin-dir ./agent-core
 
 ## Installing the `fused` CLI
 
-Both plugins drive the `fused` CLI. Install it once:
+Both plugins drive the `fused` CLI. Install it once, with the extras for what you'll use:
 
 ```sh
-uv tool install 'fused[vector]'
+uv tool install 'fused[aws]'          # agent-core on an AWS environment
+uv tool install 'fused[aws,ai]'       # ...plus `fused code verify --spec`
+uv tool install 'fused[vector]'       # workbench SDK (geopandas, shapely, pandas)
 ```
 
 Then open a new Claude Code session. `fused` is now permanently on your PATH — Claude can find it in any future session without reinstalling.
 
-> **Why `fused[vector]`?** The `vector` extra installs `geopandas` (and therefore `pandas`) plus `shapely`. Without these, running UDFs locally fails with `ModuleNotFoundError: No module named 'pandas'` when the result DataFrame is deserialized. Plain `uv tool install fused` only gives you the CLI itself.
+Plain `uv tool install fused` gives you the CLI with the local backend and `fused app serve`. The extras add:
+
+| Extra | Needed for |
+|---|---|
+| `aws` | any AWS environment (Lambda, S3, Secrets Manager, `infra`, `share` on AWS); includes `arrow` |
+| `arrow` | `fused files schema`, and `fused.run()` returning a DataFrame |
+| `ai` | `fused code verify --spec` (LLM spec check) |
+| `local` | local-backend secrets on hosts with no OS keychain (Linux/WSL) |
+| `verify` | the `ty` type checker (no current CLI command runs it) |
+| `vector`, `raster`, `batch` | the workbench SDK's geo stacks; `vector` avoids `ModuleNotFoundError: No module named 'pandas'` when a workbench UDF's DataFrame result is deserialized locally |
+| `all` | the geo stacks plus selenium and fastmcp — it does **not** include `aws`, `ai` or `verify` |
+
+Extras are host packages only. Code you run on Lambda or in a project venv gets its packages from the environment image (`fused env update -p …`) or the project (`fused project add-dep …`).
 
 If `uv` is not found, install it first, then re-run the commands above:
 
@@ -50,7 +64,7 @@ If `uv` is not found, install it first, then re-run the commands above:
 ### Reinstall / update the CLI
 
 ```sh
-uv tool install 'fused[vector]' --upgrade
+uv tool install 'fused[aws]' --upgrade   # same extras you installed with
 ```
 
 ### Alternative: pip
@@ -58,10 +72,10 @@ uv tool install 'fused[vector]' --upgrade
 If Python 3.10+ is already installed and you prefer not to use `uv`:
 
 ```sh
-pip install --upgrade 'fused[vector]>=2'
+pip install --upgrade 'fused[aws]>=2'
 ```
 
-> **Python 3.9 note:** `pip install fused` on Python 3.9 silently installs `fused 1.x`, which has no `fused` command. Pinning `>=2` makes pip fail loudly instead. Use `uv tool install 'fused[vector]'` above to avoid this entirely.
+> **Python 3.9 note:** `pip install fused` on Python 3.9 silently installs `fused 1.x`, which has no `fused` command. Pinning `>=2` makes pip fail loudly instead. Use `uv tool install` above to avoid this entirely.
 
 #### Windows (pip path)
 

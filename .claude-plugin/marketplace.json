@@ -10,7 +10,7 @@
     {
       "name": "agent-core",
       "source": "./agent-core",
-      "description": "Skills for building with Fused: end-to-end project authoring, the fused CLI/MCP toolkit, widgets, execution, verification, and storage.",
+      "description": "Skills for building with Fused: end-to-end project authoring, the fused CLI, execution, verification, and storage.",
       "author": {
         "name": "Fused",
         "email": "info@fused.io",

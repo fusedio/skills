@@ -1,56 +1,50 @@
 ---
 name: fused-guide
-description: Entry-point router for the Fused skills in this repo. Use when a user asks how to get started with, set up, or install Fused, how to build a project or UDF, how to get a widget UI / dashboard out of Fused, or is unsure which Fused skill to load. Maps a goal to the specific skill(s) to read next.
+description: Entry-point router for the Fused skills in this repo. Use when a user asks how to get started with, set up, or install Fused, how to build a project or UDF, how to run or validate code with the `fused` CLI, or is unsure which Fused skill to load. Maps a goal to the specific skill(s) to read next.
 ---
 
 # Fused — start here
 
 This repo is a Claude Code plugin for **Fused** (end-to-end data work on
-cloud-native datasets via MCP and CLI). The model is **workspace ⊃ project ⊃
+cloud-native datasets via the `fused` CLI). The model is **workspace ⊃ project ⊃
 UDF**. This guide routes your goal to the skill that covers it — load that skill
 and follow it. Don't try to do the work from this page; it only points.
+
+> **CLI only.** Fused no longer ships a built-in MCP server: there are no
+> `mcp__openfused__*` tools, and a bare `fused` just prints help. All data work goes
+> through `fused <group> <command>` in the shell. The only MCP surface left is
+> `fused app serve <dir>`, which serves the tools declared in an app folder's
+> `mcp.toml` (see `fused-cli`).
 
 ## Pick by goal
 
 ### Set up / install Fused
-1. **`fused-setup`** — install the package, check AWS credentials (or pick
-   the local backend, no cloud needed), create an environment, and verify.
+1. **`fused-setup`** — install the package (and the right extras for what you need),
+   check AWS credentials (or pick the local backend, no cloud needed), create an
+   environment, and verify.
 2. **`fused-infra`** — what infrastructure each backend provisions (AWS: IAM,
    Lambda, ECR, S3; local: data dirs + venvs), and how to provision/troubleshoot it.
 
-### Build a project end-to-end and get its widget UI
-This is the main path from a user request to a running, viewable result.
-1. **`fused-projects`** — the canonical end-to-end flow: pick an environment,
-   create a project, decompose the task into UDFs, author specs + code, validate,
-   commit, run/preview, and deploy. Start here for any "take this from prompt to
-   result" request.
-2. **`fused-widgets`** — when the desired output is a **widget/dashboard**
-   rather than raw data: the py-UDF-computes → json-widget-visualizes pattern,
-   the `{{ref}}`/`$param` data grammar, and the surfaces that render it
-   (`fused widget open`, the parley, deployed URL).
-3. **`fused-feedback`** — to put a question, approval, or plan-review UI in
-   front of the human and get the answer back as JSON (`fused widget open` /
-   parley). Use whenever a structured choice beats plain terminal text.
+### Build a project end-to-end
+This is the main path from a user request to a running result.
+- **`fused-projects`** — the canonical end-to-end flow: pick an environment,
+  create a project, decompose the task into UDFs, author specs + code, validate,
+  commit, run, and deploy. Start here for any "take this from prompt to result"
+  request.
 
 ### Run and validate code
-- **`fused-execute`** — best practices for `execute_code`: structuring user
+- **`fused-execute`** — best practices for `fused code run`: structuring user
   code, choosing a data library, handling results, writing outputs to storage.
-- **`fused-verify`** — security scanning, spec checks, testing, and the audit
-  log (`verify_code`, `test_code`, `get_audit_log`).
+- **`fused-verify`** — static checks, spec checks, tests and the audit log
+  (`fused code verify`, `fused code test`, `fused audit log`).
 - **`fused-storage`** — inspect datasets (list/count files, read schemas,
-  mint download URLs, upload) and manage secrets via the MCP tools.
+  mint download URLs, upload) and manage secrets (`fused files …`,
+  `fused secrets …`).
 
 ### Reach for the CLI
 - **`fused-cli`** — full `fused` command/flag reference: environments,
-  file storage, secrets, code execution, infra. Use when writing or explaining
-  shell commands that invoke `fused`.
-
-### Manage the Fused App state (`_core`)
-The App state store (tasks, runs, feedback, secrets, agent roster) is exposed at
-runtime as built-in `_core` workspace UDFs — e.g. `{{_core.task-management.read}}`.
-This plugin ships the CLI/usage guides only; the `_core` UDFs are documented
-inline where you'll use them — see **`fused-widgets`** (referencing `_core.*` from
-widgets) and **`fused-cli`** (invoking `_core` UDFs from the shell).
+  file storage, secrets, code execution, projects, share links, app serving,
+  infra. Use when writing or explaining shell commands that invoke `fused`.
 
 ## Customizing or fixing a skill
 

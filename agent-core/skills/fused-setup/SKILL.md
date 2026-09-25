@@ -7,7 +7,7 @@ description: Step-by-step guide for installing and setting up fused for the firs
 
 > **Part of the Fused skill set.** This covers install + provisioning only. Once
 > set up, see **`fused-guide`** to route to the skill for the actual task
-> (`fused-projects`, `fused-widgets`, etc.).
+> (`fused-projects`, `fused-execute`, etc.).
 
 ## Overview
 
@@ -90,18 +90,44 @@ uv run fused --version   # prefix all fused commands with `uv run`
 
 **Installing into another project or environment**:
 ```sh
-# uv
-uv add fused
+# as a CLI tool (pick the extras you need, see below)
+uv tool install 'fused[aws]'
 
-# pip
-pip install fused
+# or as a project dependency
+uv add 'fused[aws]'
+pip install 'fused[aws]'
 ```
+
+### Which extras you need
+
+A bare `fused` install gives you the CLI and the **local** backend. Everything
+else is opt-in:
+
+| Extra | Pulls in | Needed for |
+|---|---|---|
+| *(none)* | CLI, local backend, `fused app serve` | Local-backend work; the `fused` (hosted) backend |
+| `aws` | boto3, `pyjwt[crypto]`, and `arrow` | The **AWS backend** (`--backend aws`): Lambda execution, S3, Secrets Manager, `infra …`, `share …` on AWS |
+| `arrow` | pyarrow | `fused files schema`; calling `fused.run()` on a UDF that returns a DataFrame |
+| `ai` | anthropic | `fused code verify --spec` (the LLM spec review). Without it, `--spec` yields a `spec/review-error` warning |
+| `local` | keyrings.alt | Local-backend secrets on Linux/WSL hosts with no OS keychain (stores them unencrypted — dev only) |
+| `verify` | ty | The type-checker scanner. No current CLI command runs it (`code verify` skips type checking), so you can skip this extra |
+| `vector`, `raster`, `batch` | geo stacks (geopandas, shapely, rasterio, xarray, …) + `arrow` | The vendored workbench SDK's geo helpers on the host |
+| `all` | the geo stacks, fastmcp, and `arrow` | Everything geo. It does **not** include `aws`, `ai`, or `verify` — add those explicitly |
+
+A typical AWS user installs `'fused[aws,ai]'`; a local-only user needs no extras
+(add `local` on a keychain-less Linux box).
+
+> **Host extras are not sandbox packages.** What your code can import inside
+> `fused code run` comes from the environment's container image (AWS:
+> `env update -p <pkg>` + `infra build-image`) or the project's venv (local:
+> `fused project add-dep`), never from the extras installed on the host.
 
 > All `fused` commands below assume the package is on `PATH`. If working inside this repo, prefix every `fused ...` command with `uv run`: e.g. `uv run fused env list`.
 
-> **The `fused` package is the backend; the web UI is separate.** A normal install (`uv add` / `pip install fused`) carries the backend product: the MCP server, the CLI, and the data plane. The **web UI is a separate client, flow** (`fusedio/flow`) — started with the `flow` CLI (or `npx @fusedio/flow` once published) and **out of scope** for these skills. **Node 20+** on PATH is needed only for the `fused` widget viewer (`fused widget open`); the bare MCP server and CLI data-plane don't need Node.
-
-> **First run seeds a sample project.** The very first run on a fresh **local** install lands a finished, ready-to-explore showcase project — **`nyc-street-names`** (a complete worked example: a UDF + a dashboard widget + a populated task/run history) — *beside* the one the onboarding wizard helps you create. So a brand-new user opens the flow UI to a real project, not an empty board, and ends up with two projects. It seeds **once** (gated on a stamp + a fresh onboarding flag), is idempotent and non-clobbering, and never blocks boot. To opt out of the seed entirely, set **`OPENFUSED_SEED_PREBUILT=0`**. (Cloud-backend installs skip it.)
+> **CLI only.** The `fused` package is a CLI plus the data plane. It no longer
+> ships an MCP server (a bare `fused` prints help) or a widget viewer, and needs no
+> Node. The only MCP surface is `fused app serve <dir>`, which serves an app
+> folder's `mcp.toml` tools over stdio (see fused-cli).
 
 ---
 
@@ -117,7 +143,7 @@ You do **not** need a cloud account to get started. Pick by what's available:
 | **Local** | `local` | nothing — host venvs via uv/pip, no cloud | The fastest start; local dev/CI. No isolation boundary: code runs directly on the host |
 | **Fused** | `fused` | A Fused-managed fused environment + an API key (guided onboarding flow) | Running code on a remote, managed fused that Fused provisions and operates — the local side provisions nothing |
 
-AWS Lambda execution is **container-only**: packages (`duckdb`, `polars`, `h3`, etc.) are baked into an ECR image via `fused infra build-image`, and that image is the Lambda function's code. There is no runtime fallback — until an image is built and configured, `execute_code` fails with a clear error telling you to run `infra build-image`. Per-call requirements are never pip-installed at invocation time.
+AWS Lambda execution is **container-only**: packages (`duckdb`, `polars`, `h3`, etc.) are baked into an ECR image via `fused infra build-image`, and that image is the Lambda function's code. There is no runtime fallback — until an image is built and configured, `fused code run` fails with a clear error telling you to run `infra build-image`. Per-call requirements are never pip-installed at invocation time.
 
 ### AWS environment
 
@@ -146,7 +172,7 @@ The `image_build` config in `~/.openfused/envs.json` controls which Python packa
 }
 ```
 
-**Lambda creation:** a single Lambda function (`<prefix>container`) is created during `infra apply` once a `docker_image` or `image_build` is configured. The first `execute_code` call hits an already-existing function. Without an image, `infra apply` provisions only the IAM role and S3 buckets, and execution errors until you run `infra build-image`.
+**Lambda creation:** a single Lambda function (`<prefix>container`) is created during `infra apply` once a `docker_image` or `image_build` is configured. The first `fused code run` call hits an already-existing function. Without an image, `infra apply` provisions only the IAM role and S3 buckets, and execution errors until you run `infra build-image`.
 
 ### Local environment (no AWS required — good for testing and development)
 
@@ -157,8 +183,8 @@ fused env create dev --backend local
 No AWS — code runs on the user's own machine, in a subprocess. Scaffolds
 `~/.openfused/envs/dev/data`. Bare (project-less) calls use a stdlib-only venv
 created lazily on first use.
-Third-party dependencies belong to a workflow's `pyproject.toml` (managed by
-`uv add` inside the workflow directory) — not to the environment itself.
+Third-party dependencies belong to a project's `scripts/pyproject.toml` (managed
+with `fused project add-dep <project> <pkg>`) — not to the environment itself.
 
 ```sh
 # Provision dirs up front (otherwise lazy on first call)
@@ -261,7 +287,7 @@ fused env create prod --backend aws --cache-bucket my-unique-bucket-name
 fused env create prod --backend aws --no-cache-bucket
 ```
 
-### First `execute_code` call times out
+### First `fused code run` call times out
 
 Lambda function creation takes ~15–30 s. Increase the client timeout or retry once. The function will be active on subsequent calls.
 
@@ -269,9 +295,11 @@ Lambda function creation takes ~15–30 s. Increase the client timeout or retry 
 
 Image builds use **AWS CodeBuild by default** (no local Docker). You'd only hit a Docker error if you opted into the `local` builder (`--builder local`), which runs `docker build` on the host. Either drop `--builder local` to build remotely in CodeBuild (the default; requires the env's cache bucket), or install Docker (https://docs.docker.com/get-docker/) and start the daemon to keep building locally.
 
-### `UvNotFoundError` on the local backend
+### `uv` not found on the local backend
 
-A local env with `installer="uv"` requires the `uv` CLI. Install uv (https://docs.astral.sh/uv/getting-started/installation/) or switch the env to pip: `fused env update <name> --installer pip`. The default `installer="auto"` never raises this — it falls back to pip silently.
+Local project venvs are uv-managed (`fused project new`, `project add-dep`,
+`code run --project`). Install uv (https://docs.astral.sh/uv/getting-started/installation/)
+and make sure it is on `PATH`.
 
 ---
 
