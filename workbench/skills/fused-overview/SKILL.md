@@ -19,7 +19,8 @@ Fused is a platform for running Python in the cloud, organized into projects and
 canvas (project)
 ├── udf_a.py        → own endpoint, own compute, own cache
 ├── udf_b.py        → own endpoint, own compute, own cache
-└── widget.json     → optional browser UI on top
+├── widget.json     → optional JSON-UI browser UI on top
+└── page.html       → optional custom HTML page (window.fused: params + runPython against the UDFs)
 ```
 
 UDFs within a canvas call each other via `fused.load("udf_name")`, so you can compose them into pipelines while keeping each piece independently testable.
@@ -115,8 +116,10 @@ results = pool.df()
 
 ## See also
 
-- `fused:fused-cli` — pushing, running, and managing canvases from the CLI
-- `fused:fused-udfs` — writing UDFs: structure, types, caching, performance
-- `fused:fused-integrations` — connecting UDFs to Notion, Snowflake, S3, etc.
-- `fused:canvas-toml` — canvas folder layout and `canvas.toml` format
-- `fused:json-ui-schemas` — building widget UIs on top of UDFs
+- `workbench:fused-cli` — pushing, running, and managing canvases from the CLI
+- `workbench:fused-udfs` — writing UDFs: structure, types, caching, performance
+- `workbench:fused-integrations` — connecting UDFs to Notion, Snowflake, S3, etc.
+- `workbench:canvas-toml` — canvas folder layout and `canvas.toml` format
+- `workbench:json-ui-schemas` — building widget UIs on top of UDFs
+- `workbench:html-template-nodes` — custom HTML pages on the canvas: `window.fused` params/`runPython`, `$param` / `{{udf}}` substitution, edges, sharing
+- `workbench:canvas-comments` — reading and resolving `[[comments]]` threads in `canvas.toml`

@@ -78,13 +78,14 @@ Most canvas subcommands take a `CANVAS_REF` (name or ID) plus:
 | `export CANVAS_REF` | `--output FILE` (required), `--team`, `--id` — downloads a zip bundle |
 | `list [CANVAS_REF]` | `--team`, `--id` — lists all, or shows one |
 | `pull CANVAS_REF` | `-o/--output DIR`, `--team`, `--id`, `-f/--force`, `-n/--dry-run`, `--show-diff` — same as `export` then extracts; prompts per file on conflict unless `--force`. Pass `--show-diff` (recommended when invoked by an AI assistant) to print a unified diff for every file write or removal so you can summarize the change set back to the user. The changes will be applied with `--show-diff`. |
-| `push SOURCE_DIR` | `--canvas TEXT` (defaults to dir name), `--id`. Replaces remote UDF list — UDFs missing locally are removed. If no canvas with that name exists, a new one is created. **Canvas names must match `[a-zA-Z0-9_]` — no spaces or hyphens.** |
+| `push SOURCE_DIR` | `--canvas TEXT` (defaults to dir name), `--id`, `--no-validate` (skip the pre-push `validate`), `--no-ignore` (include gitignored / `.fusedignore` files). Replaces remote UDF list — UDFs missing locally are removed. If no canvas with that name exists, a new one is created. **Canvas names must match `[a-zA-Z0-9_]` — no spaces or hyphens.** |
+| `validate CANVAS_DIR` | `--skip CHECK` (repeatable). Checks, without running UDFs: `node_files`, `edge_refs`, `orphaned_files` (warning), `widget_json_parse`, `widget_refs` (`{{name}}` inside `.json` widgets), `widget_params`. Exit 1 on errors. Runs automatically inside `push`. **Does not inspect `.html` files** — check HTML `{{udf}}` / `fused.runPython` names by hand (see the `workbench:html-template-nodes` skill). |
 | `rename CANVAS_REF NEW_NAME` | `--id` |
-| `share CANVAS_REF` | `--client-id TEXT`, `--new-token`, `--id` |
+| `share CANVAS_REF` | `--client-id TEXT`, `--new-token`, `--id`. Prints `https://<host>/canvas/<token>`. Each JSON-UI widget or HTML template node in the canvas is then also reachable standalone at `https://<host>/share/<token>/<udfName>` (query params hydrate canvas params). Re-running reuses the token; `--new-token` rotates it and breaks existing links. **Does not change the access scope**: a freshly pushed canvas stays `team`, so anonymous visitors (and headless `run-shared-widget`) get `"This canvas is not shared publicly."` until the scope is set to public in the Workbench share dialog. |
 | `unshare CANVAS_REF` | `--id` |
 | `serve-mcp CANVAS_REF` | `--token` (treat ref as `fc_…` share token), `--team`, `--id`, `--host TEXT` (default `127.0.0.1`), `--port INTEGER` (default `8765`), `--path TEXT` (default `/mcp`), `--claude` (register with Claude Code via `claude` CLI) — serves the shared canvas's OpenAPI as a local MCP server. The canvas must be shared first (`fused workbench canvas share <ref>`) |
 
-- When pushing a canvas, prefer to test the canvas to make sure your changes work. For JSON UI nodes, you can run using `fused workbench json-ui run-inline-widget`/`fused workbench json-ui run-shared-widget`, for UDFs, you can run them using `fused workbench run`.
+- When pushing a canvas, prefer to test the canvas to make sure your changes work. For JSON UI nodes and HTML template nodes, render them with `fused workbench json-ui run-shared-widget <token> <node_name>` (or `run-inline-widget` for an uncommitted JSON-UI config); for UDFs, run them using `fused workbench run`.
 
 **Directory name ≠ canvas name.** By default `push` uses the source directory's name as the canvas name. If your local folder is named differently from the remote canvas (e.g. folder is `fused-canvas/`, remote canvas is `feedback_pipeline`), the push will try to create a new canvas with the folder's name — and fail if that name contains hyphens. Always pass `--canvas` explicitly when the names differ:
 
@@ -104,8 +105,8 @@ fused workbench canvas pull CANVAS_REF -o ./local_canvas
 ```
 
 Once pulled, the output directory contains:
-- `canvas.toml` — nodes, edges, viewport (see the `fused:canvas-toml` skill for the full format)
-- `*.py` / `*.json` / `*.md` / `*.html` — one source file per UDF node
+- `canvas.toml` — nodes, edges, viewport (see the `workbench:canvas-toml` skill for the full format)
+- `*.py` / `*.json` / `*.md` / `*.html` — one source file per node: Python UDF, JSON-UI widget, text box, HTML template node (see `workbench:html-template-nodes`)
 
 To inspect a single UDF's parameters without pulling the full canvas, use `fused workbench udf-schema CANVAS UDF`.
 
@@ -156,17 +157,17 @@ Providers: `airtable`, `google-drive` (alias `gdrive`), `hubspot`, `notion`, `sn
 
 ## `fused workbench json-ui`
 
-Inspect, validate, and render JSON-UI widget component schemas (the same schemas covered by the `fused:json-ui-schemas` skill). Use these subcommands as your primary debugging tools when authoring or editing `widget_*.json` files — they're faster than round-tripping through the canvas UI.
+Inspect, validate, and render JSON-UI widget component schemas (the same schemas covered by the `workbench:json-ui-schemas` skill). Use these subcommands as your primary debugging tools when authoring or editing `widget_*.json` files — they're faster than round-tripping through the canvas UI.
 
 | Subcommand | Args / notable options |
 | --- | --- |
 | `catalog-prompt` | Print the JSON-UI catalog prompt (component overview) |
 | `schemas [COMPONENTS]...` | Print JSON Schemas for one or more component names, or all if omitted. The CLI is authoritative when it disagrees with `reference.md` |
 | `validate CONFIG_OR_PATH` | Validate an inline JSON5 config string or a path to a `.json`/`.json5` file. Run this after every non-trivial widget edit to catch missing required props, unknown keys, and enum violations before pushing |
-| `run-inline-widget CANVAS_SHARE_TOKEN WIDGET_CONFIG` | Open a share URL with an inline widget query and capture a screenshot. `--print-url-only`, `--browser [chrome\|firefox]`, `--wait INTEGER` (give async data time to load), `--screenshot-filename FILE` (save PNG to file instead of printing base64). Screenshotting requires `fused[browser]` extras |
-| `run-shared-widget CANVAS_SHARE_TOKEN WIDGET_NAME` | Open a shared widget page and capture a screenshot. Same options as `run-inline-widget`. Requires the canvas to be shared first (`fused workbench canvas share <ref>`) |
+| `run-inline-widget CANVAS_SHARE_TOKEN WIDGET_CONFIG` | Open a share URL with an inline widget query and capture a screenshot. `--print-url-only`, `--browser [chrome\|firefox]`, `--wait INTEGER` (give async data time to load), `--screenshot-filename FILE` (save PNG to file instead of printing base64). Screenshotting needs selenium importable by the CLI — on a missing install the error names the extras to add (`ImportError: selenium is required for JSON-UI run. Install it with: pip install fused[cli]`). The canvas access scope must be public for the anonymous headless browser |
+| `run-shared-widget CANVAS_SHARE_TOKEN WIDGET_NAME` | Open a shared widget page (`/share/<token>/<name>`) and capture a screenshot. Same options as `run-inline-widget`. Requires the canvas to be shared first (`fused workbench canvas share <ref>`). **Works for HTML template nodes too** — pass the `.html` stem as `WIDGET_NAME`. Only JSON-UI-tagged browser logs are printed; page `console.log` output from an HTML node is not surfaced |
 
-**Debugging flow:** edit the widget JSON → `fused workbench json-ui validate <file>` → push → `fused workbench json-ui run-shared-widget <share-token> <widget-name> --screenshot-filename out.png` to confirm it renders. Use `run-inline-widget` when iterating on a widget that hasn't been committed yet.
+**Debugging flow:** edit the widget JSON → `fused workbench json-ui validate <file>` → push → `fused workbench json-ui run-shared-widget <share-token> <widget-name> --screenshot-filename out.png` to confirm it renders. Use `run-inline-widget` when iterating on a widget that hasn't been committed yet. For an HTML template node there is no `validate` step (it is plain HTML): push → `run-shared-widget <token> <html_node> --wait 5 --screenshot-filename out.png`; `run-inline-widget <token> '{"type":"html","props":{"value":"..."}}'` renders an HTML snippet through the JSON-UI `html` widget with the same `window.fused` bridge.
 
 ## `fused workbench claude`
 
