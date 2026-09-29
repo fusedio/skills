@@ -151,16 +151,19 @@ Params ARE state. Controls write params only; `onChange` is the single re-render
   });
 
   // params -> view
+  let gen = 0;
   async function draw(p) {
+    const my = ++gen;            // every draw invalidates older ones
     city.value = p.city ?? "";
     limit.value = String(p.limit ?? 10);
     if (!p.city) { out.textContent = "Pick a city"; return; }
     out.textContent = "Loading…";
     try {
       const rows = await fused.runPython("city_stats", { city: p.city, limit: Number(p.limit ?? 10) });
+      if (my !== gen) return;    // a newer draw() ran meanwhile (e.g. city cleared)
       out.textContent = rows.map(r => `${r.name}: ${r.value}`).join("\n");
     } catch (e) {
-      if (e.type === "aborted") return;
+      if (e.type === "aborted" || my !== gen) return;
       out.textContent = `${e.type}: ${e.message}`;
     }
   }
@@ -175,6 +178,7 @@ Params ARE state. Controls write params only; `onChange` is the single re-render
 Rules the example follows:
 
 - Debounce sliders and drags (~150 ms). Stale-cancel keeps only the newest result but every tick still costs a request.
+- Stale-cancel only fires when a *later* `runPython` uses the same key. A `draw()` that returns early without calling `runPython` (empty selection, validation failure) does not cancel the previous fetch, which would then overwrite the cleared view. Guard with a generation counter as in the example, or hold an `AbortController` per view and abort it at the top of `draw()`.
 - Coerce in `draw()` (`Number(p.limit)`): params set by another node or hydrated from a share URL may arrive as strings, numbers or JSON depending on origin.
 - Before writing rendering code for an unknown result shape, `console.log` the first `runPython` result (open the browser devtools on the canvas) — do not invent column names.
 - Keep data preparation in Python UDFs; the page renders and coordinates UI behaviour.
