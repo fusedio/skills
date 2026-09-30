@@ -77,6 +77,12 @@ Every widget in a JSON UI file follows this envelope:
 - **Maps:** `map`, `map-bounds`, `map-h3`, `fused-map`
 - **Meta / advanced:** `widget-builder`, `transformer`, `ai-chat`
 
+## `html` and `iframe` widgets vs an HTML template node
+
+- **`html` widget** (`{"type":"html","props":{"value":"<h2>$city</h2>"}}`): a sandboxed iframe inside a JSON-UI layout. It gets `$param` / `{{udf}}` substitution and the same `window.fused` bridge as HTML template nodes (`fused.env`, `fused.params.get/getAll/set/onChange`, `await fused.runPython(udfName, params)`). **The CLI schema (`fused workbench json-ui schemas html`) still describes an older `fusedCanvas.setParam` API for this widget — that API is gone; use `window.fused`.** `reference.md` was hand-corrected; running `scripts/generate_json_ui_reference.py` will revert it until the CLI ships the new schema text. Full contract, substitution grammar and pitfalls: the `workbench:html-template-nodes` skill. Use the widget for a small custom snippet next to other widgets; use a standalone HTML template node (`.html` file) for a full custom page.
+- **`iframe` widget**: embeds a URL or an HTML-returning UDF (`src: "{{my_udf}}"`); no scripting against the canvas. Use it to show a UDF-generated page (folium, plotly `to_html`, …) or an external site.
+- Edges apply to all three: the source UDF needs an edge into the widget's node.
+
 ## Accessing UDF data — use `sql-runner`
 
 When a JSON-UI node needs to read data from a canvas UDF, always use `sql-runner` as the root (or a wrapping ancestor). Do **not** put `{{udf_name}}` SQL directly on a leaf widget at the root — it does not resolve reliably without a `sql-runner` ancestor.
@@ -169,7 +175,7 @@ Always set `maxRows` explicitly on `sql-runner` when the source UDF may return m
 
 ## Debugging widgets with the Fused CLI
 
-The `fused workbench json-ui` subcommands are the fastest way to check your work without round-tripping through the canvas UI. See the `fused:fused-cli` skill for full flag details; the common debugging flow is:
+The `fused workbench json-ui` subcommands are the fastest way to check your work without round-tripping through the canvas UI. See the `workbench:fused-cli` skill for full flag details; the common debugging flow is:
 
 - **Verify the schema you're targeting** — `fused workbench json-ui schemas <type>` prints the live JSON Schema for one or more component types (or all of them if omitted). Use this when `reference.md` and the CLI disagree; the CLI is authoritative.
 - **Validate a widget JSON before pushing** — `fused workbench json-ui validate path/to/widget_foo.json` (or a path to a `.json5` file, or an inline JSON5 string). Run this after every non-trivial edit; it catches missing required props, unknown keys, and bad enum values without needing a canvas push.

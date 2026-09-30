@@ -98,6 +98,15 @@ UDFs can return:
 - `gpd.GeoDataFrame`, `gpd.GeoSeries`
 - `shapely.Geometry`
 - Arrays (must be 2D or higher)
+- `str` — rendered as HTML in the workbench. This is what an HTML template node's `{{udf}}` or a JSON-UI `iframe` widget's `src: "{{udf}}"` inlines verbatim (folium maps, plotly `fig.to_html()`, Jinja output).
+
+### UDFs called from HTML template nodes
+
+When a canvas HTML node calls a UDF with `await fused.runPython("my_udf", {n: 5, bbox: [..]})` (see the `workbench:html-template-nodes` skill):
+- Every value arrives as a **string** (non-strings JSON-encoded). Annotate parameters (`n: int`, `bbox: list`, `flag: bool`) so they coerce; an unannotated `n` is `"5"`.
+- Return a DataFrame with JSON-friendly columns (no raw geometry objects, timestamps as ISO strings). The page receives an array of row objects.
+- Include an identifier column when the page will join or key rows.
+- The HTML node needs an edge from this UDF in `canvas.toml`, or the call is rejected with `not_allowed`.
 
 ```python
 # DataFrame return

@@ -3,7 +3,7 @@
 The `fused-marketplace` ships two Claude Code plugins:
 
 - **[`agent-core`](agent-core/)** — the primary plugin. Usage/guide skills for building with **Fused** end-to-end: setup, infra, the `fused` CLI, project authoring, execution, verification, and storage.
-- **[`workbench`](workbench/)** — legacy skills for the Fused **workbench** SDK CLI (`fused workbench …`): canvas.toml, JSON-UI widgets, UDFs, and integrations.
+- **[`workbench`](workbench/)** — legacy skills for the Fused **workbench** SDK CLI (`fused workbench …`): canvas.toml, JSON-UI widgets, HTML template nodes, UDFs, and integrations.
 
 > **Heads up — CLI namespace change.** The original Fused repo was consolidated with OpenFused and now ships as a single `fused` package. The bare `fused` command is now the **OpenFused agent toolkit**; the legacy proprietary SDK CLI now lives under **`fused workbench`** (e.g. `fused canvas push` → `fused workbench canvas push`). The package name is unchanged; see below for which extras to install.
 

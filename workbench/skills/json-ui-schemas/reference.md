@@ -1140,7 +1140,7 @@ Heatmap chart driven by DuckDB SQL query.
 
 ## html
 
-Sandboxed HTML renderer with $param and {{udf}} substitution and fusedCanvas API.
+Sandboxed HTML renderer with $param and {{udf}} substitution and window.fused API. (The bundled CLI schema text still says `fusedCanvas`; that API was removed — see the `workbench:html-template-nodes` skill for the `window.fused` contract.)
 
 ~~~json
 {
@@ -1156,7 +1156,7 @@ Sandboxed HTML renderer with $param and {{udf}} substitution and fusedCanvas API
       "type": "string"
     }
   },
-  "description": "Sandboxed HTML with $param_name and {{udf_name}} substitution. Exposes fusedCanvas.setParam(name, value) / .clearParam(name) for canvas communication.\n\n## Example\n\n```json\n{\n  \"type\": \"html\",\n  \"props\": {\n    \"value\": \"<h2>Hello, $user_name!</h2><p>Selected city: <b>$city</b></p>\"\n  }\n}\n```"
+  "description": "Sandboxed HTML with $param_name and {{udf_name}} substitution. Exposes window.fused: fused.env (\"workbench\"); fused.params.get(name) / .getAll() / .set(name, value) / .set({...}) / .set(name, null) to clear / .onChange(cb), backed by canvas params so connected nodes and $param placeholders react; and await fused.runPython(udfName, params) to run a connected canvas UDF and get its JSON result.\n\n## Example\n\n```json\n{\n  \"type\": \"html\",\n  \"props\": {\n    \"value\": \"<h2>Hello, $user_name!</h2><p>Selected city: <b>$city</b></p>\"\n  }\n}\n```"
 }
 ~~~
 
