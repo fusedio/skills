@@ -9,6 +9,12 @@ Reference docs.fused.io for the most up-to-date information.
 
 **📖 References:** [UDF Writing Guide](https://docs.fused.io/guide/working-with-udfs/writing-udfs/) | [UDF Best Practices](https://docs.fused.io/user-guide/best-practices/udf-best-practices/) | [Getting Started](https://docs.fused.io/guide/getting-started/first-udf-basics/)
 
+## Finding API docs
+
+- **SDK reference**: fetch `https://docs.fused.io/llms.txt`, an index of every docs page as markdown links. Fetch only the pages you need; `llms-full.txt` holds everything (~1 MB).
+- **H3 ingestion and query** (`fused.h3.partition`, `index`, `query`, ERA5/GridMET hex datasets): use the `fused-h3` skill. The published H3 pages describe only the older APIs.
+- **What a UDF can import** (packages, versions, binaries, DuckDB extensions): use the `fused-runtime` skill. The published Dependencies page has stale versions.
+
 ## Function Structure & Decorators
 
 ### Basic UDF Pattern
