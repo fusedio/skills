@@ -142,14 +142,14 @@ df = fused.h3.query(
 )
 ```
 
-Give at most one spatial selector; none returns everything. Date partitions match by overlap (`"2050-01"` matches every day in that month). Results are capped at 10,000 rows. Narrow the query rather than paging.
+Give at most one spatial selector; none returns everything. Date partitions match by overlap (`"2050-01"` matches every day in that month). There is no row cap: a query returns every matching row, but reads at most `max_row_groups` row groups (default 1,024, up to 4,096). One that matches more fails with 413 before reading any data, so narrow the query rather than paging.
 
 | Error | Meaning |
 |---|---|
 | 404 | path was never indexed |
 | 409 | index still building: poll `index_status` |
 | 400 | two selectors, `lat` without `lng`, or time bounds on a dataset with no time |
-| 413 | too many row groups: narrow the query or raise `max_row_groups` (≤ 4096) |
+| 413 | too many row groups (default 1,024): narrow the query or raise `max_row_groups` (≤ 4096) |
 
 Other management calls: `fused.h3.index_status(path)`, `fused.h3.indexed_files(path, prefix=None)`, and `fused.h3.delete_index(path)` (drops the index, keeps the files).
 
