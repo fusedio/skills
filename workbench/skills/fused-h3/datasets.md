@@ -1,6 +1,6 @@
 # Published hex datasets: ERA5 and GridMET
 
-Fused publishes two weather datasets already partitioned to H3 resolution 7, on Source Cooperative's public bucket. Read them directly, or through the Fused API's `/retrieve` routes. No ingestion and no credentials needed.
+Fused publishes two weather datasets already partitioned to H3 resolution 7, on Source Cooperative's public bucket. Read the daily ones with `fused.h3.query`, any of them through the Fused API's `/retrieve` routes, or as Parquet directly. No ingestion and no credentials needed.
 
 | Dataset | Path | Layout | Columns |
 |---|---|---|---|
@@ -22,8 +22,11 @@ Base: `https://www.fused.io/server/v1/retrieve/`. Public, no token.
 
 Every route also requires `date_min` and `date_max` (inclusive) and takes these optional params:
 - `variables=t2m_max,tp`: comma-separated; key columns are always returned.
-- `format`: `csv` (default), `json`, `parquet` or `index`.
+- `format`: `csv` (default), `json` or `parquet` return rows. `index` returns the matching row groups' metadata, for callers that read the files themselves. `stats` returns per-row-group min/max/null_count for `variables`, plus each row group's H3 range and partition: a small response for a coarse overview (newer servers only; older ones answer 422).
 - `limit`: point routes default 5,000, max 10,000; bbox and hex-range routes default 50,000, max 100,000.
+- `max_row_groups`: default 128, max 256. A query matching more rows than `limit` or more row groups than `max_row_groups` is rejected, not truncated. Narrow the dates or area.
+
+Every response carries an `ETag`. Send it back as `If-None-Match` to get `304 Not Modified` when nothing changed.
 
 In CSV and JSON responses, `hex` is an H3 string.
 
@@ -34,7 +37,20 @@ url = ("https://www.fused.io/server/v1/retrieve/era5/daily/point"
 df = pd.read_csv(url)
 ```
 
-The bbox cover is approximate at res 7. Use the REST routes for a point or small area over a date range. For larger pulls, read the Parquet directly.
+The bbox cover is approximate at res 7. Use the REST routes for a point or small area over a date range. For larger pulls, use `fused.h3.query` or read the Parquet directly.
+
+## `fused.h3.query`
+
+ERA5 daily and GridMET daily are public H3 locations (time column `date`), so `fused.h3.query` reads them with no indexing step and no sign-in, and has no row cap. Pass the root **without a trailing slash**; with one, the query 404s. ERA5 hourly is not indexed: use its `/retrieve` routes or read its Parquet.
+
+```python
+df = fused.h3.query(
+    "s3://us-west-2.opendata.source.coop/fused/era5-hex/era5_daily",
+    lat=40.0, lng=-105.27,
+    time_min="2020-07-01", time_max="2020-07-31",
+    columns=["hex", "date", "t2m_max", "tp"],
+)
+```
 
 ## Direct Parquet read
 
