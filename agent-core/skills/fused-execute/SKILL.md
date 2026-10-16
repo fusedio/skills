@@ -266,14 +266,14 @@ fused code run myanalysis.py --project taxi-pipeline
 
 ```sh
 # Run a skill-folder bundle anywhere on disk — no workspace registration needed
-fused code run myanalysis.py --project-dir ~/.claude/skills/taxi-pipeline
+fused code run myanalysis.py --project-dir ~/.agents/skills/taxi-pipeline
 
 # Code test with a path-addressed project
 fused code test mymodule.py --test-file test_mymodule.py \
-    --project-dir ~/.claude/skills/taxi-pipeline
+    --project-dir ~/.agents/skills/taxi-pipeline
 
 # Dep-scan verify using the project dir's pyproject.toml (no execution)
-fused code verify myanalysis.py --project-dir ~/.claude/skills/taxi-pipeline
+fused code verify myanalysis.py --project-dir ~/.agents/skills/taxi-pipeline
 ```
 
 - Reads `<dir>/openfused.toml` for the manifest (name defaults to directory basename).

@@ -22,8 +22,8 @@ my_canvas/
 
 - `<name>.py` / `.json` / `.md` / `.html` — source for a node; the **stem must match a node's `udfName`**. The node kind is inferred from the extension (`.py` Python UDF, `.json` JSON-UI widget, `.md` text box, `.html` HTML template node) — there is no `type` key for these in `canvas.toml`.
 -- File name stems must be unique in a canvas. The following is OK: `abc.json`, `def.py`. The following will NOT work: `abc.json`, `abc.py`. **The server error for this is misleading** — it says "A UDF with one of those slugs already exists in this collection", which sounds like a cross-canvas naming collision. It's actually caused by the same-stem conflict in your local folder. Fix: delete one of the conflicting files and push again.
--- JSON-UI files: consult the `workbench:json-ui-schemas` skill for how to write, validate, and debug them. They contain JSON5.
--- HTML files: consult the `workbench:html-template-nodes` skill. The file is stored verbatim (plain HTML/CSS/JS, no Python wrapper); the workbench renders it in a sandboxed iframe with `window.fused` and `$param` / `{{udf}}` substitution.
+-- JSON-UI files: consult the `json-ui-schemas` skill for how to write, validate, and debug them. They contain JSON5.
+-- HTML files: consult the `html-template-nodes` skill. The file is stored verbatim (plain HTML/CSS/JS, no Python wrapper); the workbench renders it in a sandboxed iframe with `window.fused` and `$param` / `{{udf}}` substitution.
 - `_shared.fused` — omit ⇒ private (author only). Empty file ⇒ team. Set `access_scope = "public"` for public. Set `token = "<value>"` to control the URL slug. This file is honoured on the git-repo sync path; **`fused workbench canvas push` does not apply it** (a pushed canvas stays at its current scope, `team` for a new one) — change the scope in the Workbench share dialog instead.
 
 Do **not** mix `canvas.toml` with the legacy `collection.json` layout in one folder — `canvas.toml` wins if both are present.
@@ -263,7 +263,7 @@ For JSON-UI widget nodes that reference a UDF via `{{udf_name}}` SQL (typically 
 - `["my_udf", "my_page"]` for every UDF the page references with `{{my_udf}}` or `fused.runPython("my_udf", ...)`. Missing edge ⇒ `runPython` rejects with `not_allowed`, `fused.params.get` is `undefined`, `{{my_udf}}` renders empty.
 - `["my_page", "target_udf"]` for every UDF the page drives with `fused.params.set(...)` — the param only propagates along edges.
 
-The workbench UI infers edges from `{{udf}}` placeholders and literal `fused.runPython("name")` calls when nodes are created there, but `canvas.toml` is explicit: write them all. See the `workbench:html-template-nodes` skill for the full runtime contract.
+The workbench UI infers edges from `{{udf}}` placeholders and literal `fused.runPython("name")` calls when nodes are created there, but `canvas.toml` is explicit: write them all. See the `html-template-nodes` skill for the full runtime contract.
 
 ## Node sizing and viewport
 

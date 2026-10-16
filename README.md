@@ -1,6 +1,6 @@
-# Fused Plugins for Claude Code
+# Fused Plugins for Claude Code, Codex, and Copilot
 
-The `fused-marketplace` ships two Claude Code plugins:
+The `fused-marketplace` ships two agent plugins. They work in Claude Code, OpenAI Codex, and GitHub Copilot CLI:
 
 - **[`agent-core`](agent-core/)** — the primary plugin. Usage/guide skills for building with **Fused** end-to-end: setup, infra, the `fused` CLI, project authoring, execution, verification, and storage.
 - **[`workbench`](workbench/)** — legacy skills for the Fused **workbench** SDK CLI (`fused workbench …`): canvas.toml, JSON-UI widgets, HTML template nodes, UDFs, and integrations.
@@ -9,8 +9,10 @@ The `fused-marketplace` ships two Claude Code plugins:
 
 ## Install the plugins
 
+### Claude Code
+
 ```sh
-claude plugin marketplace add fusedio/claude-plugins
+claude plugin marketplace add fusedio/skills
 claude plugin install agent-core@fused-marketplace   # primary
 claude plugin install workbench@fused-marketplace      # legacy workbench skills
 ```
@@ -30,6 +32,48 @@ You can also load a plugin directly from a local checkout without the marketplac
 claude --plugin-dir ./agent-core
 ```
 
+### Codex
+
+```sh
+codex plugin marketplace add fusedio/skills
+codex plugin add agent-core@fused-marketplace   # primary
+codex plugin add workbench@fused-marketplace    # legacy workbench skills
+```
+
+You can also browse and toggle them from `/plugins` inside Codex. To pick up new releases, run `codex plugin marketplace upgrade fused-marketplace`; to remove one, `codex plugin remove agent-core@fused-marketplace`.
+
+### GitHub Copilot CLI
+
+```sh
+copilot plugin marketplace add fusedio/skills
+copilot plugin install agent-core@fused-marketplace   # primary
+copilot plugin install workbench@fused-marketplace    # legacy workbench skills
+```
+
+Update with `copilot plugin update agent-core@fused-marketplace` and remove with `copilot plugin uninstall agent-core@fused-marketplace`.
+
+### Any agent that reads Agent Skills (skills only)
+
+The skills are plain [Agent Skills](https://github.com/agentskills/agentskills) folders, so any tool that scans `~/.agents/skills` (Codex, Copilot, and others) can use them without the plugin system:
+
+```sh
+git clone https://github.com/fusedio/skills ~/.fused-plugins
+mkdir -p ~/.agents/skills
+ln -s ~/.fused-plugins/agent-core/skills/* ~/.fused-plugins/workbench/skills/* ~/.agents/skills/
+```
+
+Skill names are unique across both plugins, so the symlinks don't collide. `git -C ~/.fused-plugins pull` updates them.
+
+### How the manifests are laid out
+
+| File | Read by |
+|---|---|
+| `.claude-plugin/marketplace.json`, `*/.claude-plugin/plugin.json` | Claude Code |
+| `.agents/plugins/marketplace.json` | Codex |
+| `*/plugin.json` ([Agent Plugins](https://agent-plugins.org) manifest) | Codex and Copilot CLI |
+
+Copilot reads the marketplace from `.claude-plugin/marketplace.json`. **None of the manifests set a `version` — git is the version.** Claude Code tracks the latest commit; Codex (`codex plugin marketplace upgrade`) and Copilot (`copilot plugin update`) re-fetch the repo and refresh installed skills with no version bump (Codex shows a placeholder `1.0.0`). Don't add `version` fields: once one is set, updates only reach users when it is bumped.
+
 ## Installing the `fused` CLI
 
 Both plugins drive the `fused` CLI. Install it once, with the extras for what you'll use:
@@ -40,7 +84,7 @@ uv tool install 'fused[aws,ai]'       # ...plus `fused code verify --spec`
 uv tool install 'fused[vector]'       # workbench SDK (geopandas, shapely, pandas)
 ```
 
-Then open a new Claude Code session. `fused` is now permanently on your PATH — Claude can find it in any future session without reinstalling.
+Then open a new agent session (Claude Code, Codex, or Copilot). `fused` is now permanently on your PATH — the agent can find it in any future session without reinstalling.
 
 Plain `uv tool install fused` gives you the CLI with the local backend and `fused app serve`. The extras add:
 

@@ -706,7 +706,7 @@ Output format (in this order):
 **Local backend — project venv (`--project` or `--project-dir`).** On a local environment, pass one of:
 
 - `--project <name>` — workspace-registered project; venv must already exist (`uv sync`).
-- `--project-dir <path>` — ad-hoc path to any directory containing `openfused.toml`; venv is materialised in place on first run via `uv sync` in `<dir>/scripts/`. Use this for skill-folder bundles (e.g. `~/.claude/skills/<project>`) without registering them in the workspace.
+- `--project-dir <path>` — ad-hoc path to any directory containing `openfused.toml`; venv is materialised in place on first run via `uv sync` in `<dir>/scripts/`. Use this for skill-folder bundles (e.g. `~/.agents/skills/<project>`) without registering them in the workspace.
 
 The two flags are **mutually exclusive**. Both are **local-only** — rejected with a clear error on AWS and Fused backends. Without either flag, local execution uses a bare stdlib-only venv (third-party imports fail).
 
@@ -715,7 +715,7 @@ The two flags are **mutually exclusive**. Both are **local-only** — rejected w
 fused code run myanalysis.py --project taxi-pipeline
 
 # Ad-hoc path (venv materialised on first run via uv sync)
-fused code run myanalysis.py --project-dir ~/.claude/skills/taxi-pipeline
+fused code run myanalysis.py --project-dir ~/.agents/skills/taxi-pipeline
 ```
 
 ---
@@ -743,7 +743,7 @@ fused code verify myanalysis.py --spec "compute the mean of column A"
 fused code verify myanalysis.py --project taxi-pipeline
 
 # Scan using an ad-hoc project dir's deps (local-only; no backend execute)
-fused code verify myanalysis.py --project-dir ~/.claude/skills/taxi-pipeline
+fused code verify myanalysis.py --project-dir ~/.agents/skills/taxi-pipeline
 ```
 
 | Option | Default | Notes |
@@ -791,7 +791,7 @@ fused code test mymodule.py --test-file test_mymodule.py --project taxi-pipeline
 
 # Ad-hoc path (venv materialised in place on first run)
 fused code test mymodule.py --test-file test_mymodule.py \
-    --project-dir ~/.claude/skills/taxi-pipeline
+    --project-dir ~/.agents/skills/taxi-pipeline
 ```
 
 | Option | Default | Notes |

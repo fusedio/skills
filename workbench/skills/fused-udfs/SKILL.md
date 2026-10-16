@@ -108,7 +108,7 @@ UDFs can return:
 
 ### UDFs called from HTML template nodes
 
-When a canvas HTML node calls a UDF with `await fused.runPython("my_udf", {n: 5, bbox: [..]})` (see the `workbench:html-template-nodes` skill):
+When a canvas HTML node calls a UDF with `await fused.runPython("my_udf", {n: 5, bbox: [..]})` (see the `html-template-nodes` skill):
 - Every value arrives as a **string** (non-strings JSON-encoded). Annotate parameters (`n: int`, `bbox: list`, `flag: bool`) so they coerce; an unannotated `n` is `"5"`.
 - Return a DataFrame with JSON-friendly columns (no raw geometry objects, timestamps as ISO strings). The page receives an array of row objects.
 - Include an identifier column when the page will join or key rows.
@@ -396,7 +396,7 @@ If dynamic file names are required, resolve and validate the full path before us
 
 ## Testing UDFs
 
-**📖 Reference:** [Small UDF Run](https://docs.fused.io/core-concepts/run-udfs/run-small-udfs/), see also the `fused-cli` skill
+**📖 Reference:** [Small UDF Run](https://docs.fused.io/core-concepts/run-udfs/run-small-udfs/), see also the `fused-workbench-cli` skill
 
 **Always run the UDF after writing it** — don't stop at pushing the code. UDFs fail in ways static analysis can't catch: wrong parameter types, missing data, unexpected runtime behaviour. A passing push is not a passing test.
 

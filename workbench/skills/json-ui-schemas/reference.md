@@ -1140,7 +1140,7 @@ Heatmap chart driven by DuckDB SQL query.
 
 ## html
 
-Sandboxed HTML renderer with $param and {{udf}} substitution and window.fused API. (The bundled CLI schema text still says `fusedCanvas`; that API was removed — see the `workbench:html-template-nodes` skill for the `window.fused` contract.)
+Sandboxed HTML renderer with $param and {{udf}} substitution and window.fused API. (The bundled CLI schema text still says `fusedCanvas`; that API was removed — see the `html-template-nodes` skill for the `window.fused` contract.)
 
 ~~~json
 {

@@ -1,0 +1,31 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "agent-core",
+  "description": "Skills for building with Fused: end-to-end project authoring, the fused CLI, execution, verification, and storage.",
+  "author": {
+    "name": "Fused",
+    "email": "info@fused.io",
+    "url": "https://fused.io"
+  },
+  "homepage": "https://fused.io",
+  "license": "Proprietary",
+  "keywords": [
+    "openfused",
+    "fused",
+    "udf",
+    "agents",
+    "skills",
+    "data"
+  ],
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "Fused Agent Core",
+        "shortDescription": "Build, run, and deploy Fused projects with the fused CLI",
+        "developerName": "Fused",
+        "category": "Data",
+        "websiteURL": "https://fused.io"
+      }
+    }
+  }
+}

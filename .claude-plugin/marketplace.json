@@ -1,6 +1,6 @@
 {
   "name": "fused-marketplace",
-  "description": "Fused plugins for Claude Code.",
+  "description": "Fused plugins for Claude Code, Codex, and GitHub Copilot CLI.",
   "owner": {
     "name": "Fused",
     "email": "info@fused.io",
