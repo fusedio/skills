@@ -22,8 +22,10 @@ Then re-register the plugin for the agent you are running in, and open a new ses
 | Agent | Command |
 | --- | --- |
 | Claude Code | `fused workbench claude plugin add` |
-| Codex | `codex plugin marketplace add fusedio/skills` then `codex plugin add workbench@fused-marketplace` |
-| GitHub Copilot CLI | `copilot plugin marketplace add fusedio/skills` then `copilot plugin install workbench@fused-marketplace` |
+| Codex | `fused workbench codex plugin add` |
+| GitHub Copilot CLI | `fused workbench copilot plugin add` |
+
+If an older `fused` reports `No such command 'codex'` (or `'copilot'`), use the agent's own CLI instead: `codex plugin marketplace add fusedio/skills` then `codex plugin add workbench@fused-marketplace`, or `copilot plugin marketplace add fusedio/skills` then `copilot plugin install workbench@fused-marketplace`.
 
 This is the complete reinstall — no other context is needed.
 
@@ -178,9 +180,9 @@ Inspect, validate, and render JSON-UI widget component schemas (the same schemas
 
 ## `fused workbench claude`
 
-Manage Fused for Claude Code via the `claude` CLI. These subcommands only target Claude Code; for Codex and GitHub Copilot CLI, install the plugin with that agent's own commands (see **Session start**).
+Manage Fused for Claude Code via the `claude` CLI. `fused workbench codex plugin` and `fused workbench copilot plugin` take the same `add` / `update` / `remove` subcommands for Codex and GitHub Copilot CLI; `add-mcp` is Claude-only.
 
-**First-time install (skip entirely if `FUSED_RENDER_FUSED_CLI_DIR` is set — the app installs and registers everything itself; see the note at the top):** `uv tool install 'fused[vector]'` then `fused workbench claude plugin add` (or the Codex/Copilot equivalent from **Session start**) — this permanently installs `fused` on PATH so the agent can find it in every future session. After opening a new session, verify with `fused workbench whoami`.
+**First-time install (skip entirely if `FUSED_RENDER_FUSED_CLI_DIR` is set — the app installs and registers everything itself; see the note at the top):** `uv tool install 'fused[vector]'` then `fused workbench claude plugin add` (or `fused workbench codex plugin add` / `fused workbench copilot plugin add`) — this permanently installs `fused` on PATH so the agent can find it in every future session. After opening a new session, verify with `fused workbench whoami`.
 
 **If fused is not found in a new session** and `FUSED_RENDER_FUSED_CLI_DIR` is **not** set: run `uv tool install 'fused[vector]'` (no other context needed) then re-register the plugin as in **Session start**, and open a new session. If that variable *is* set, do neither — report the problem to the user.
 
