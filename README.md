@@ -12,7 +12,7 @@ The `fused-marketplace` ships two agent plugins. They work in Claude Code, OpenA
 ### Claude Code
 
 ```sh
-claude plugin marketplace add fusedio/claude-plugins
+claude plugin marketplace add fusedio/skills
 claude plugin install agent-core@fused-marketplace   # primary
 claude plugin install workbench@fused-marketplace      # legacy workbench skills
 ```
@@ -35,7 +35,7 @@ claude --plugin-dir ./agent-core
 ### Codex
 
 ```sh
-codex plugin marketplace add fusedio/claude-plugins
+codex plugin marketplace add fusedio/skills
 codex plugin add agent-core@fused-marketplace   # primary
 codex plugin add workbench@fused-marketplace    # legacy workbench skills
 ```
@@ -45,7 +45,7 @@ You can also browse and toggle them from `/plugins` inside Codex. To pick up new
 ### GitHub Copilot CLI
 
 ```sh
-copilot plugin marketplace add fusedio/claude-plugins
+copilot plugin marketplace add fusedio/skills
 copilot plugin install agent-core@fused-marketplace   # primary
 copilot plugin install workbench@fused-marketplace    # legacy workbench skills
 ```
@@ -57,7 +57,7 @@ Update with `copilot plugin update agent-core@fused-marketplace` and remove with
 The skills are plain [Agent Skills](https://github.com/agentskills/agentskills) folders, so any tool that scans `~/.agents/skills` (Codex, Copilot, and others) can use them without the plugin system:
 
 ```sh
-git clone https://github.com/fusedio/claude-plugins ~/.fused-plugins
+git clone https://github.com/fusedio/skills ~/.fused-plugins
 mkdir -p ~/.agents/skills
 ln -s ~/.fused-plugins/agent-core/skills/* ~/.fused-plugins/workbench/skills/* ~/.agents/skills/
 ```

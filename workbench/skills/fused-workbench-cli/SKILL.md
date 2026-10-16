@@ -22,8 +22,8 @@ Then re-register the plugin for the agent you are running in, and open a new ses
 | Agent | Command |
 | --- | --- |
 | Claude Code | `fused workbench claude plugin add` |
-| Codex | `codex plugin marketplace add fusedio/claude-plugins`, then install `workbench` from `/plugins` |
-| GitHub Copilot CLI | `copilot plugin marketplace add fusedio/claude-plugins` then `copilot plugin install workbench@fused-marketplace` |
+| Codex | `codex plugin marketplace add fusedio/skills` then `codex plugin add workbench@fused-marketplace` |
+| GitHub Copilot CLI | `copilot plugin marketplace add fusedio/skills` then `copilot plugin install workbench@fused-marketplace` |
 
 This is the complete reinstall — no other context is needed.
 
