@@ -1,5 +1,5 @@
 ---
-name: fused-cli
+name: fused-workbench-cli
 description: Reference for the legacy Fused Python SDK command line interface, now namespaced under `fused workbench`. Use when the user asks how to run, push, share, or otherwise manage UDFs, canvases, files, or secrets via the Fused workbench CLI, or when authoring shell commands that invoke `fused workbench`.
 ---
 
@@ -7,7 +7,7 @@ description: Reference for the legacy Fused Python SDK command line interface, n
 
 > **Namespace note:** The Fused repo was consolidated with OpenFused. The bare `fused` command is now the OpenFused agent toolkit; the legacy proprietary SDK CLI documented here lives under **`fused workbench`** (e.g. `fused workbench canvas push`, `fused workbench run`). The package and install command are unchanged (`uv tool install 'fused[vector]'`). For the new top-level toolkit, see the `agent-core` plugin's `fused-cli` skill.
 
-> **The app may already provide `fused` — check before installing.** If the environment variable `FUSED_RENDER_FUSED_CLI_DIR` is set, `fused` is supplied by the fused-render app as a **pre-release** build, and the app prepends that wrapper directory to `PATH` for every child process. In that case: do **not** install fused, do **not** run `uv tool install`, and do **not** run (or ask the user to run) `fused workbench claude plugin add` — the app registers the Claude plugin itself. If `fused` looks broken there, report the problem to the user instead of installing over it: an install cannot take effect anyway, because the app's wrapper directory always wins on `PATH`.
+> **The app may already provide `fused` — check before installing.** If the environment variable `FUSED_RENDER_FUSED_CLI_DIR` is set, `fused` is supplied by the fused-render app as a **pre-release** build, and the app prepends that wrapper directory to `PATH` for every child process. In that case: do **not** install fused, do **not** run `uv tool install`, and do **not** run (or ask the user to run) a plugin install such as `fused workbench claude plugin add` — the app registers the plugin itself. If `fused` looks broken there, report the problem to the user instead of installing over it: an install cannot take effect anyway, because the app's wrapper directory always wins on `PATH`.
 
 ## Session start
 
@@ -15,10 +15,17 @@ description: Reference for the legacy Fused Python SDK command line interface, n
 
 ```sh
 uv tool install 'fused[vector]' --upgrade  # permanently installs (or repairs) fused on PATH
-fused workbench claude plugin add                     # re-registers the Claude plugin
 ```
 
-Then open a new Claude Code session. This is the complete reinstall — no other context is needed.
+Then re-register the plugin for the agent you are running in, and open a new session:
+
+| Agent | Command |
+| --- | --- |
+| Claude Code | `fused workbench claude plugin add` |
+| Codex | `codex plugin marketplace add fusedio/claude-plugins`, then install `workbench` from `/plugins` |
+| GitHub Copilot CLI | `copilot plugin marketplace add fusedio/claude-plugins` then `copilot plugin install workbench@fused-marketplace` |
+
+This is the complete reinstall — no other context is needed.
 
 ## Finding the CLI
 
@@ -79,7 +86,7 @@ Most canvas subcommands take a `CANVAS_REF` (name or ID) plus:
 | `list [CANVAS_REF]` | `--team`, `--id` — lists all, or shows one |
 | `pull CANVAS_REF` | `-o/--output DIR`, `--team`, `--id`, `-f/--force`, `-n/--dry-run`, `--show-diff` — same as `export` then extracts; prompts per file on conflict unless `--force`. Pass `--show-diff` (recommended when invoked by an AI assistant) to print a unified diff for every file write or removal so you can summarize the change set back to the user. The changes will be applied with `--show-diff`. |
 | `push SOURCE_DIR` | `--canvas TEXT` (defaults to dir name), `--id`, `--no-validate` (skip the pre-push `validate`), `--no-ignore` (include gitignored / `.fusedignore` files). Replaces remote UDF list — UDFs missing locally are removed. If no canvas with that name exists, a new one is created. **Canvas names must match `[a-zA-Z0-9_]` — no spaces or hyphens.** |
-| `validate CANVAS_DIR` | `--skip CHECK` (repeatable). Checks, without running UDFs: `node_files`, `edge_refs`, `orphaned_files` (warning), `widget_json_parse`, `widget_refs` (`{{name}}` inside `.json` widgets), `widget_params`. Exit 1 on errors. Runs automatically inside `push`. **Does not inspect `.html` files** — check HTML `{{udf}}` / `fused.runPython` names by hand (see the `workbench:html-template-nodes` skill). |
+| `validate CANVAS_DIR` | `--skip CHECK` (repeatable). Checks, without running UDFs: `node_files`, `edge_refs`, `orphaned_files` (warning), `widget_json_parse`, `widget_refs` (`{{name}}` inside `.json` widgets), `widget_params`. Exit 1 on errors. Runs automatically inside `push`. **Does not inspect `.html` files** — check HTML `{{udf}}` / `fused.runPython` names by hand (see the `html-template-nodes` skill). |
 | `rename CANVAS_REF NEW_NAME` | `--id` |
 | `share CANVAS_REF` | `--client-id TEXT`, `--new-token`, `--id`. Prints `https://<host>/canvas/<token>`. Each JSON-UI widget or HTML template node in the canvas is then also reachable standalone at `https://<host>/share/<token>/<udfName>` (query params hydrate canvas params). Re-running reuses the token; `--new-token` rotates it and breaks existing links. **Does not change the access scope**: a freshly pushed canvas stays `team`, so anonymous visitors (and headless `run-shared-widget`) get `"This canvas is not shared publicly."` until the scope is set to public in the Workbench share dialog. |
 | `unshare CANVAS_REF` | `--id` |
@@ -105,8 +112,8 @@ fused workbench canvas pull CANVAS_REF -o ./local_canvas
 ```
 
 Once pulled, the output directory contains:
-- `canvas.toml` — nodes, edges, viewport (see the `workbench:canvas-toml` skill for the full format)
-- `*.py` / `*.json` / `*.md` / `*.html` — one source file per node: Python UDF, JSON-UI widget, text box, HTML template node (see `workbench:html-template-nodes`)
+- `canvas.toml` — nodes, edges, viewport (see the `canvas-toml` skill for the full format)
+- `*.py` / `*.json` / `*.md` / `*.html` — one source file per node: Python UDF, JSON-UI widget, text box, HTML template node (see `html-template-nodes`)
 
 To inspect a single UDF's parameters without pulling the full canvas, use `fused workbench udf-schema CANVAS UDF`.
 
@@ -157,7 +164,7 @@ Providers: `airtable`, `google-drive` (alias `gdrive`), `hubspot`, `notion`, `sn
 
 ## `fused workbench json-ui`
 
-Inspect, validate, and render JSON-UI widget component schemas (the same schemas covered by the `workbench:json-ui-schemas` skill). Use these subcommands as your primary debugging tools when authoring or editing `widget_*.json` files — they're faster than round-tripping through the canvas UI.
+Inspect, validate, and render JSON-UI widget component schemas (the same schemas covered by the `json-ui-schemas` skill). Use these subcommands as your primary debugging tools when authoring or editing `widget_*.json` files — they're faster than round-tripping through the canvas UI.
 
 | Subcommand | Args / notable options |
 | --- | --- |
@@ -171,11 +178,11 @@ Inspect, validate, and render JSON-UI widget component schemas (the same schemas
 
 ## `fused workbench claude`
 
-Manage Fused for Claude Code via the `claude` CLI.
+Manage Fused for Claude Code via the `claude` CLI. These subcommands only target Claude Code; for Codex and GitHub Copilot CLI, install the plugin with that agent's own commands (see **Session start**).
 
-**First-time install (skip entirely if `FUSED_RENDER_FUSED_CLI_DIR` is set — the app installs and registers everything itself; see the note at the top):** `uv tool install 'fused[vector]'` then `fused workbench claude plugin add` — this permanently installs `fused` on PATH so Claude can find it in every future session. After opening a new Claude Code session, verify with `fused workbench whoami`.
+**First-time install (skip entirely if `FUSED_RENDER_FUSED_CLI_DIR` is set — the app installs and registers everything itself; see the note at the top):** `uv tool install 'fused[vector]'` then `fused workbench claude plugin add` (or the Codex/Copilot equivalent from **Session start**) — this permanently installs `fused` on PATH so the agent can find it in every future session. After opening a new session, verify with `fused workbench whoami`.
 
-**If fused is not found in a new session** and `FUSED_RENDER_FUSED_CLI_DIR` is **not** set: run `uv tool install 'fused[vector]'` (no other context needed) then `fused workbench claude plugin add`, and open a new session. If that variable *is* set, do neither — report the problem to the user.
+**If fused is not found in a new session** and `FUSED_RENDER_FUSED_CLI_DIR` is **not** set: run `uv tool install 'fused[vector]'` (no other context needed) then re-register the plugin as in **Session start**, and open a new session. If that variable *is* set, do neither — report the problem to the user.
 
 | Subcommand | Purpose |
 | --- | --- |

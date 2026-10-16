@@ -5,7 +5,7 @@ description: Entry-point router for the Fused skills in this repo. Use when a us
 
 # Fused — start here
 
-This repo is a Claude Code plugin for **Fused** (end-to-end data work on
+This is an agent plugin (Claude Code, Codex, GitHub Copilot CLI) for **Fused** (end-to-end data work on
 cloud-native datasets via the `fused` CLI). The model is **workspace ⊃ project ⊃
 UDF**. This guide routes your goal to the skill that covers it — load that skill
 and follow it. Don't try to do the work from this page; it only points.

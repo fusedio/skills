@@ -1,8 +1,8 @@
 # agent-core
 
-A self-contained [Claude Code](https://claude.com/claude-code) plugin for working with **Fused** — end-to-end data work on cloud-native datasets via the `fused` CLI. It bundles the usage/guide skills that take you from a fresh install to a running, deployed project, with no other repo required.
+A self-contained agent plugin (Claude Code, Codex, GitHub Copilot CLI) for working with **Fused** — end-to-end data work on cloud-native datasets via the `fused` CLI. It bundles the usage/guide skills that take you from a fresh install to a running, deployed project, with no other repo required.
 
-These skills are written to **drive the `fused` CLI** from an agent (Claude Code). They are not consumed by the Fused app/UI.
+These skills are written to **drive the `fused` CLI** from an agent (Claude Code, Codex, or Copilot CLI). They are not consumed by the Fused app/UI.
 
 ## Install
 
@@ -12,7 +12,9 @@ Load the repo as a plugin:
 claude --plugin-dir /path/to/agent-core
 ```
 
-The manifest at [`.claude-plugin/plugin.json`](.claude-plugin/plugin.json) points at the [`skills/`](skills/) directory (`"skills": "./skills"`), so every skill below loads at once. Each skill is also self-contained and usable on its own.
+For Codex and Copilot CLI, install from the marketplace (see the [root README](../README.md#install-the-plugins)). They read the portable [`plugin.json`](plugin.json) at this folder's root.
+
+The Claude manifest at [`.claude-plugin/plugin.json`](.claude-plugin/plugin.json) points at the [`skills/`](skills/) directory (`"skills": "./skills"`), so every skill below loads at once. Each skill is also self-contained and usable on its own.
 
 ## Where to start
 

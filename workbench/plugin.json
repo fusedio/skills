@@ -1,0 +1,33 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "workbench",
+  "version": "1.0.0",
+  "description": "Skills for the legacy Fused workbench SDK CLI (`fused workbench …`): canvas.toml format, JSON UI widget schemas, HTML template nodes (window.fused), UDFs, H3 ingestion (fused.h3), runtime packages, integrations, and the workbench CLI.",
+  "author": {
+    "name": "Fused",
+    "email": "info@fused.io",
+    "url": "https://fused.io"
+  },
+  "homepage": "https://fused.io",
+  "license": "Proprietary",
+  "keywords": [
+    "fused",
+    "workbench",
+    "canvas",
+    "udf",
+    "python",
+    "data",
+    "skills"
+  ],
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "Fused Workbench",
+        "shortDescription": "Canvases, UDFs, and widgets for the Fused workbench SDK",
+        "developerName": "Fused",
+        "category": "Data",
+        "websiteURL": "https://fused.io"
+      }
+    }
+  }
+}

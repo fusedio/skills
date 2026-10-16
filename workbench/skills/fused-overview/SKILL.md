@@ -116,10 +116,10 @@ results = pool.df()
 
 ## See also
 
-- `workbench:fused-cli` — pushing, running, and managing canvases from the CLI
-- `workbench:fused-udfs` — writing UDFs: structure, types, caching, performance
-- `workbench:fused-integrations` — connecting UDFs to Notion, Snowflake, S3, etc.
-- `workbench:canvas-toml` — canvas folder layout and `canvas.toml` format
-- `workbench:json-ui-schemas` — building widget UIs on top of UDFs
-- `workbench:html-template-nodes` — custom HTML pages on the canvas: `window.fused` params/`runPython`, `$param` / `{{udf}}` substitution, edges, sharing
-- `workbench:canvas-comments` — reading and resolving `[[comments]]` threads in `canvas.toml`
+- `fused-workbench-cli` — pushing, running, and managing canvases from the CLI
+- `fused-udfs` — writing UDFs: structure, types, caching, performance
+- `fused-integrations` — connecting UDFs to Notion, Snowflake, S3, etc.
+- `canvas-toml` — canvas folder layout and `canvas.toml` format
+- `json-ui-schemas` — building widget UIs on top of UDFs
+- `html-template-nodes` — custom HTML pages on the canvas: `window.fused` params/`runPython`, `$param` / `{{udf}}` substitution, edges, sharing
+- `canvas-comments` — reading and resolving `[[comments]]` threads in `canvas.toml`

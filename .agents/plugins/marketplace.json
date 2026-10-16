@@ -1,0 +1,32 @@
+{
+  "name": "fused-marketplace",
+  "interface": {
+    "displayName": "Fused"
+  },
+  "plugins": [
+    {
+      "name": "agent-core",
+      "source": {
+        "source": "local",
+        "path": "./agent-core"
+      },
+      "policy": {
+        "installation": "AVAILABLE",
+        "authentication": "ON_INSTALL"
+      },
+      "category": "Data"
+    },
+    {
+      "name": "workbench",
+      "source": {
+        "source": "local",
+        "path": "./workbench"
+      },
+      "policy": {
+        "installation": "AVAILABLE",
+        "authentication": "ON_INSTALL"
+      },
+      "category": "Data"
+    }
+  ]
+}
