@@ -72,7 +72,7 @@ Skill names are unique across both plugins, so the symlinks don't collide. `git 
 | `.agents/plugins/marketplace.json` | Codex |
 | `*/plugin.json` ([Agent Plugins](https://agent-plugins.org) manifest) | Codex and Copilot CLI |
 
-Copilot reads the marketplace from `.claude-plugin/marketplace.json`. **When you change a plugin, bump `version` in its root `plugin.json`.** Codex caches installs by version, so without a bump, users who upgrade keep the old skills. The Claude manifests deliberately have no `version`, so Claude Code keeps tracking the latest commit.
+Copilot reads the marketplace from `.claude-plugin/marketplace.json`. **None of the manifests set a `version` — git is the version.** Claude Code tracks the latest commit; Codex (`codex plugin marketplace upgrade`) and Copilot (`copilot plugin update`) re-fetch the repo and refresh installed skills with no version bump (Codex shows a placeholder `1.0.0`). Don't add `version` fields: once one is set, updates only reach users when it is bumped.
 
 ## Installing the `fused` CLI
 

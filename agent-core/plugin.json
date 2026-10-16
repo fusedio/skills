@@ -1,7 +1,6 @@
 {
   "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
   "name": "agent-core",
-  "version": "1.0.0",
   "description": "Skills for building with Fused: end-to-end project authoring, the fused CLI, execution, verification, and storage.",
   "author": {
     "name": "Fused",
