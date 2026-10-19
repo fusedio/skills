@@ -5,7 +5,7 @@ description: Comprehensive guide for writing Fused User Defined Functions (UDFs)
 
 # Writing Fused UDFs
 
-> **CLI version:** commands below are written `fused workbench …` (fused ≥ 2.9.3). If `fused workbench` fails with `No such command 'workbench'` (fused 2.9.1 and earlier), drop the word `workbench` — e.g. `fused canvas push`. See `fused-workbench-cli`.
+> **CLI version:** commands below are written `fused workbench …` (fused ≥ 2.9.2b0). If `fused workbench` fails with `No such command 'workbench'` (fused 2.9.1 and earlier), drop the word `workbench` — e.g. `fused canvas push`. See `fused-workbench-cli`.
 
 Reference docs.fused.io for the most up-to-date information.
 
