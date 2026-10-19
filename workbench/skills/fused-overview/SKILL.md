@@ -123,3 +123,5 @@ results = pool.df()
 - `json-ui-schemas` — building widget UIs on top of UDFs
 - `html-template-nodes` — custom HTML pages on the canvas: `window.fused` params/`runPython`, `$param` / `{{udf}}` substitution, edges, sharing
 - `canvas-comments` — reading and resolving `[[comments]]` threads in `canvas.toml`
+- `fused-h3` — H3 ingestion and querying with `fused.h3`
+- `fused-runtime` — runtime packages and environment for UDFs
