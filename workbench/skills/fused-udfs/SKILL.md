@@ -5,6 +5,8 @@ description: Comprehensive guide for writing Fused User Defined Functions (UDFs)
 
 # Writing Fused UDFs
 
+> **CLI version:** commands below are written `fused workbench …` (only the 2.9.2b0+ pre-releases have this namespace; released versions such as 2.9.1 and 2.9.3 don't). If `fused workbench` fails with `No such command 'workbench'`, drop the word `workbench` — e.g. `fused canvas push`. See `fused-workbench-cli`.
+
 Reference docs.fused.io for the most up-to-date information.
 
 **📖 References:** [UDF Writing Guide](https://docs.fused.io/guide/working-with-udfs/writing-udfs/) | [UDF Best Practices](https://docs.fused.io/user-guide/best-practices/udf-best-practices/) | [Getting Started](https://docs.fused.io/guide/getting-started/first-udf-basics/)

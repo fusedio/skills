@@ -5,6 +5,8 @@ description: Authoring reference for Fused canvas HTML template nodes — the `.
 
 # Fused canvas HTML template nodes
 
+> **CLI version:** commands below are written `fused workbench …` (only the 2.9.2b0+ pre-releases have this namespace; released versions such as 2.9.1 and 2.9.3 don't). If `fused workbench` fails with `No such command 'workbench'`, drop the word `workbench` — e.g. `fused canvas push`. See `fused-workbench-cli`.
+
 An HTML template node is a canvas node whose source is a plain `.html` file. The workbench renders it client-side in a sandboxed iframe, injects a `window.fused` bridge, and substitutes `$param` / `{{udf}}` placeholders in the markup. It never executes on the backend: all data comes from the Python UDFs it is wired to.
 
 Read this whole file before writing an HTML node. The runtime contract below is copied from the client source (`core/fused-bridge-script.ts`, `hooks/use-fused-bridge.ts`, `json-ui/inline-substitution.ts`); when the workbench UI and this file disagree, the UI wins — report the drift.

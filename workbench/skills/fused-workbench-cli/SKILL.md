@@ -9,6 +9,10 @@ description: Reference for the legacy Fused Python SDK command line interface, n
 
 > **The app may already provide `fused` — check before installing.** If the environment variable `FUSED_RENDER_FUSED_CLI_DIR` is set, `fused` is supplied by the fused-render app as a **pre-release** build, and the app prepends that wrapper directory to `PATH` for every child process. In that case: do **not** install fused, do **not** run `uv tool install`, and do **not** run (or ask the user to run) a plugin install such as `fused workbench claude plugin add` — the app registers the plugin itself. If `fused` looks broken there, report the problem to the user instead of installing over it: an install cannot take effect anyway, because the app's wrapper directory always wins on `PATH`.
 
+## Which command form? (check first)
+
+The `workbench` namespace only exists in the 2.9.2b0+ pre-releases. Released versions (2.9.1, 2.9.3, and so on) don't have it and use the same commands **without** `workbench`: `fused canvas push`, `fused run`, `fused claude plugin add`, and so on. Everything below is written with `fused workbench …`; run `fused workbench --help` once, and if it fails with `No such command 'workbench'`, drop the word `workbench` from every command in this and the other workbench skills. That is the expected result on a released version, not a broken install: don't reinstall or upgrade fused to get the namespace. Note that `codex` / `copilot` plugin subcommands may be missing too; if so, use the agent's own CLI as described under **Session start**.
+
 ## Session start
 
 **Before any task that requires the CLI or authentication, run `fused workbench whoami`** to confirm the CLI is available and authenticated. If the command is not found — and `FUSED_RENDER_FUSED_CLI_DIR` is **not** set (see the note above; if it is set, stop and report to the user instead):
