@@ -5,6 +5,8 @@ description: Reference for using Fused's built-in integration connections inside
 
 # Fused Integrations
 
+> **CLI version:** commands below are written `fused workbench …` (fused ≥ 2.9.3). If `fused workbench` fails with `No such command 'workbench'` (fused 2.9.1 and earlier), drop the word `workbench` — e.g. `fused canvas push`. See `fused-workbench-cli`.
+
 Once an integration is configured (via the Workbench → Integrations UI or `fused workbench integrations <provider> connect`), use the helpers below inside any UDF. You do **not** need to manage credentials manually — connections and secrets are resolved by the runtime.
 
 Available integrations: `snowflake`, `bigquery`, `gcs`, `s3`, `airtable`, `notion`, `gdrive`, `modal`, `huggingface`, `baseten`, `daytona`, `comfy`, `anthropic`, `openai`, `slack` (experimental).

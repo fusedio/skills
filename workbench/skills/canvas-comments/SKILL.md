@@ -5,6 +5,8 @@ description: Use when a Fused canvas.toml contains (or needs) a [[comments]] blo
 
 # Fused canvas comments ([[comments]] in canvas.toml)
 
+> **CLI version:** commands below are written `fused workbench …` (fused ≥ 2.9.3). If `fused workbench` fails with `No such command 'workbench'` (fused 2.9.1 and earlier), drop the word `workbench` — e.g. `fused canvas push`. See `fused-workbench-cli`.
+
 Pinned comment threads on a Fused canvas serialize as top-level `[[comments]]` blocks in `canvas.toml`. Comments with `status = "open"` are your work queue; resolving one is a three-field contract plus a reply, so the Workbench UI correctly attributes the work to AI.
 
 ## Read: find the work

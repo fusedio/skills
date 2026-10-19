@@ -5,6 +5,8 @@ description: JSON schemas for Fused canvas UI widget components (text, text-inpu
 
 # Fused JSON UI widget schemas
 
+> **CLI version:** commands below are written `fused workbench …` (fused ≥ 2.9.3). If `fused workbench` fails with `No such command 'workbench'` (fused 2.9.1 and earlier), drop the word `workbench` — e.g. `fused canvas push`. See `fused-workbench-cli`.
+
 Reference for every supported widget `type` and its prop schema.
 
 The full JSON Schema for each component (with descriptions, defaults, required fields, and enum values) is available from the fused CLI. See the `fused-workbench-cli` skill for how to read it. Read it before authoring or modifying widget JSON.

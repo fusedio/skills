@@ -5,6 +5,8 @@ description: Format reference for `canvas.toml` files that define a Fused canvas
 
 # Fused canvas folder + `canvas.toml`
 
+> **CLI version:** commands below are written `fused workbench …` (fused ≥ 2.9.3). If `fused workbench` fails with `No such command 'workbench'` (fused 2.9.1 and earlier), drop the word `workbench` — e.g. `fused canvas push`. See `fused-workbench-cli`.
+
 A Fused canvas stored in git is a folder containing one `canvas.toml` plus per-UDF source files. Push to the connected repo and Fused picks up the changes automatically.
 
 ## Folder layout
