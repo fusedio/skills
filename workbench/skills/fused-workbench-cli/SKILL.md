@@ -11,7 +11,7 @@ description: Reference for the legacy Fused Python SDK command line interface, n
 
 ## Which command form? (check first)
 
-The `workbench` namespace only exists in fused ≥ 2.9.2b0 (pre-releases only). Released fused 2.9.1 and earlier use the same commands **without** `workbench`: `fused canvas push`, `fused run`, `fused claude plugin add`, and so on. Everything below is written with `fused workbench …`; run `fused workbench --help` once, and if it fails with `No such command 'workbench'`, drop the word `workbench` from every command in this and the other workbench skills. Don't upgrade fused just to get the namespace. Note that `codex` / `copilot` plugin subcommands also only exist in the newer builds; on 2.9.1 use the agent's own CLI as described under **Session start**.
+The `workbench` namespace only exists in the 2.9.2b0+ pre-releases. Released versions (2.9.1, 2.9.3, and so on) don't have it and use the same commands **without** `workbench`: `fused canvas push`, `fused run`, `fused claude plugin add`, and so on. Everything below is written with `fused workbench …`; run `fused workbench --help` once, and if it fails with `No such command 'workbench'`, drop the word `workbench` from every command in this and the other workbench skills. That is the expected result on a released version, not a broken install: don't reinstall or upgrade fused to get the namespace. Note that `codex` / `copilot` plugin subcommands may be missing too; if so, use the agent's own CLI as described under **Session start**.
 
 ## Session start
 
