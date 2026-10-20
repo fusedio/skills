@@ -105,7 +105,7 @@ zoom = 0.6
 
 | Field | Type | Required | Notes |
 |---|---|---|---|
-| `udfName` | string | yes | Must match a source file stem |
+| `udfName` | string | yes | Must match a source file stem (folder nodes: any unique id, no file) |
 | `x`, `y` | float | yes | Canvas coordinates |
 | `zIndex` | integer | yes | Layer order |
 | `width`, `height` | integer | yes | Pixel dimensions |
@@ -120,11 +120,12 @@ zoom = 0.6
 
 ## Folder nodes (`type = "udf-folder"`)
 
-Visual grouping only — child UDFs still live as flat files in the canvas folder.
+Visual grouping only — children still live as flat files in the canvas folder and keep their own `[[canvas.nodes]]` entries. Any node kind can be a child (`.py`, `.json`, `.md`, `.html`, another folder).
 
 ```toml
 [[canvas.nodes]]
 type = "udf-folder"
+udfName = "Section_1"        # folder id — no source file; spaces allowed
 folderName = "Section_1"
 folderColor = "#9370DB40"
 childUdfOrder = ["udf_0", "udf_1"]
@@ -134,14 +135,25 @@ y = 0
 zIndex = 0
 width = 1555    # 40 + 700 + 75 + 700 + 40 — two 700px children in one row
 height = 615    # 75 + 500 + 40 (see "Folder geometry")
+
+[[canvas.nodes]]
+udfName = "udf_0"
+x = 40          # child x/y are folder-relative (and recomputed on load anyway)
+y = 75
+zIndex = 1
+width = 700
+height = 500
 ```
 
 | Field | Notes |
 |---|---|
+| `udfName` | Folder id. Use the same string as `folderName`. Nested folders: list the inner folder's `udfName` in the parent's `childUdfOrder` |
 | `folderName` | Display name |
 | `folderColor` | Optional hex+alpha color |
-| `childUdfOrder` | Ordered `udfName` list for UDFs in this folder |
+| `childUdfOrder` | Ordered `udfName` list of children. A node absent from every `childUdfOrder` is top-level |
 | `isLocked` | Locks child editing; default `false` |
+
+`validate` accepts folder nodes without a source file but **does not check `childUdfOrder`** — a misspelled child passes validation. Diff the list against every node's `udfName` yourself (folder ids have no file stem).
 
 ### Folder geometry — the workbench re-packs folders on load
 
