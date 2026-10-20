@@ -1,0 +1,11 @@
+<!doctype html>
+<html>
+  <body style="font-family: sans-serif; padding: 16px">
+    <h2>Report</h2>
+    <p>Region: <b id="region">?</b></p>
+    <pre id="out">{{city_stats}}</pre>
+    <script>
+      document.getElementById("region").textContent = fused.params.get("region") ?? "EU";
+    </script>
+  </body>
+</html>

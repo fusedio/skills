@@ -1,0 +1,4 @@
+{
+  "type": "fused-map",
+  "props": { "layers": [{ "id": "cities", "udf": "city_stats", "type": "auto" }] }
+}

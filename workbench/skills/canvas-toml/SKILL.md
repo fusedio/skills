@@ -43,10 +43,12 @@ edges = [
   ["udf_0", "udf_1"],      # udf_1 depends on udf_0's output
 ]
 
-# One row, 75px gaps: x = previous x + previous width + 75 (see "Layout rules").
+# One row, 75px gaps: x = previous x + previous width + 75. Let
+# scripts/canvas_layout.py fix compute these numbers (see "Layout rules").
 [[canvas.nodes]]
 udfName = "controls"
 description = "Input controls"
+nodeDescriptionScaleFactor = 1.5
 title = "Controls"
 visible = true
 x = 0
@@ -58,6 +60,7 @@ height = 700
 [[canvas.nodes]]
 udfName = "udf_0"
 description = "My first UDF"
+nodeDescriptionScaleFactor = 1.5
 title = "udf_0"
 visible = true
 x = 555       # 0 + 480 + 75
@@ -69,6 +72,7 @@ height = 500
 [[canvas.nodes]]
 udfName = "udf_1"
 description = "My second UDF"
+nodeDescriptionScaleFactor = 1.5
 title = "udf_1"
 visible = true
 x = 1330      # 555 + 700 + 75
@@ -77,10 +81,7 @@ zIndex = 3
 width = 700
 height = 500
 
-[canvas.viewport]
-x = 60
-y = 60
-zoom = 0.6
+# No [canvas.viewport]: the workbench fits all nodes into view on load (see "Viewport").
 ```
 
 ## Top-level fields
@@ -98,8 +99,8 @@ zoom = 0.6
 |---|---|---|
 | `edges` | array of `[source, target]` pairs | Each pair references `udfName` values |
 | `nodes` | array of node tables | See node fields below |
-| `viewport` | table | Optional — `x`, `y`, `zoom` |
-| `viewportBounds` | table | Optional — `minX`, `minY`, `maxX`, `maxY`; omit when authoring, the workbench derives it |
+| `viewport` | table | Optional — `x`, `y`, `zoom`. Written by the workbench; **ignored on load** (the editor fit-views all nodes). Omit |
+| `viewportBounds` | table | Optional — `minX`, `minY`, `maxX`, `maxY` in canvas px. Frames the *share view* on open; omit unless you want a specific framing |
 
 ## `[[canvas.nodes]]`
 
@@ -107,9 +108,10 @@ zoom = 0.6
 |---|---|---|---|
 | `udfName` | string | yes | Must match a source file stem (folder nodes: any unique id, no file) |
 | `x`, `y` | float | yes | Canvas coordinates |
-| `zIndex` | integer | yes | Layer order |
-| `width`, `height` | integer | yes | Pixel dimensions |
-| `description` | string | no | Defaults to `"UDF: <name> (auto)"` |
+| `zIndex` | integer | no | Layer order. Missing ⇒ node index + 1. The workbench gives the first node of a new canvas `100`, then `max + 1`. Folders are usually `0` |
+| `width`, `height` | integer | yes | Size of the node **body** in canvas px. The description panel is drawn *below* the body and is not part of `height` (see "Description panel") |
+| `description` | string | no | Markdown shown in a panel under the node. Default is empty. (Strings like `"UDF: <name> (auto)"` are synthetic placeholders and are stripped on export — never write them) |
+| `nodeDescriptionScaleFactor` | number | no | Font scale of the description panel. The workbench writes `1.5` on every new node; write it too so the panel height matches |
 | `title` | string | no | Defaults to `udfName` |
 | `visible` | boolean | no | Output panel visibility; default `true`. **Must be `true` for any UDF referenced via `{{udf_name}}` in a JSON-UI `sql-runner` or via a bare `{{udf_name}}` in an HTML template node.** Hidden nodes do not auto-execute on canvas load, so they have no cached result for widgets to read (an HTML node shows `Loading...` forever). `{{udf?k=v}}` overrides and `fused.runPython` run on demand and do not need this. |
 | `type` | string | no | Omit for standard UDF, JSON-UI, text and HTML template nodes (kind comes from the file extension); `"udf-folder"` for folder nodes |
@@ -117,10 +119,13 @@ zoom = 0.6
 | `textBoxGradient` | boolean | no | Textbox gradient toggle |
 | `textBoxScaleFactor` | number | no | Textbox content scale |
 | `textBoxAlignment` | string | no | Textbox content alignment |
+| `widgetBackgroundColor` | string | no | Background color for JSON-UI widget nodes |
+
+Not stored in `canvas.toml` (the TOML path drops them, so never write them): `isCollapsed`, `folderPadding`, `folderGap` (the folder spacing presets). After a push/pull every folder packs with the default `40` padding / `75` gap.
 
 ## Folder nodes (`type = "udf-folder"`)
 
-Visual grouping only — children still live as flat files in the canvas folder and keep their own `[[canvas.nodes]]` entries. Any node kind can be a child (`.py`, `.json`, `.md`, `.html`, another folder).
+Visual grouping only — children still live as flat files in the canvas folder and keep their own `[[canvas.nodes]]` entries. Any file-backed node can be a child (`.py`, `.json`, `.md`, `.html`). **Folders cannot be nested through `canvas.toml`**: a folder listed in another folder's `childUdfOrder` is ignored by the workbench and rendered top-level at its own `x`/`y` (usually on top of something). Use sibling folders instead.
 
 ```toml
 [[canvas.nodes]]
@@ -147,10 +152,10 @@ height = 500
 
 | Field | Notes |
 |---|---|
-| `udfName` | Folder id. Use the same string as `folderName`. Nested folders: list the inner folder's `udfName` in the parent's `childUdfOrder` |
+| `udfName` | Folder id. Use the same string as `folderName` |
 | `folderName` | Display name |
 | `folderColor` | Optional hex+alpha color |
-| `childUdfOrder` | Ordered `udfName` list of children. A node absent from every `childUdfOrder` is top-level |
+| `childUdfOrder` | Ordered `udfName` list of children (file-backed nodes only — never another folder). A node absent from every `childUdfOrder` is top-level |
 | `isLocked` | Locks child editing; default `false` |
 
 `validate` accepts folder nodes without a source file but **does not check `childUdfOrder`** — a misspelled child passes validation. Diff the list against every node's `udfName` yourself (folder ids have no file stem).
@@ -161,14 +166,18 @@ height = 500
 
 - Children: still write `x`/`y` (they are required fields) but don't spend effort on them — only `childUdfOrder`, each child's `width`/`height`, and the folder `width` affect the result.
 - The folder's on-screen size is **computed**, so a folder you size too small will grow over whatever sits next to or below it. Compute its real size with the formula below and reserve that space in the top-level layout.
-- A child's `width`/`height` must be its full node size (including any description text) or the packing is off.
+- A child with a `description` is **taller than its `height`**: the workbench measures the description panel and adds it when packing (see "Description panel"). One line ≈ 44 px, two lines ≈ 75 px. So a folder of described nodes is taller than the bare formula says.
 
-Packing rules (canvas px): side padding `40`, gap between children `75`, top inset `75`, bottom inset `40`. Children fill a row left-to-right and wrap when the next child would cross `width - 40`.
+**Do not do this arithmetic by hand — run `scripts/canvas_layout.py` (see "Deterministic layout tools").** The rules, for reading the output:
+
+Packing rules (canvas px): side padding `40`, gap between children `75`, top inset `75`, bottom inset `40`. Children fill a row left-to-right in `childUdfOrder` and wrap when the next child would cross `width - 40` (the first child of a row never wraps, even if it is wider than the folder).
 
 ```
-usable width = width - 80
+child height  = height + description panel height (0 when no description)
+usable width  = width - 80
 row fits N children of width W when  40 + N*W + (N-1)*75 + 40 <= width
-folder width  = max(width, widest child + 80)
+row height    = tallest child height in that row
+folder width  = max(round(width), widest child + 80, 200)
 folder height = 75 + Σ(row heights) + 75*(rows - 1) + 40
 ```
 
@@ -182,7 +191,9 @@ Worked example — four 700×500 UDFs:
 | 2330 | 3 | 2 | **1190** (second row holds one) |
 | 3105 | 4 | 1 | 75 + 500 + 40 = **615** |
 
-Pick the folder `width` to get the row count you want, write the computed `height`, and place the next top-level row at `folder.y + computed height + 75`. Nested folders are allowed; treat an inner folder as a child whose size is its own computed size.
+Pick the folder `width` to get the row count you want, write the computed `height`, and place the next top-level row at `folder.y + computed height + 75`. No nesting: every folder is a top-level item of the row layout.
+
+A complete, script-checked canvas with sibling folders, descriptions, a note, widgets and an HTML node is in `examples/folders/` next to this file. Copy its shape; regenerate its numbers with `canvas_layout.py fix`.
 
 ## Canvas architecture patterns
 
@@ -305,44 +316,76 @@ The workbench UI infers edges from `{{udf}}` placeholders and literal `fused.run
 
 ## Layout rules
 
-Nothing in the CLI or server lays nodes out — the coordinates you write are exactly what the user sees. Overlapping nodes are the most common defect in generated canvases, so lay the canvas out deliberately: **rows, a fixed gap, and arithmetic, never eyeballed numbers.**
+Nothing in the CLI or server lays nodes out — the coordinates you write are exactly what the user sees (folders are the one exception: the workbench re-packs their children on load). Overlapping nodes are the most common defect in generated canvases, and the workbench highlights overlapping nodes, so an overlap is a visible bug. Lay the canvas out with **rows, a fixed gap, and the script below — never eyeballed numbers.**
+
+### Deterministic layout tools — `scripts/canvas_layout.py`
+
+The script next to this skill is a port of the workbench's own layout code (`folder-layout.ts`, `auto-arrange.ts`, `node-placement.ts`), checked against canvases the workbench saved. Use it instead of computing sizes and positions yourself. Needs Python 3.11+ (`python3.12 …` or `uv run --python 3.12 …` if `python3` is older); no extra packages.
+
+```sh
+SCRIPT=<this skill folder>/scripts/canvas_layout.py
+
+python3 $SCRIPT check ./my_canvas          # overlaps, folder sizes the workbench will change (exit 1 on errors)
+python3 $SCRIPT fix ./my_canvas            # re-pack folders + snap rows/columns to 75px gaps, then re-check
+python3 $SCRIPT fix ./my_canvas --arrange  # ...or re-flow the top level like the workbench's auto-arrange
+python3 $SCRIPT folder-size --width 1555 --children 700x500,700x500x1,700x500   # WxH or WxHxDESCLINES
+python3 $SCRIPT place ./my_canvas --near load_data --direction right --size 700x500
+python3 $SCRIPT place ./my_canvas --center 1200,800 --size 350x250
+```
+
+Workflow when authoring or editing a canvas:
+
+1. Write every node with its real `width`/`height`. Give top-level nodes a **row intent** only: nodes you want on the same row get the same `y`, rows get increasing `y`, columns increasing `x` (rough numbers are fine). Folder children: any `x`/`y`, e.g. `0`.
+2. Run `fix`. It rewrites `canvas.toml` in place: folders get their packed `width`/`height` and child positions, top-level rows get `y = previous row bottom + 75` and columns `x = previous right + 75`, where "bottom" includes folder packing and description panels. Comments in the file are not kept — keep notes in `.md` nodes, not TOML comments.
+3. Run `check` (also run by `fix`). Ship only when it prints `ok`. `fused workbench canvas validate` does **not** check layout.
+4. Adding one node to an existing canvas: `place --near <node>` gives the slot the workbench itself would use (right, then below, above, left); `place --center x,y` spirals out from a point the way the toolbar "add node" does. Then `check`.
+
+`check` output levels: `error` = the workbench will show something different from your file (overlap, folder size); `warn` = probable visual problem (description panel runs into a neighbour, negative coordinates); `info` = harmless (child x/y differ from the packed position).
 
 ### Node sizes
 
-`width`/`height` are canvas pixels. Use these defaults unless the content needs otherwise:
+`width`/`height` are canvas px for the node **body**. The workbench creates nodes at these sizes; use them unless the content needs otherwise:
 
-| Node type | Width | Height |
+| Node type | Workbench default | Notes |
 |---|---|---|
-| Python UDF | 700 | 500 |
-| JSON-UI inputs / controls panel | 480 | 700 |
-| Text box (`.md`) | 350 | 250 |
-| HTML template node | content width (800 for a dashboard) | content height (600 for a dashboard) — the iframe fills the node exactly, so the page must fit or scroll internally |
-| Folder | computed — see "Folder geometry" | computed — see "Folder geometry" |
+| Python UDF (`.py`) | 700 × 500 | |
+| JSON-UI widget (`.json`) | 700 × 500 | A narrow controls column (e.g. 480 × 500) is a fine choice, but it is a choice, not a default |
+| HTML template node (`.html`) | 700 × 500 | The iframe fills the node exactly; size to the page (800 × 600 for a dashboard) or make the page scroll |
+| Text box (`.md`) | 350 × 250 | No description panel |
+| Folder | computed | See "Folder geometry" |
 
-### Placement algorithm
+### Description panel
 
-1. **Gap is 75px** everywhere (between columns, between rows, around folders). This matches the workbench's own spacing; 30–50px looks cramped and the node chrome collides.
-2. **Start at the origin.** First node at `x = 0, y = 0`; no negative or huge coordinates.
-3. **Lay out in rows, left to right, in data-flow order** (controls → loaders → analysis → display) so edges run left-to-right. Each node's `x = previous x + previous width + 75`.
-4. **Wrap after ~3 nodes or ~2500px of row width.** Next row starts at `x = 0`, `y = previous row y + tallest node in that row + 75`. A row's height is its tallest node, not the node above.
-5. **Text boxes are nodes too** — give them a slot in the row (typically first, as a title/intro) or their own row above. Never drop a note on top of a UDF.
-6. **Folders occupy their computed size**, not the size you'd like. Compute it (Folder geometry), place the folder as one item in the row, and advance `x`/`y` by that computed size.
-7. **Check before finishing:** for every pair of top-level nodes, the rectangles `[x, x+width] × [y, y+height]` must not intersect, and no top-level node may fall inside a folder's computed rectangle. Fix any intersection by moving the node to the next row — do not shrink nodes to fit.
-
-Worked example — controls + two UDFs + a folder of four UDFs + a note:
+A node's `description` renders in a panel **below** the body, outside `height`, 4 px under the node, full node width, text at `14 × nodeDescriptionScaleFactor` px (21 px at the default 1.5) with line-height 1.5:
 
 ```
-row 0 (y = 0):   note 350×250 @ (0,0)   controls 480×700 @ (425,0)   udf_a 700×500 @ (980,0)   udf_b 700×500 @ (1755,0)
-                 row height = 700  →  next row y = 775
-row 1 (y = 775): folder width 1555, 2 per row, 2 rows → computed height 1190  @ (0,775)
-                 next row y = 775 + 1190 + 75 = 2040
+panel height ≈ 12 + lines × 31.5      → 1 line ≈ 44 px, 2 lines ≈ 75 px, 3 lines ≈ 107 px
+lines ≈ ceil(characters / (width / 11.5))  per paragraph, at scale 1.5   (700 px wide ≈ 60 characters per line)
 ```
+
+The workbench measures the real panel and adds it to the child height when packing folders, so folders grow with descriptions. For top-level rows nothing adds it for you: the row height must be `max(height + panel)` of the row, otherwise a two-line description runs into the row below (the 75 px gap hides a one-line panel, not more). The script does both. Keep descriptions to one line where you can; put longer text in a `.md` node.
+
+### Placement algorithm (what the script does, for reading its output)
+
+1. **Gap is 75 px** everywhere: between columns, between rows, inside folders. This is the workbench's own spacing constant.
+2. **Start at the origin.** First node at `x = 0, y = 0`; no negative coordinates.
+3. **Rows, left to right, in data-flow order** (controls → loaders → analysis → display) so edges run left-to-right. `x = previous x + previous width + 75`.
+4. **Row height = tallest item in the row** (body + description panel, or a folder's computed size). Next row `y = row y + row height + 75`.
+5. **Wrap** when a row gets wider than about 3 UDF nodes (the workbench's auto-arrange wraps at `average node width × 3.5`; `fix --arrange` uses exactly that rule).
+6. **Text boxes are nodes too** — give them a slot (typically first, as a title/intro).
+7. **Folders occupy their computed size**, not the size you wrote; the script writes the computed size back.
+8. **No two top-level rectangles may intersect** (touching edges are fine), and no top-level node may fall inside a folder's rectangle.
+
+How the workbench itself places nodes (so hand-made layouts feel native):
+
+- *New node from the toolbar*: centred in the current view, then spiralling out (right, below, left, above, diagonals) in steps of node size + 75 until a free slot.
+- *Duplicate / "connect to create"*: right of the source (+75), else below, above, left, then the corners.
+- *Auto-arrange (toolbar)*: rows from the selection's top-left, wrap at `average width × 3.5`, row height = tallest, UDF-list order, sticky notes last; folder children are skipped (the folder re-packs itself).
+- *Drop into a folder*: the node is appended to `childUdfOrder` and the folder re-packs.
 
 ### Viewport
 
-The viewport is a pan/zoom transform, not a point: on screen, `screen = canvas * zoom + (x, y)`. With a layout that starts at the origin:
+The workbench editor **ignores `[canvas.viewport]`**: on load it always fits all nodes into view. The share view (`/canvas/<token>`) uses `[canvas.viewportBounds]` (`minX`, `minY`, `maxX`, `maxY`, canvas px) when present, else fits all nodes. So:
 
-- `zoom = min(1, 1300 / total layout width)` — fits the whole canvas into a typical window; clamp to no less than `0.3`.
-- `x = 60`, `y = 60` — a small margin so the first node isn't flush with the edge.
-
-Omit `[canvas.viewportBounds]`; the workbench derives it.
+- Omit both tables for a new canvas; the workbench writes them when a user pans.
+- To control how a *shared* canvas opens, set `viewportBounds` to the rectangle you want framed (for example the bounding box of the first row). Never hand-write `viewport` zoom math.
