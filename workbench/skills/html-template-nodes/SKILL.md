@@ -43,7 +43,7 @@ height = 500
 [[canvas.nodes]]
 udfName = "dashboard"
 title = "Dashboard"
-x = 750
+x = 775                         # 0 + 700 + 75 (see canvas-toml "Layout rules")
 y = 0
 zIndex = 2
 width = 900

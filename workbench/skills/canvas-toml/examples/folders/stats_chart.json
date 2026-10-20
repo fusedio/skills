@@ -1,0 +1,4 @@
+{
+  "type": "bar-chart",
+  "props": { "sql": "SELECT city, population FROM {{city_stats}}", "xAxisField": "city", "yAxisField": "population" }
+}
