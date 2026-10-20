@@ -153,7 +153,7 @@ height = 500
 | `childUdfOrder` | Ordered `udfName` list of children. A node absent from every `childUdfOrder` is top-level |
 | `isLocked` | Locks child editing; default `false` |
 
-`validate` accepts folder nodes without a source file but **does not check `childUdfOrder`** — a misspelled child passes validation. Diff the list against your file stems yourself.
+`validate` accepts folder nodes without a source file but **does not check `childUdfOrder`** — a misspelled child passes validation. Diff the list against every node's `udfName` yourself (folder ids have no file stem).
 
 ### Folder geometry — the workbench re-packs folders on load
 
