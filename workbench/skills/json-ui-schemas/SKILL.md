@@ -115,6 +115,7 @@ A `sql-runner` names one SQL result for its children. Its SQL can read several U
 ```
 
 - `sql-runner` exposes its SQL result as `{{name}}` to all descendants.
+- It caps rows at `maxRows`, 10,000 by default: set it when the UDF returns more (see Known gotchas).
 - `fused workbench canvas validate` wrongly flags `{{name}}` as an unknown node.
   `[validate] skip = ["widget_refs"]` in `canvas.toml` works around it, but turns off the whole check: review other `{{name}}` refs by hand.
 - Descendants reference `{{data}}` (or whatever `name` you set), **not** `{{my_udf}}`.

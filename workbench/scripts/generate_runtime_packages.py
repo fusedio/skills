@@ -23,7 +23,7 @@ def normalize(name):
 
 def live_realtime():
     result = subprocess.run(
-        ["fused", "workbench", "run", "", "--stdin"],
+        ["fused", "workbench", "--format", "json", "run", "", "--stdin"],
         input=DUMP_UDF,
         capture_output=True,
         text=True,
@@ -31,8 +31,7 @@ def live_realtime():
     if result.returncode != 0:
         print(result.stderr, file=sys.stderr)
         sys.exit(1)
-    line = next(l for l in result.stdout.splitlines() if l.startswith('"'))
-    dists = json.loads(json.loads(line))
+    dists = json.loads(json.loads(result.stdout))
     return {normalize(k): v for k, v in dists.items() if normalize(k) not in EXCLUDE}
 
 

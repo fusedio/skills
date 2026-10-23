@@ -9,7 +9,9 @@ description: Use when a Fused canvas.toml contains (or needs) a [[canvas.comment
 
 Pinned comment threads on a Fused canvas serialize as `[[canvas.comments]]` blocks in `canvas.toml`.
 Top-level `[[comments]]` blocks are silently dropped by `canvas push`.
-If `[canvas]` has `comments = []`, delete that line first: both in one file fail to parse ("duplicate key"). Comments with `status = "open"` are your work queue; resolving one is a three-field contract plus a reply, so the Workbench UI correctly attributes the work to AI.
+If `[canvas]` has `comments = []`, delete that line first: both in one file fail to parse ("duplicate key").
+
+Comments with `status = "open"` are your work queue; resolving one is a three-field contract plus a reply, so the Workbench UI correctly attributes the work to AI.
 
 ## Read: find the work
 
