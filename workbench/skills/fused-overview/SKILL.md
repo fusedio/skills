@@ -108,7 +108,6 @@ results = pool.df()
 ## Constraints to know upfront
 
 - **120s execution timeout** on the default serverless runtime — use a dedicated `engine` to remove this limit
-- **All imports must be inside the UDF function body** — module-level imports are not executed
 - **No persistent in-memory state** between calls — use external storage (Fused files, S3, Notion, etc.) for state
 - **Canvas names: `[a-zA-Z0-9_]` only** — no hyphens; `my_project` not `my-project`
 
