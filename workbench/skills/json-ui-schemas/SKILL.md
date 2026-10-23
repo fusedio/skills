@@ -87,9 +87,10 @@ Input widgets set canvas params (edge: widget → UDF). Output widgets show a UD
 - **`iframe` widget**: embeds a URL or an HTML-returning UDF (`src: "{{my_udf}}"`); no scripting against the canvas. Use it to show a UDF-generated page (folium, plotly `to_html`, …) or an external site.
 - Edges apply to all three: the source UDF needs an edge into the widget's node.
 
-## Sharing one UDF result across widgets: `sql-runner`
+## `sql-runner`: one named SQL result for child widgets
 
-A single widget can query `{{udf_name}}` directly. When several widgets read the same UDF, wrap them in a `sql-runner` so the UDF result is fetched once.
+Widgets can query `{{udf_name}}` directly. A UDF runs once per page, however many widgets read it.
+A `sql-runner` names one SQL result for its children. Its SQL can read several UDFs, and runners can nest.
 
 **Correct pattern:**
 
@@ -113,7 +114,7 @@ A single widget can query `{{udf_name}}` directly. When several widgets read the
 }
 ```
 
-- `sql-runner` fetches the UDF output once and exposes it as `{{name}}` to all descendants.
+- `sql-runner` exposes its SQL result as `{{name}}` to all descendants.
 - `fused workbench canvas validate` wrongly flags `{{name}}` as an unknown node.
   `[validate] skip = ["widget_refs"]` in `canvas.toml` works around it, but turns off the whole check: review other `{{name}}` refs by hand.
 - Descendants reference `{{data}}` (or whatever `name` you set), **not** `{{my_udf}}`.
