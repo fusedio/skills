@@ -286,7 +286,8 @@ fused workbench canvas push ./my_canvas --canvas "my_demo_canvas"
 **Critical: `fused.load()` does NOT create canvas edges.** When a UDF calls `fused.load("other_udf")` internally, that is a Python-level import — it has nothing to do with canvas edges. You still must add an explicit edge in `canvas.toml` for both data-flow visualization and parameter propagation. Do not write `edges = []` just because UDFs chain via `fused.load()`.
 
 **When to add an edge from A → B:**
-- Node B reads a canvas parameter (`lat`, `zoom`, any shared param) that is set by node A (e.g. a widget node)
+- **Input widget → consumer:** A is a widget that only sets params (slider, dropdown, form) and B is the UDF or widget that reads them.
+- **UDF → output widget:** A is a UDF and B is a widget that shows its result through `{{a}}` (map, chart, table, iframe). A widget whose inputs feed its own `{{a?arg=$param}}` is an output widget, so this one edge is enough.
 - Node B calls `fused.load("a")` internally — add `["a", "b"]` to show the dependency visually
 - Node B's output logically depends on node A's output
 
@@ -301,12 +302,10 @@ edges = [
 ```
 
 **Practical checklist before finalizing `canvas.toml`:**
-1. For every widget/controls node: does it have an edge to each UDF it drives? If not, canvas params won't propagate.
+1. For every input widget: does it have an edge to each UDF it drives? If not, canvas params won't propagate.
 2. For every `fused.load("x")` call in UDF `b`: is `["x", "b"]` in `edges`? If not, the dependency is invisible to users.
 3. Is `edges` still `[]` with more than one node? If yes, verify every node is truly independent — this is almost certainly wrong.
 4. For every HTML template node: does every `{{name}}` / `fused.runPython("name")` in the `.html` have an edge `["name", "<html_node>"]`, and every `fused.params.set("p", …)` an edge to each UDF that takes `p`? `fused workbench canvas validate` does not check `.html` files — grep them yourself.
-
-For JSON-UI widget nodes that reference a UDF via `{{udf_name}}` SQL (typically via `sql-runner`), also add an edge from that UDF node to the widget node: `edges = [["my_udf", "my_widget"]]`. Without the edge, the UDF data is not reachable at runtime.
 
 **HTML template nodes follow the same rule, in both directions.** An HTML node can only see params from, inline `{{udf}}` output of, and `fused.runPython()` against UDF nodes that have an edge into it (bidirectional edges count both ways). Add:
 - `["my_udf", "my_page"]` for every UDF the page references with `{{my_udf}}` or `fused.runPython("my_udf", ...)`. Missing edge ⇒ `runPython` rejects with `not_allowed`, `fused.params.get` is `undefined`, `{{my_udf}}` renders empty.

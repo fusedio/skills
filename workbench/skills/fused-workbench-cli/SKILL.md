@@ -66,8 +66,10 @@ On Windows the same rules apply, with a few differences:
 | Command        | Purpose |
 | ---            | --- |
 | `canvas`       | Manage canvases |
+| `checkpoint`   | Manage canvas checkpoints |
 | `claude`       | Manage the Fused plugin for Claude Code |
 | `completion`   | Print or install shell tab completion |
+| `cronjob`      | Manage scheduled UDF runs |
 | `files`        | Manage files stored in Fused |
 | `integrations` | Manage third-party integration OAuth and tokens |
 | `json-ui`      | Inspect JSON-UI component schemas |
@@ -75,6 +77,7 @@ On Windows the same rules apply, with a few differences:
 | `logout`       | Clear local credentials |
 | `run`          | Run a UDF and print the result |
 | `secrets`      | Manage kernel and user secrets |
+| `udf`          | Search and manage UDFs |
 | `udf-schema`   | Print the API schema for a UDF |
 | `whoami`       | Show info about the authenticated user (`--team` for the team) |
 
@@ -176,9 +179,13 @@ Inspect, validate, and render JSON-UI widget component schemas (the same schemas
 | --- | --- |
 | `catalog-prompt` | Print the JSON-UI catalog prompt (component overview) |
 | `schemas [COMPONENTS]...` | Print JSON Schemas for one or more component names, or all if omitted. The CLI is authoritative when it disagrees with `reference.md` |
-| `validate CONFIG_OR_PATH` | Validate an inline JSON5 config string or a path to a `.json`/`.json5` file. Run this after every non-trivial widget edit to catch missing required props, unknown keys, and enum violations before pushing |
-| `run-inline-widget CANVAS_SHARE_TOKEN WIDGET_CONFIG` | Open a share URL with an inline widget query and capture a screenshot. `--print-url-only`, `--browser [chrome\|firefox]`, `--wait INTEGER` (give async data time to load), `--screenshot-filename FILE` (save PNG to file instead of printing base64). Screenshotting needs selenium importable by the CLI — on a missing install the error names the extras to add (`ImportError: selenium is required for JSON-UI run. Install it with: pip install fused[cli]`). The canvas access scope must be public for the anonymous headless browser |
+| `validate CONFIG_OR_PATH` | Validate an inline JSON5 config string or a path to a `.json`/`.json5` file. Run this after every non-trivial widget edit to catch missing required props, enum violations and props outside `props` (not unknown prop keys) before pushing |
+| `run-inline-widget CANVAS_SHARE_TOKEN WIDGET_CONFIG` | Open a share URL with an inline widget query and capture a screenshot. `--print-url-only`, `--browser [chrome\|firefox]`, `--wait INTEGER` (give async data time to load), `--screenshot-filename FILE` (save PNG to file instead of printing base64). Screenshotting needs selenium importable by the CLI — on a missing install the error names the extras to add (`ImportError: selenium is required for JSON-UI run. Install it with: pip install 'fused[workbench]'`). The canvas access scope must be public for the anonymous headless browser |
 | `run-shared-widget CANVAS_SHARE_TOKEN WIDGET_NAME` | Open a shared widget page (`/share/<token>/<name>`) and capture a screenshot. Same options as `run-inline-widget`. Requires the canvas to be shared first (`fused workbench canvas share <ref>`). **Works for HTML template nodes too** — pass the `.html` stem as `WIDGET_NAME`. Only JSON-UI-tagged browser logs are printed; page `console.log` output from an HTML node is not surfaced |
+
+**No selenium (e.g. the fused-render CLI):** only `--print-url-only` works.
+Make the canvas public in the Share dialog, then open the printed URL in any headless browser.
+Both `/canvas/<token>` and `/share/<token>/<name>` render without login once public.
 
 **Debugging flow:** edit the widget JSON → `fused workbench json-ui validate <file>` → push → `fused workbench json-ui run-shared-widget <share-token> <widget-name> --screenshot-filename out.png` to confirm it renders. Use `run-inline-widget` when iterating on a widget that hasn't been committed yet. For an HTML template node there is no `validate` step (it is plain HTML): push → `run-shared-widget <token> <html_node> --wait 5 --screenshot-filename out.png`; `run-inline-widget <token> '{"type":"html","props":{"value":"..."}}'` renders an HTML snippet through the JSON-UI `html` widget with the same `window.fused` bridge.
 

@@ -27,22 +27,9 @@ def udf(bounds: fused.types.Bounds = None, name: str = "Fused"):
     return pd.DataFrame({'message': [f'Hello {name}!']})
 ```
 
-> **All imports must be inside the UDF function body.** Unlike regular Python, imports at module level are not executed — only the decorated function runs in the Fused runtime. Put every `import` statement inside `def udf(...)`:
->
-> ```python
-> # ✗ Wrong — module-level import, will not be available
-> import pandas as pd
->
-> @fused.udf
-> def udf():
->     return pd.DataFrame(...)  # NameError: pd not defined
->
-> # ✓ Correct
-> @fused.udf
-> def udf():
->     import pandas as pd
->     return pd.DataFrame(...)
-> ```
+> **Put imports inside the UDF body.** It keeps each UDF self-contained.
+> Module-level imports and helpers do run, so helpers beside `udf()` work.
+> Import what a helper needs inside the helper too.
 
 ### @fused.udf Parameters
 - `cache_max_age`: Control caching duration (`"30s"`, `"10m"`, `"24h"`, `"7d"`). Use `cache_max_age=0` if it is important that the UDF always be rerun, for example if it reads something that will not be part of the cache key. The cache key will be the parameters it is called with.
@@ -105,8 +92,14 @@ UDFs can return:
 - `pd.DataFrame`, `pd.Series`
 - `gpd.GeoDataFrame`, `gpd.GeoSeries`
 - `shapely.Geometry`
-- Arrays (must be 2D or higher)
+- Arrays, 2D or higher. Map raster tiles: `(3|4, H, W)`, any H×W, band 4 = alpha.
+  Values: `uint8` 0–255 or float 0–1.
 - `str` — rendered as HTML in the workbench. This is what an HTML template node's `{{udf}}` or a JSON-UI `iframe` widget's `src: "{{udf}}"` inlines verbatim (folium maps, plotly `fig.to_html()`, Jinja output).
+
+### Tile UDFs (`fused-map` layer with `tile: true`)
+- Name the first argument `bounds`; each tile arrives as `[w, s, e, n]` in EPSG:4326.
+- Return data for that tile only: an image array (`raster`) or a GeoDataFrame (`geojson`).
+- Give `bounds` a small default bbox so the UDF also runs standalone.
 
 ### UDFs called from HTML template nodes
 
