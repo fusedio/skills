@@ -116,6 +116,35 @@ When a JSON-UI node needs to read data from a canvas UDF, always use `sql-runner
 - The canvas edge (`["my_udf", "widget_node"]`) must also exist in `canvas.toml` for the UDF to be reachable at runtime.
 - **The source UDF must have `visible = true` in `canvas.toml`.** Hidden nodes (`visible = false`) do not execute on canvas load and have no cached result. Referencing them in `sql-runner` will fail with: `UDF 'my_udf' has no cached result. Run the UDF first.`
 
+## Inputs driving a `fused-map` tile layer
+
+To let viewers change a tile UDF's arguments, put the inputs and the map in one widget and pass the inputs into the layer's `udf` placeholder with `$param`. The map re-requests its tiles whenever a value changes.
+
+```json
+{
+  "type": "div",
+  "props": { "style": "display:flex;flex-direction:column;gap:8px;height:100%" },
+  "children": [
+    { "type": "number-input", "props": { "label": "Band", "param": "band", "defaultValue": 0 } },
+    {
+      "type": "fused-map",
+      "props": {
+        "style": "flex:1;min-height:0",
+        "layers": [{
+          "id": "tiles", "type": "raster", "tile": true, "minZoom": 12,
+          "udf": "{{my_tile_udf?band_index=$band}}"
+        }]
+      }
+    }
+  ]
+}
+```
+
+- The only edge needed is UDF → widget (`["my_tile_udf", "my_widget"]`, where `my_widget` is the widget's node name in `canvas.toml`). A widget → UDF edge is not needed.
+- Give every input a `defaultValue`, so `$param` has a value on the first load.
+- The input's `param` name and the UDF argument name can be different (`band_index=$band`).
+- No `sql-runner` is needed: a `fused-map` layer's `udf` runs the UDF directly.
+
 ## Common conventions
 
 - `param` syncs a widget's value with a canvas parameter (or a form field when nested in `form`).
