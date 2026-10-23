@@ -724,28 +724,32 @@ Form container that submits child values together.
 
 ## fused-map
 
-Interactive map with tile and vector layers.
+Interactive map with tile, UDF and SQL layers.
 
 ~~~json
 {
   "type": "object",
   "properties": {
     "basemap": {
-      "default": "mapbox://styles/mapbox/dark-v11",
-      "description": "Mapbox style URL",
+      "description": "Mapbox style URL (e.g. \"mapbox://styles/mapbox/dark-v11\", \"mapbox://styles/mapbox/light-v11\", \"mapbox://styles/mapbox/satellite-streets-v12\") or \"blank\" for a plain background. Omit it so the map follows the app light/dark theme; when the viewer picks a basemap in the switcher it is written into this prop, so only set it when a fixed basemap is wanted.",
       "type": "string"
     },
     "centerLng": {
-      "default": -98,
+      "description": "Map centre longitude (defaults to -98). Setting centerLng or centerLat turns auto-fit off unless autoFit is set explicitly.",
       "type": "number"
     },
     "centerLat": {
-      "default": 39.5,
+      "description": "Map centre latitude (defaults to 39.5). Setting centerLng or centerLat turns auto-fit off unless autoFit is set explicitly.",
       "type": "number"
     },
     "zoom": {
       "default": 4,
+      "description": "Initial zoom level; only used when auto-fit is off.",
       "type": "number"
+    },
+    "autoFit": {
+      "description": "Fly to the loaded data once on first load: inline GeoJSON plus every visible udf / sql row layer. Defaults to true, or false when centerLng/centerLat is set (an explicit camera wins). Later pans, re-runs and basemap switches leave the camera alone, and a camera the viewer left behind wins. Tile layers never report bounds. When off the map opens at centerLng/centerLat/zoom.",
+      "type": "boolean"
     },
     "minZoom": {
       "description": "Minimum zoom level (0-24)",
@@ -770,6 +774,7 @@ Interactive map with tile and vector layers.
             "type": "string"
           },
           "type": {
+            "description": "Layer type. Omit it to detect from the data: an image \u2192 raster (tiles from a tile UDF, else one image placed at the bounds the run returned or was sent), an H3 cell column \u2192 h3, start/end lat-lng pairs \u2192 arc, one lat-lng pair \u2192 scatterplot, a geometry column \u2192 geojson. The detected type and columns are written into this config once known. All types render through deck.gl. geojson: polygons/lines/points from inline data, sql or udf rows (deck-geojson is an alias of geojson; prefer geojson). h3: hexagons from h3Column. scatterplot: point circles. heatmap: point density. arc: source\u2192target arcs. raster: tiles from tileUrl or a udf with tile: true, else a single image from a udf. mvt: tiles from tileUrl, or from udf with tile: true. fused-hex: H3 tiles queried from a Fused server's ERA5, gridMET or /h3/query endpoints (see source); it is never detected, so set it explicitly.",
             "type": "string",
             "enum": [
               "mvt",
@@ -779,9 +784,9 @@ Interactive map with tile and vector layers.
               "heatmap",
               "arc",
               "scatterplot",
-              "deck-geojson"
-            ],
-            "description": "Layer type: mvt/raster/geojson (Mapbox native), h3/heatmap/arc/scatterplot/deck-geojson (deck.gl)"
+              "deck-geojson",
+              "fused-hex"
+            ]
           },
           "visible": {
             "default": true,
@@ -807,6 +812,19 @@ Interactive map with tile and vector layers.
             "description": "Maximum parallel tile requests for tiled layers",
             "type": "number"
           },
+          "autoRetry": {
+            "description": "Retry failed tiles automatically: a few fetch attempts on transient errors, and a refetch when a failed tile scrolls back into view. Default true. Set false to make a tile fail after one attempt and stay failed until Retry.",
+            "type": "boolean"
+          },
+          "bounds": {
+            "description": "Lock a udf tile layer (tile: true) drawn as geojson or deck-geojson to these bounds [minLng, minLat, maxLng, maxLat]: the UDF runs once with bounds passed as a parameter (a JSON string \"[w, s, e, n]\", like the legacy single-viewport run) and the result renders as one static layer, with no per-tile runs and no refetch on pan or zoom. Ignored by other layers: other types (h3, scatterplot, arc, heatmap, raster, mvt) keep their tiles.",
+            "minItems": 4,
+            "maxItems": 4,
+            "type": "array",
+            "items": {
+              "type": "number"
+            }
+          },
           "sourceLayer": {
             "description": "Source layer name for MVT tiles (defaults to 'default')",
             "type": "string"
@@ -814,16 +832,92 @@ Interactive map with tile and vector layers.
           "data": {
             "description": "Inline GeoJSON FeatureCollection (geojson type)"
           },
+          "udf": {
+            "description": "UDF placeholder, e.g. {{my_udf}} or {{my_udf?param=value}}. The UDF is run directly (no share token needed) and re-run when it changes: the whole result as rows for geojson/deck layers, or per tile when tile is true. Combine with sql to query the result. Mutually exclusive with tileUrl.",
+            "type": "string"
+          },
+          "tile": {
+            "description": "With udf: run the UDF per XYZ tile (raster \u2192 PNG bitmaps, h3 \u2192 hexagons, geojson \u2192 vector features). Required when type is mvt and the source is a udf. Without it a raster udf layer runs once and draws one image at the bounds the run returned (`image, bounds`) or was sent (the map view at the time of the run, for a UDF with a bounds parameter; moving the map later does not run it again). Tiled layers never auto-fit and ignore the whole-result size limit.",
+            "type": "boolean"
+          },
           "sql": {
             "description": "DuckDB SQL query with {{udf_name}} placeholders. Rows are converted to GeoJSON for rendering.",
             "type": "string"
           },
+          "filters": {
+            "description": "Feature filters applied on the client: range filters on numeric properties, category filters on any property.",
+            "type": "array",
+            "items": {
+              "anyOf": [
+                {
+                  "type": "object",
+                  "properties": {
+                    "attr": {
+                      "type": "string",
+                      "description": "Feature property to filter on"
+                    },
+                    "type": {
+                      "type": "string",
+                      "const": "range"
+                    },
+                    "min": {
+                      "description": "Inclusive lower bound",
+                      "type": "number"
+                    },
+                    "max": {
+                      "description": "Inclusive upper bound",
+                      "type": "number"
+                    }
+                  },
+                  "required": [
+                    "attr",
+                    "type"
+                  ]
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "attr": {
+                      "type": "string",
+                      "description": "Feature property to filter on"
+                    },
+                    "type": {
+                      "type": "string",
+                      "const": "categories"
+                    },
+                    "values": {
+                      "type": "array",
+                      "items": {
+                        "anyOf": [
+                          {
+                            "type": "string"
+                          },
+                          {
+                            "type": "number"
+                          },
+                          {
+                            "type": "boolean"
+                          }
+                        ]
+                      },
+                      "description": "Values to keep; empty keeps every feature (no filtering)"
+                    }
+                  },
+                  "required": [
+                    "attr",
+                    "type",
+                    "values"
+                  ]
+                }
+              ]
+            }
+          },
           "geometryColumn": {
-            "description": "Column containing GeoJSON geometry strings (use ST_AsGeoJSON in SQL). Defaults to 'geometry'.",
+            "description": "Column containing the geometry: GeoJSON strings (use ST_AsGeoJSON in SQL), GeoJSON objects, or WKB blobs as stored by GeoDataFrame outputs. Defaults to 'geometry'.",
             "type": "string"
           },
           "h3Column": {
-            "description": "Column containing H3 hex indexes (for h3 layer type).",
+            "description": "Column containing H3 hex indexes (h3 layer type). Auto-detected from common names (hex, h3, ...) when omitted.",
             "type": "string"
           },
           "latColumn": {
@@ -832,6 +926,22 @@ Interactive map with tile and vector layers.
           },
           "lngColumn": {
             "description": "Column for longitude (point data). Defaults to 'lng'.",
+            "type": "string"
+          },
+          "startLatColumn": {
+            "description": "Column for the arc start latitude (arc layer type).",
+            "type": "string"
+          },
+          "startLngColumn": {
+            "description": "Column for the arc start longitude (arc layer type).",
+            "type": "string"
+          },
+          "endLatColumn": {
+            "description": "Column for the arc end latitude (arc layer type).",
+            "type": "string"
+          },
+          "endLngColumn": {
+            "description": "Column for the arc end longitude (arc layer type).",
             "type": "string"
           },
           "tooltip": {
@@ -864,14 +974,117 @@ Interactive map with tile and vector layers.
               }
             ]
           },
+          "source": {
+            "description": "fused-hex only: the server endpoint and query each XYZ tile's bbox is sent to.",
+            "type": "object",
+            "properties": {
+              "endpoint": {
+                "description": "Bbox query endpoint on a Fused server: a full URL or a path relative to the current server root. Supported: /retrieve/era5/daily/bbox, /retrieve/era5/hourly/bbox, /retrieve/gridmet/bbox and /h3/query. Defaults to /h3/query when path is set.",
+                "type": "string"
+              },
+              "path": {
+                "description": "Indexed dataset location, e.g. s3://bucket/indexed/data/. Sets the endpoint to /h3/query when none is given. Needs the layer's h3Column (the location's indexed space column). Not used by the retrieve endpoints, which serve a fixed dataset.",
+                "type": "string"
+              },
+              "dateMin": {
+                "description": "Inclusive start of the time window (ISO date or datetime). Required for the retrieve endpoints.",
+                "type": "string"
+              },
+              "dateMax": {
+                "description": "Inclusive end of the time window (ISO date or datetime). Required for the retrieve endpoints.",
+                "type": "string"
+              },
+              "variables": {
+                "description": "Measurement columns to fetch. Defaults to the attributes the style, tooltip and filters name, or every column when none do.",
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "reduce": {
+                "description": "How each hex's rows across the time window collapse to one value: latest (default) or first keep one time step; mean, min, max and sum aggregate every numeric variable and add count, date_min and date_max.",
+                "type": "string",
+                "enum": [
+                  "latest",
+                  "first",
+                  "mean",
+                  "min",
+                  "max",
+                  "sum"
+                ]
+              },
+              "hour": {
+                "description": "Hourly datasets only: keep rows for this hour of the day before reducing.",
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 23
+              },
+              "timeColumn": {
+                "description": "Column holding each row's time, used to order rows for latest/first. Defaults to 'date' for the retrieve endpoints; set it for /h3/query datasets.",
+                "type": "string"
+              },
+              "limit": {
+                "description": "Server row cap per tile request (the endpoint's `limit`)",
+                "type": "integer",
+                "exclusiveMinimum": 0,
+                "maximum": 9007199254740991
+              },
+              "maxRowGroups": {
+                "description": "Server row group cap per tile request (`max_row_groups`)",
+                "type": "integer",
+                "exclusiveMinimum": 0,
+                "maximum": 9007199254740991
+              },
+              "maxRanges": {
+                "description": "Retrieve endpoints only: cell ranges the bbox cover may use (`max_ranges`). Higher values cover each tile more tightly, so fewer rows outside it are read.",
+                "type": "integer",
+                "exclusiveMinimum": 0,
+                "maximum": 9007199254740991
+              },
+              "overview": {
+                "type": "object",
+                "properties": {
+                  "minZoom": {
+                    "description": "The overview needs a zoom floor above this (default 3). It draws at every zoom below the floor.",
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 9007199254740991
+                  },
+                  "extent": {
+                    "description": "[west, south, east, north] the overview looks up files in, with west < east (boxes crossing the antimeridian are not supported). Row tiles are also confined to it: none are requested outside it. Cells are drawn only inside it, in the overview and in rows, by cell centre. Defaults to the whole world.",
+                    "type": "array",
+                    "items": {
+                      "0": {
+                        "type": "number"
+                      },
+                      "1": {
+                        "type": "number"
+                      },
+                      "2": {
+                        "type": "number"
+                      },
+                      "3": {
+                        "type": "number"
+                      }
+                    }
+                  },
+                  "mode": {},
+                  "statistic": {},
+                  "attr": {},
+                  "resolution": {}
+                },
+                "description": "Zoomed-out view below the layer's zoom floor: an outline of the cells of the files the query reads. Available for the ERA5 retrieve endpoints and /h3/query."
+              }
+            }
+          },
           "style": {
             "type": "object",
             "properties": {
               "fillColor": {
-                "description": "Fill color: [r,g,b], CSS string, or data-driven {type:\"continuous\"|\"categorical\", attr, ...}"
+                "description": "Fill color (source colour for arc, weight attr for heatmap): [r,g,b] or [r,g,b,a] array, CSS string, or data-driven {type:\"continuous\", attr, domain?:[min,max], palette?, steps?, reverse?, nullColor?} | {type:\"categorical\", attr, colors?:{value:\"#hex\"}, palette?, nullColor?}. See the component description for palette names."
               },
               "lineColor": {
-                "description": "Stroke color: [r,g,b], CSS string, or data-driven {type:\"continuous\"|\"categorical\", attr, ...}"
+                "description": "Stroke color (target colour for arc): [r,g,b] or [r,g,b,a] array, CSS string, or the same data-driven {type:\"continuous\"|\"categorical\", attr, ...} object as fillColor."
               },
               "lineWidth": {
                 "description": "Stroke width in pixels",
@@ -888,7 +1101,7 @@ Interactive map with tile and vector layers.
                 "type": "number"
               },
               "coverage": {
-                "description": "H3 hex coverage 0-1 (1 = no gap, 0.8 = small gaps)",
+                "description": "H3 hex coverage 0-1 (1 = no gap, 0.8 = small gaps). Defaults to 1 for fused-hex layers, 0.9 for other hex layers.",
                 "type": "number",
                 "minimum": 0,
                 "maximum": 1
@@ -904,13 +1117,48 @@ Interactive map with tile and vector layers.
               "elevationScale": {
                 "description": "Multiplier for extrusion height values",
                 "type": "number"
+              },
+              "overview": {
+                "description": "fused-hex only: how overview cells (source.overview) draw, apart from the row cells. null clears a configured block (a layer switched out of fused-hex).",
+                "anyOf": [
+                  {
+                    "type": "object",
+                    "properties": {
+                      "fillColor": {
+                        "description": "Unset: no fill. A single colour fills the cells; \"inherit\" takes fillColor (a data-driven one draws no overview and shows a warning on the layer card; rows are unaffected); or a data-driven {type:\"continuous\"|\"categorical\", attr, ...} colouring cells by row_count_total (rows in the whole file) or row_count_window (rows in the file sections the current date window reads)."
+                      },
+                      "opacity": {
+                        "description": "Opacity 0-1 of the overview fill (default 0.35)",
+                        "type": "number",
+                        "minimum": 0,
+                        "maximum": 1
+                      },
+                      "lineColor": {
+                        "description": "Unset: #afafaf. A single colour outlines the cells; \"inherit\" takes lineColor (a data-driven one draws no overview and shows a warning on the layer card; rows are unaffected); or a data-driven {type:\"continuous\"|\"categorical\", attr, ...} colouring cells by row_count_total (rows in the whole file) or row_count_window (rows in the file sections the current date window reads)."
+                      },
+                      "lineWidth": {
+                        "description": "Overview cell stroke width in pixels (default 1, 0 = no stroke)",
+                        "type": "number",
+                        "minimum": 0
+                      },
+                      "coverage": {
+                        "description": "Overview cell coverage, 0\u20131. Defaults to 1.",
+                        "type": "number",
+                        "minimum": 0,
+                        "maximum": 1
+                      }
+                    }
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
               }
             }
           }
         },
         "required": [
-          "id",
-          "type"
+          "id"
         ]
       }
     },
@@ -926,7 +1174,7 @@ Interactive map with tile and vector layers.
     },
     "showBasemapSwitcher": {
       "default": true,
-      "description": "Show dark/light/satellite basemap toggle",
+      "description": "Offer the dark/light/satellite basemap choice: the sidebar's Base map tab, or a floating toggle when showSidebar is false",
       "type": "boolean"
     },
     "showLegend": {
@@ -936,7 +1184,12 @@ Interactive map with tile and vector layers.
     },
     "showLayerPanel": {
       "default": true,
-      "description": "Show layer controls panel for toggling visibility and opacity",
+      "description": "Show the floating layer panel for toggling visibility and opacity when showSidebar is false (the sidebar's layer list covers this otherwise)",
+      "type": "boolean"
+    },
+    "showSidebar": {
+      "default": true,
+      "description": "Show the sidebar toggle for editing layer style, filters and SQL at runtime. On your own canvas the edits are written into this config as you make them (undo with Cmd/Ctrl+Z in the sidebar or the code editor); elsewhere they are runtime overrides you can copy into the config.",
       "type": "boolean"
     },
     "param": {
@@ -953,12 +1206,20 @@ Interactive map with tile and vector layers.
       "description": "Debounce ms for auto-send (0 = send on every move)",
       "type": "number"
     },
+    "clickParam": {
+      "description": "Canvas parameter that receives the properties of the last clicked feature",
+      "type": "string"
+    },
+    "stateParam": {
+      "description": "Canvas parameter that mirrors the map's runtime state (camera, layer type, style, filters, SQL overrides) so other widgets can read it. It is saved with the canvas and restored on reload. On your own canvas layer edits are written into this config as you make them, so the parameter mostly carries the camera.",
+      "type": "string"
+    },
     "style": {
       "description": "Inline CSS styles as a plain CSS string",
       "type": "string"
     }
   },
-  "description": "Interactive map with Mapbox GL (mvt, raster, geojson) and deck.gl (h3, heatmap, arc, scatterplot) layers.\n\n## Example \u2014 MVT tile layer\n\n```json\n{\n  \"type\": \"fused-map\",\n  \"props\": {\n    \"layers\": [{\n      \"id\": \"counties\",\n      \"type\": \"mvt\",\n      \"tileUrl\": \"https://tiles.fused.io/public/my_tileset/{z}/{x}/{y}\",\n      \"style\": { \"fillColor\": [100, 150, 200], \"opacity\": 0.6 }\n    }]\n  }\n}\n```\n\n## Example \u2014 SQL with lat/lng points\n\n```json\n{\n  \"type\": \"fused-map\",\n  \"props\": {\n    \"layers\": [{\n      \"id\": \"sites\",\n      \"type\": \"geojson\",\n      \"sql\": \"SELECT name, lat, lng FROM {{my_udf}}\",\n      \"style\": { \"fillColor\": [255, 80, 0], \"pointRadius\": 8 }\n    }]\n  }\n}\n```\n\n## Example \u2014 raster tile layer\n\n```json\n{\n  \"type\": \"fused-map\",\n  \"props\": {\n    \"layers\": [{\n      \"id\": \"seismic\",\n      \"type\": \"raster\",\n      \"tileUrl\": \"https://udf.ai/<token>/run/tiles/{z}/{x}/{y}?format=png\",\n      \"style\": { \"opacity\": 0.8 }\n    }]\n  }\n}\n```\n\nRaster layers render through a Mapbox raster source, so `tileUrl` must be a publicly fetchable XYZ endpoint (a Fused UDF tile endpoint or any external raster service); only `opacity` and `visible` apply."
+  "description": "Interactive map: a Mapbox basemap with every data layer (mvt, raster, geojson, h3, heatmap, arc, scatterplot, deck-geojson, fused-hex) rendered through deck.gl. Layers load data from a UDF directly (`udf`), from a DuckDB query (`sql`), from a tile endpoint (`tileUrl`) or from a Fused server's hex query endpoints (`fused-hex` with `source`). A sidebar lets viewers restyle, filter and re-query layers at runtime.\n\n## Example \u2014 UDF result (GeoDataFrame)\n\n```json\n{\n  \"type\": \"fused-map\",\n  \"props\": {\n    \"layers\": [{\n      \"id\": \"buildings\",\n      \"type\": \"geojson\",\n      \"udf\": \"{{my_udf}}\",\n      \"tooltip\": true,\n      \"style\": { \"fillColor\": { \"type\": \"continuous\", \"attr\": \"height\", \"palette\": \"Sunset\" } }\n    }]\n  }\n}\n```\n\n## Example \u2014 UDF as H3 tiles\n\n```json\n{\n  \"type\": \"fused-map\",\n  \"props\": {\n    \"layers\": [{\n      \"id\": \"hexes\",\n      \"type\": \"h3\",\n      \"udf\": \"{{my_h3_udf}}\",\n      \"tile\": true,\n      \"style\": { \"fillColor\": { \"type\": \"continuous\", \"attr\": \"count\", \"domain\": [0, 500] } }\n    }]\n  }\n}\n```\n\n## Example \u2014 MVT tile layer\n\n```json\n{\n  \"type\": \"fused-map\",\n  \"props\": {\n    \"layers\": [{\n      \"id\": \"counties\",\n      \"type\": \"mvt\",\n      \"tileUrl\": \"https://tiles.fused.io/public/my_tileset/{z}/{x}/{y}\",\n      \"style\": { \"fillColor\": [100, 150, 200], \"opacity\": 0.6 }\n    }]\n  }\n}\n```\n\n## Example \u2014 SQL with lat/lng points and a filter\n\n```json\n{\n  \"type\": \"fused-map\",\n  \"props\": {\n    \"layers\": [{\n      \"id\": \"sites\",\n      \"type\": \"geojson\",\n      \"sql\": \"SELECT name, lat, lng, score FROM {{my_udf}}\",\n      \"filters\": [{ \"attr\": \"score\", \"type\": \"range\", \"min\": 0.5 }],\n      \"style\": { \"fillColor\": [255, 80, 0], \"pointRadius\": 8 }\n    }]\n  }\n}\n```\n\n## Example \u2014 raster tile layer\n\n```json\n{\n  \"type\": \"fused-map\",\n  \"props\": {\n    \"layers\": [{\n      \"id\": \"seismic\",\n      \"type\": \"raster\",\n      \"tileUrl\": \"https://udf.ai/<token>/run/tiles/{z}/{x}/{y}?format=png\",\n      \"style\": { \"opacity\": 0.8 }\n    }]\n  }\n}\n```\n\n## Example \u2014 ERA5 / gridMET / indexed H3 data (fused-hex)\n\n```json\n{\n  \"type\": \"fused-map\",\n  \"props\": {\n    \"layers\": [{\n      \"id\": \"era5-t2m\",\n      \"type\": \"fused-hex\",\n      \"source\": {\n        \"endpoint\": \"/retrieve/era5/daily/bbox\",\n        \"dateMin\": \"2024-07-15\",\n        \"dateMax\": \"2024-07-15\",\n        \"variables\": [\"t2m_mean\"]\n      },\n      \"tooltip\": [\"hex\", \"date\", \"t2m_mean\"],\n      \"style\": { \"fillColor\": { \"type\": \"continuous\", \"attr\": \"t2m_mean\", \"domain\": [270, 310] } }\n    }]\n  }\n}\n```\n\nRaster layers with a `tileUrl` fetch PNG tiles from a publicly reachable XYZ endpoint; only `opacity` and `visible` apply. `udf` with `tile: true` instead runs the UDF per tile through the workbench (or the canvas share token on a shared page), so no share token is needed and edits to the UDF re-render the layer.\n\n## Choosing a source\n\n- `udf` without `tile`: one whole run. Rows become features (geojson, h3, heatmap, arc, scatterplot); an image result becomes one `raster` picture at the bounds the run returned or was sent. Not valid for `mvt` \u2014 that needs `tile: true` with `udf`, or a `tileUrl`.\n- `udf` with `tile: true`: the UDF runs per XYZ tile; use for large or tile-shaped UDFs (`raster` \u2192 PNG, `h3` \u2192 hexagons, `geojson` \u2192 vector features). Tile layers never auto-fit.\n- `sql`: a DuckDB query over `{{udf}}` results; rows become features via geometryColumn / latColumn+lngColumn / h3Column.\n- `source` (`fused-hex` only): a Fused server's ERA5, gridMET or `/h3/query` endpoint, queried per XYZ tile; no `udf` or `sql`.\n- Whole-run results larger than the viewer's \"Max amount of data to auto-load\" setting (default 50 MB) are not loaded until the viewer confirms, and UDFs marked for manual runs show a Run button instead of running on load. Prefer `tile: true` or a narrowing `sql` for big datasets.\n\n## Layer types\n\n- `geojson`: polygons, lines and points from any source. `deck-geojson` is an alias of `geojson` and renders identically \u2014 prefer `geojson`.\n- `h3`: hexagons from `h3Column` (auto-detected from common names like hex, h3 when omitted), styled with `coverage`, `extruded`, `elevationAttr`.\n- `scatterplot`: point circles; `pointRadius` in pixels (default 5), `lineColor`/`lineWidth` for the outline.\n- `heatmap`: density of points; weight comes from a continuous `fillColor.attr` (1 per point when fillColor is static), `pointRadius` is the kernel radius in pixels (default 30). Not pickable, no tooltip.\n- `arc`: one arc per row. Give the endpoints with `startLatColumn`/`startLngColumn` and `endLatColumn`/`endLngColumn` (auto-detected from common names when omitted), or a `source`/`target` property holding [lng, lat], or a LineString whose first and second vertices are the ends. `fillColor` colours the source end, `lineColor` the target end, `lineWidth` the arc width.\n- `mvt` / `raster`: tiled from `tileUrl`, or from `udf` with `tile: true`.\n- `fused-hex`: H3 tiles queried from a Fused server; each XYZ tile's bbox is sent to `source.endpoint` (a full URL, or a path on the current server; /h3/query when only `source.path` is set): `/retrieve/era5/daily/bbox`, `/retrieve/era5/hourly/bbox` and `/retrieve/gridmet/bbox` serve fixed resolution 7 datasets and need `dateMin`/`dateMax`; `/h3/query` reads any indexed `source.path` and needs the layer's `h3Column` set to the location's indexed space column (set `source.timeColumn` too so latest/first can order rows). Each hex's rows over the window are reduced to one (`reduce`: latest, first, mean, min, max, sum). Tiles load from zoom 7 for a single day; unless `minZoom` is set the floor rises with the window (about one zoom level per 4x more time steps) so a tile stays within the server's row limit, and nothing draws below it. A tile the server still rejects as too large shows an error: zoom in or narrow the window. Row cells cover their hexagon whole unless `style.coverage` is set (default 1, where other hex layers default to 0.9). It reads `source` instead of `udf`/`sql`, is never auto-detected, never auto-fits and takes no `bounds`. Set `source.overview` (`{}` is enough) to outline, from zoom 3 up to the floor, the H3 cells of the files the query reads (no rows are read): one request lists them, with no tiles and no values, so the outlines show where data exists, not what it holds. ERA5 retrieve endpoints and /h3/query only (for /h3/query the world extent lists the whole location); it is an error on gridMET. `overview.minZoom` (default 3) must sit below the floor for the overview to draw, and `overview.extent` limits the area it looks up and also confines the row tiles: none are requested outside it, and cells are drawn only inside it, overview and rows alike, by cell centre (default: the whole world). Overview cells are styled apart from the rows by `style.overview` (fused-hex only): `lineColor` and `fillColor` (default: #afafaf stroke, no fill) each take a single colour, `\"inherit\"` (the layer's own stroke/fill; when that is data-driven, no overview is drawn and a warning shows on the layer card, rows unaffected), or a data-driven `{type: \"continuous\"|\"categorical\", attr, ...}` colouring cells by `row_count_total` (rows in the whole file) or `row_count_window` (rows in the file sections the current date window reads) -- the only two overview attributes, since a files overview carries no other values. Also `lineWidth` (default 1, 0 = no stroke), `opacity` (the fill's, default 0.35) and `coverage` (default 1).\n\n## Colours\n\n`style.fillColor` and `style.lineColor` accept an [r, g, b] or [r, g, b, a] array, a CSS colour string, or a data-driven object:\n\n- Continuous: `{ \"type\": \"continuous\", \"attr\": \"<numeric property>\", \"domain\": [min, max], \"palette\": \"Sunset\", \"steps\": 7, \"reverse\": false, \"nullColor\": \"#b8b8b8\" }`. `domain` defaults to the data's min/max, `palette` to \"Sunset\". Sequential palettes (CARTOColors): Sunset, SunsetDark, Teal, TealGrn, Emrld, BluGrn, BluYl, Mint, DarkMint, Purp, PurpOr, Magenta, Burg, BurgYl, RedOr, OrYel, Peach, PinkYl, BrwnYl.\n- Categorical: `{ \"type\": \"categorical\", \"attr\": \"<property>\", \"colors\": { \"<value>\": \"#hex\" }, \"palette\": \"Bold\", \"nullColor\": \"rgba(128,128,128,0.5)\" }`. Omit `colors` to auto-assign from the palette (default \"Bold\"). Qualitative palettes: Bold, Vivid, Safe, Prism.\n\nA legend is drawn only for data-driven colours (see `legend` and `showLegend`)."
 }
 ~~~
 
@@ -1140,7 +1401,7 @@ Heatmap chart driven by DuckDB SQL query.
 
 ## html
 
-Sandboxed HTML renderer with $param and {{udf}} substitution and window.fused API. (The bundled CLI schema text still says `fusedCanvas`; that API was removed — see the `html-template-nodes` skill for the `window.fused` contract.)
+Sandboxed HTML renderer with $param and {{udf}} substitution and window.fused API.
 
 ~~~json
 {
@@ -1388,7 +1649,7 @@ Line/area chart for time series driven by DuckDB SQL query.
 
 ## map
 
-Live UDF map.
+Legacy live UDF map kept for existing canvases. For new widgets prefer fused-map when it is listed in this catalog.
 
 ~~~json
 {
@@ -1482,7 +1743,7 @@ Live UDF map.
   "required": [
     "layers"
   ],
-  "description": "Interactive Mapbox map that renders live UDF layers. UDF names must use `{{double-brace}}` syntax. A UDF that returns a GeoDataFrame renders by default. A plain DataFrame renders only with a matching vizConfig \u2014 e.g. a DataFrame with an H3 `hex` column rendered via a `hexLayer` (H3HexagonLayer). A plain DataFrame with only lat/lon columns won't render here; use the `fused-map` widget's geojson layer for that.\n\n## Example \u2014 points\n\n```json\n{\n  \"type\": \"map\",\n  \"props\": {\n    \"centerLng\": -122.43,\n    \"centerLat\": 37.76,\n    \"zoom\": 11,\n    \"mapStyle\": \"dark\",\n    \"layers\": [\"{{my_udf}}\"]\n  }\n}\n```\n\n## Example \u2014 polygons\n\n```json\n{\n  \"type\": \"map\",\n  \"props\": {\n    \"centerLng\": -74,\n    \"centerLat\": 40.7,\n    \"zoom\": 10,\n    \"mapStyle\": \"dark\",\n    \"sendParam\": true,\n    \"autoFit\": true,\n    \"layers\": [\n      {\n        \"udf\": \"{{my_udf}}\"\n      }\n    ]\n  }\n}\n```\n\n## Example \u2014 tile layer\n\n```json\n{\n  \"type\": \"map\",\n  \"props\": {\n    \"layers\": [\n      {\n        \"udf\": \"{{my_udf}}\",\n        \"tile\": true,\n        \"vizConfig\": {\n          \"tileLayer\": {\n            \"@@type\": \"TileLayer\",\n            \"minZoom\": 0,\n            \"maxZoom\": 19,\n            \"tileSize\": 256\n          },\n          \"vectorLayer\": {\n            \"@@type\": \"GeoJsonLayer\",\n            \"stroked\": true,\n            \"filled\": false,\n            \"lineWidthMinPixels\": 1\n          }\n        }\n      }\n    ]\n  }\n}\n```\n\n## Example \u2014 H3 hexagons (plain DataFrame with a `hex` column)\n\n```json\n{\n  \"type\": \"map\",\n  \"props\": {\n    \"layers\": [\n      {\n        \"udf\": \"{{my_h3_udf}}\",\n        \"vizConfig\": {\n          \"hexLayer\": {\n            \"@@type\": \"H3HexagonLayer\",\n            \"stroked\": true,\n            \"filled\": true,\n            \"pickable\": true,\n            \"extruded\": false,\n            \"opacity\": 1,\n            \"coverage\": 0.9,\n            \"lineWidthMinPixels\": 5,\n            \"getHexagon\": \"@@=properties.hex\",\n            \"getFillColor\": [255, 165, 0, 180],\n            \"getLineColor\": [200, 200, 200, 255]\n          }\n        }\n      }\n    ]\n  }\n}\n```\n\n## Example \u2014 raster tile layer\n\n```json\n{\n  \"type\": \"map\",\n  \"props\": {\n    \"centerLng\": -122.43,\n    \"centerLat\": 37.76,\n    \"zoom\": 11,\n    \"mapStyle\": \"dark\",\n    \"layers\": [\n      {\n        \"udf\": \"{{my_raster_udf}}\",\n        \"tile\": true,\n        \"vizConfig\": {\n          \"tileLayer\": { \"@@type\": \"TileLayer\", \"minZoom\": 0, \"maxZoom\": 19, \"tileSize\": 256 },\n          \"rasterLayer\": { \"@@type\": \"BitmapLayer\", \"opacity\": 0.7 }\n        }\n      }\n    ]\n  }\n}\n```\n\nHere `my_raster_udf` returns a raster array (e.g. via `arr_to_plasma`)."
+  "description": "DEPRECATED \u2014 use `fused-map` for new widgets (same UDF loading, plus a sidebar for styling, filters and SQL, and no share token needed). Kept only so existing canvases keep rendering.\n\nInteractive Mapbox map that renders live UDF layers. UDF names must use `{{double-brace}}` syntax. A UDF that returns a GeoDataFrame renders by default. A plain DataFrame renders only with a matching vizConfig \u2014 e.g. a DataFrame with an H3 `hex` column rendered via a `hexLayer` (H3HexagonLayer). A plain DataFrame with only lat/lon columns won't render here; use the `fused-map` widget's geojson layer for that.\n\n## Example \u2014 points\n\n```json\n{\n  \"type\": \"map\",\n  \"props\": {\n    \"centerLng\": -122.43,\n    \"centerLat\": 37.76,\n    \"zoom\": 11,\n    \"mapStyle\": \"dark\",\n    \"layers\": [\"{{my_udf}}\"]\n  }\n}\n```\n\n## Example \u2014 polygons\n\n```json\n{\n  \"type\": \"map\",\n  \"props\": {\n    \"centerLng\": -74,\n    \"centerLat\": 40.7,\n    \"zoom\": 10,\n    \"mapStyle\": \"dark\",\n    \"sendParam\": true,\n    \"autoFit\": true,\n    \"layers\": [\n      {\n        \"udf\": \"{{my_udf}}\"\n      }\n    ]\n  }\n}\n```\n\n## Example \u2014 tile layer\n\n```json\n{\n  \"type\": \"map\",\n  \"props\": {\n    \"layers\": [\n      {\n        \"udf\": \"{{my_udf}}\",\n        \"tile\": true,\n        \"vizConfig\": {\n          \"tileLayer\": {\n            \"@@type\": \"TileLayer\",\n            \"minZoom\": 0,\n            \"maxZoom\": 19,\n            \"tileSize\": 256\n          },\n          \"vectorLayer\": {\n            \"@@type\": \"GeoJsonLayer\",\n            \"stroked\": true,\n            \"filled\": false,\n            \"lineWidthMinPixels\": 1\n          }\n        }\n      }\n    ]\n  }\n}\n```\n\n## Example \u2014 H3 hexagons (plain DataFrame with a `hex` column)\n\n```json\n{\n  \"type\": \"map\",\n  \"props\": {\n    \"layers\": [\n      {\n        \"udf\": \"{{my_h3_udf}}\",\n        \"vizConfig\": {\n          \"hexLayer\": {\n            \"@@type\": \"H3HexagonLayer\",\n            \"stroked\": true,\n            \"filled\": true,\n            \"pickable\": true,\n            \"extruded\": false,\n            \"opacity\": 1,\n            \"coverage\": 0.9,\n            \"lineWidthMinPixels\": 5,\n            \"getHexagon\": \"@@=properties.hex\",\n            \"getFillColor\": [255, 165, 0, 180],\n            \"getLineColor\": [200, 200, 200, 255]\n          }\n        }\n      }\n    ]\n  }\n}\n```\n\n## Example \u2014 raster tile layer\n\n```json\n{\n  \"type\": \"map\",\n  \"props\": {\n    \"centerLng\": -122.43,\n    \"centerLat\": 37.76,\n    \"zoom\": 11,\n    \"mapStyle\": \"dark\",\n    \"layers\": [\n      {\n        \"udf\": \"{{my_raster_udf}}\",\n        \"tile\": true,\n        \"vizConfig\": {\n          \"tileLayer\": { \"@@type\": \"TileLayer\", \"minZoom\": 0, \"maxZoom\": 19, \"tileSize\": 256 },\n          \"rasterLayer\": { \"@@type\": \"BitmapLayer\", \"opacity\": 0.7 }\n        }\n      }\n    ]\n  }\n}\n```\n\nHere `my_raster_udf` returns a raster array (e.g. via `arr_to_plasma`)."
 }
 ~~~
 
@@ -2658,21 +2919,21 @@ Builds and renders a widget from a param-supplied or inline definition object.
       "type": "boolean"
     },
     "aiModel": {
-      "default": "Claude Sonnet 4.6",
       "description": "AI model used by the widget builder. Defaults to Claude Sonnet.",
+      "default": "Claude Sonnet 5.5",
       "type": "string",
       "enum": [
-        "Claude Opus 4.6",
-        "Claude Sonnet 4.6",
-        "Claude Haiku 4.5",
-        "GLM 4.7",
+        "Claude Opus 5.5",
+        "Claude Sonnet 5.5",
+        "Claude Haiku 5.5",
+        "GLM 5.3",
         "GPT OSS 120B",
-        "Kimi K2.5",
-        "GPT-5.4",
-        "GPT-5.5",
-        "Gemini 3.5 Flash",
+        "Kimi K3",
+        "GPT-6.1 Sol",
+        "GPT-6 Astra",
+        "Gemini 3.8 Flash",
         "Gemini 3 Flash Preview",
-        "Gemini 3 Pro Preview"
+        "Gemini 3.1 Pro Preview"
       ]
     },
     "aiPanel": {
