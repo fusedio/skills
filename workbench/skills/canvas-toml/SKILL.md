@@ -302,7 +302,7 @@ edges = [
 ```
 
 **Practical checklist before finalizing `canvas.toml`:**
-1. For every input widget: does it have an edge to each UDF it drives? If not, canvas params won't propagate.
+1. For every input widget: does it have an edge to each UDF or widget it drives? If not, canvas params won't propagate.
 2. For every `fused.load("x")` call in UDF `b`: is `["x", "b"]` in `edges`? If not, the dependency is invisible to users.
 3. Is `edges` still `[]` with more than one node? If yes, verify every node is truly independent — this is almost certainly wrong.
 4. For every HTML template node: does every `{{name}}` / `fused.runPython("name")` in the `.html` have an edge `["name", "<html_node>"]`, and every `fused.params.set("p", …)` an edge to each UDF that takes `p`? `fused workbench canvas validate` does not check `.html` files — grep them yourself.

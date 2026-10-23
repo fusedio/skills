@@ -93,12 +93,13 @@ UDFs can return:
 - `gpd.GeoDataFrame`, `gpd.GeoSeries`
 - `shapely.Geometry`
 - Arrays, 2D or higher. Map raster tiles: `(3|4, H, W)`, any H×W, band 4 = alpha.
-  Values: `uint8` 0–255 or float 0–1.
+  Tested values: `uint8` 0–255 and float 0–1.
 - `str` — rendered as HTML in the workbench. This is what an HTML template node's `{{udf}}` or a JSON-UI `iframe` widget's `src: "{{udf}}"` inlines verbatim (folium maps, plotly `fig.to_html()`, Jinja output).
 
 ### Tile UDFs (`fused-map` layer with `tile: true`)
 - Name the first argument `bounds`; each tile arrives as `[w, s, e, n]` in EPSG:4326.
-- Return data for that tile only: an image array (`raster`) or a GeoDataFrame (`geojson`).
+- Return data for that tile only: an image array (`raster`), a GeoDataFrame (`geojson`)
+  or a DataFrame with an H3 column (`h3`).
 - Give `bounds` a small default bbox so the UDF also runs standalone.
 
 ### UDFs called from HTML template nodes

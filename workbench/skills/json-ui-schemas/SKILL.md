@@ -71,12 +71,14 @@ Every widget in a JSON UI file follows this envelope:
 
 ## Available widget types
 
-- **Layout / containers:** `div`, `form`, `sql-runner` (children: yes)
-- **Inputs:** `text-input`, `text-area`, `number-input`, `datetime-input`, `camera-input`, `color-input`, `dropdown`, `slider`, `button`, `code-editor`, `gallery-input`, `file-upload`
-- **Display:** `text`, `image`, `video`, `metric`, `iframe`, `html`, `pdf-gallery-viewer`
-- **Charts:** `bar-chart`, `line-chart`, `stacked-bar-chart`, `stacked-area-chart`, `scatter-chart`, `donut-chart`, `heatmap-chart`
-- **Tables:** `sql-table`
-- **Maps:** `fused-map`, `map-bounds`, `map-h3`, `kepler-map`, `map` (legacy: use `fused-map`)
+Input widgets set canvas params (edge: widget → UDF). Output widgets show a UDF result (edge: UDF → widget).
+
+- **Containers:** `div`, `form`, `sql-runner` (children: yes)
+- **Input:** `text-input`, `text-area`, `number-input`, `datetime-input`, `camera-input`, `color-input`, `dropdown`, `slider`, `button`, `code-editor`, `gallery-input`, `file-upload`, `map-bounds`, `map-h3`
+- **Output, display:** `text`, `image`, `video`, `metric`, `iframe`, `html`, `pdf-gallery-viewer`
+- **Output, charts:** `bar-chart`, `line-chart`, `stacked-bar-chart`, `stacked-area-chart`, `scatter-chart`, `donut-chart`, `heatmap-chart`
+- **Output, tables:** `sql-table`
+- **Output, maps:** `fused-map` (mature, use it by default), `kepler-map`, `map` (legacy)
 - **Meta / advanced:** `widget-builder`, `transformer`, `ai-chat`
 
 ## `html` and `iframe` widgets vs an HTML template node
@@ -85,7 +87,7 @@ Every widget in a JSON UI file follows this envelope:
 - **`iframe` widget**: embeds a URL or an HTML-returning UDF (`src: "{{my_udf}}"`); no scripting against the canvas. Use it to show a UDF-generated page (folium, plotly `to_html`, …) or an external site.
 - Edges apply to all three: the source UDF needs an edge into the widget's node.
 
-## Accessing UDF data — use `sql-runner`
+## Sharing one UDF result across widgets: `sql-runner`
 
 A single widget can query `{{udf_name}}` directly. When several widgets read the same UDF, wrap them in a `sql-runner` so the UDF result is fetched once.
 
@@ -112,7 +114,8 @@ A single widget can query `{{udf_name}}` directly. When several widgets read the
 ```
 
 - `sql-runner` fetches the UDF output once and exposes it as `{{name}}` to all descendants.
-- `fused workbench canvas validate` wrongly flags `{{name}}` as an unknown node. Add `[validate] skip = ["widget_refs"]` to `canvas.toml`.
+- `fused workbench canvas validate` wrongly flags `{{name}}` as an unknown node.
+  `[validate] skip = ["widget_refs"]` in `canvas.toml` works around it, but turns off the whole check: review other `{{name}}` refs by hand.
 - Descendants reference `{{data}}` (or whatever `name` you set), **not** `{{my_udf}}`.
 - The canvas edge (`["my_udf", "widget_node"]`) must also exist in `canvas.toml` for the UDF to be reachable at runtime.
 - **The source UDF must have `visible = true` in `canvas.toml`.** Hidden nodes (`visible = false`) do not execute on canvas load and have no cached result. Referencing them in `sql-runner` will fail with: `UDF 'my_udf' has no cached result. Run the UDF first.`
