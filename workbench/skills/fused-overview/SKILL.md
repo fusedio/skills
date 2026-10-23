@@ -108,7 +108,6 @@ results = pool.df()
 ## Constraints to know upfront
 
 - **120s execution timeout** on the default serverless runtime — use a dedicated `engine` to remove this limit
-- **All imports must be inside the UDF function body** — module-level imports are not executed
 - **No persistent in-memory state** between calls — use external storage (Fused files, S3, Notion, etc.) for state
 - **Canvas names: `[a-zA-Z0-9_]` only** — no hyphens; `my_project` not `my-project`
 
@@ -122,6 +121,6 @@ results = pool.df()
 - `canvas-toml` — canvas folder layout and `canvas.toml` format
 - `json-ui-schemas` — building widget UIs on top of UDFs
 - `html-template-nodes` — custom HTML pages on the canvas: `window.fused` params/`runPython`, `$param` / `{{udf}}` substitution, edges, sharing
-- `canvas-comments` — reading and resolving `[[comments]]` threads in `canvas.toml`
+- `canvas-comments` — reading and resolving `[[canvas.comments]]` threads in `canvas.toml`
 - `fused-h3` — H3 ingestion and querying with `fused.h3`
 - `fused-runtime` — runtime packages and environment for UDFs

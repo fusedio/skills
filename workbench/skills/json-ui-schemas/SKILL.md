@@ -71,12 +71,14 @@ Every widget in a JSON UI file follows this envelope:
 
 ## Available widget types
 
-- **Layout / containers:** `div`, `form`, `sql-runner` (children: yes)
-- **Inputs:** `text-input`, `text-area`, `number-input`, `datetime-input`, `camera-input`, `color-input`, `dropdown`, `slider`, `button`, `code-editor`, `gallery-input`
-- **Display:** `text`, `image`, `metric`, `iframe`, `html`
-- **Charts:** `bar-chart`, `line-chart`, `stacked-bar-chart`, `stacked-area-chart`, `scatter-chart`, `donut-chart`, `heatmap-chart`
-- **Tables:** `sql-table`
-- **Maps:** `map`, `map-bounds`, `map-h3`, `fused-map`
+Input widgets set canvas params (edge: widget → UDF). Output widgets show a UDF result (edge: UDF → widget).
+
+- **Containers:** `div`, `form`, `sql-runner` (children: yes)
+- **Input:** `text-input`, `text-area`, `number-input`, `datetime-input`, `camera-input`, `color-input`, `dropdown`, `slider`, `button`, `code-editor`, `gallery-input`, `file-upload`, `map-bounds`, `map-h3`
+- **Output, display:** `text`, `image`, `video`, `metric`, `iframe`, `html`, `pdf-gallery-viewer`
+- **Output, charts:** `bar-chart`, `line-chart`, `stacked-bar-chart`, `stacked-area-chart`, `scatter-chart`, `donut-chart`, `heatmap-chart`
+- **Output, tables:** `sql-table`
+- **Output, maps:** `fused-map` (mature, use it by default), `kepler-map`, `map` (legacy)
 - **Meta / advanced:** `widget-builder`, `transformer`, `ai-chat`
 
 ## `html` and `iframe` widgets vs an HTML template node
@@ -85,9 +87,10 @@ Every widget in a JSON UI file follows this envelope:
 - **`iframe` widget**: embeds a URL or an HTML-returning UDF (`src: "{{my_udf}}"`); no scripting against the canvas. Use it to show a UDF-generated page (folium, plotly `to_html`, …) or an external site.
 - Edges apply to all three: the source UDF needs an edge into the widget's node.
 
-## Accessing UDF data — use `sql-runner`
+## `sql-runner`: one named SQL result for child widgets
 
-When a JSON-UI node needs to read data from a canvas UDF, always use `sql-runner` as the root (or a wrapping ancestor). Do **not** put `{{udf_name}}` SQL directly on a leaf widget at the root — it does not resolve reliably without a `sql-runner` ancestor.
+Widgets can query `{{udf_name}}` directly. A UDF runs once per page, however many widgets read it.
+A `sql-runner` names one SQL result for its children. Its SQL can read several UDFs, and runners can nest.
 
 **Correct pattern:**
 
@@ -111,7 +114,10 @@ When a JSON-UI node needs to read data from a canvas UDF, always use `sql-runner
 }
 ```
 
-- `sql-runner` fetches the UDF output once and exposes it as `{{name}}` to all descendants.
+- `sql-runner` exposes its SQL result as `{{name}}` to all descendants.
+- It caps rows at `maxRows`, 10,000 by default: set it when the UDF returns more (see Known gotchas).
+- `fused workbench canvas validate` wrongly flags `{{name}}` as an unknown node.
+  `[validate] skip = ["widget_refs"]` in `canvas.toml` works around it, but turns off the whole check: review other `{{name}}` refs by hand.
 - Descendants reference `{{data}}` (or whatever `name` you set), **not** `{{my_udf}}`.
 - The canvas edge (`["my_udf", "widget_node"]`) must also exist in `canvas.toml` for the UDF to be reachable at runtime.
 - **The source UDF must have `visible = true` in `canvas.toml`.** Hidden nodes (`visible = false`) do not execute on canvas load and have no cached result. Referencing them in `sql-runner` will fail with: `UDF 'my_udf' has no cached result. Run the UDF first.`
@@ -202,14 +208,14 @@ Always set `maxRows` explicitly on `sql-runner` when the source UDF may return m
 1. Open `reference.md` and find the section for the widget `type` you're working with.
 2. Honor `required` props and respect `enum` constraints.
 3. When constructing a widget JSON, prefer SQL-driven options/data over static when a UDF is available.
-4. Validate with `fused workbench json-ui validate <file>` — unknown keys and missing required props will be flagged.
+4. Validate with `fused workbench json-ui validate <file>`. It flags missing required props, bad enums and props outside `props`, not unknown prop keys.
 
 ## Debugging widgets with the Fused CLI
 
 The `fused workbench json-ui` subcommands are the fastest way to check your work without round-tripping through the canvas UI. See the `fused-workbench-cli` skill for full flag details; the common debugging flow is:
 
 - **Verify the schema you're targeting** — `fused workbench json-ui schemas <type>` prints the live JSON Schema for one or more component types (or all of them if omitted). Use this when `reference.md` and the CLI disagree; the CLI is authoritative.
-- **Validate a widget JSON before pushing** — `fused workbench json-ui validate path/to/widget_foo.json` (or a path to a `.json5` file, or an inline JSON5 string). Run this after every non-trivial edit; it catches missing required props, unknown keys, and bad enum values without needing a canvas push.
+- **Validate a widget JSON before pushing** — `fused workbench json-ui validate path/to/widget_foo.json` (or a path to a `.json5` file, or an inline JSON5 string). Run this after every non-trivial edit; it catches missing required props, bad enum values and props outside `props` (not unknown prop keys) without needing a canvas push.
 - **See a widget rendered without opening a browser tab** — once the canvas is shared (`fused workbench canvas share <ref>`), use `fused workbench json-ui run-shared-widget <share-token> <widget-name> --screenshot-filename out.png` to render the widget headlessly and save a PNG. Add `--wait N` if the widget loads data asynchronously. `run-inline-widget` does the same for an inline JSON5 config string, which is useful for iterating on a widget that isn't committed yet.
 - **Refresh the catalog** — `fused workbench json-ui catalog-prompt` prints the high-level component catalog; handy when a new widget type appears in the CLI before it lands in `reference.md`.
 

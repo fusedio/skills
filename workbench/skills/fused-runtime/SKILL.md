@@ -9,7 +9,7 @@ A UDF runs in one of two prebuilt images. Both are Python **3.12** on linux x86_
 
 | Engine | Image | Notes |
 |---|---|---|
-| default (`engine` unset / `"realtime"`), `udf.map()` workers | **realtime** | ~700 packages; includes the AI extra (torch CPU, torchvision, onnxruntime, segment-geospatial, geoai) |
+| default (`engine` unset / `"realtime"`), `udf.map()` workers | **realtime** | ~700 packages; includes the AI extra (torch CPU, torchvision, onnxruntime, geoai) |
 | `engine="medium"` / `"large"`, other instance jobs | **batch** | ~620 packages; no torchvision/onnxruntime/datasets/geoai |
 
 ## Checking a package
@@ -35,20 +35,17 @@ version("polars")
 
 ## DuckDB extensions
 
-None are preinstalled, and the default DuckDB home directory isn't reliably writable (Lambda allows writes only under `/tmp`). Point `home_directory` at `/tmp` before installing (needs outbound network):
+`json`, `parquet` and `icu` are built in. Others install on first use into `$HOME` (`/tmp`, writable) and need outbound network:
 
 ```python
 import duckdb
 con = duckdb.connect()
-con.sql("""
-    SET home_directory='/tmp/duckdb/';
-    INSTALL h3 FROM community; LOAD h3;
-    INSTALL spatial; LOAD spatial;
-    INSTALL httpfs; LOAD httpfs;
-""")
+con.sql("INSTALL h3 FROM community; LOAD h3; INSTALL spatial; LOAD spatial; INSTALL httpfs; LOAD httpfs;")
 ```
 
-The public `common` UDF module wraps this with caching: `fused.load("https://github.com/fusedio/udfs/tree/<sha>/public/common/").duckdb_connect()` loads h3, spatial and httpfs.
+`SET home_directory` fails on a folder that doesn't exist: create it first if you need another one.
+
+The public `common` UDF module's `fused.load("https://github.com/fusedio/udfs/tree/<sha>/public/common/").duckdb_connect()` returns a connection with h3, spatial and httpfs loaded.
 
 ## System binaries
 

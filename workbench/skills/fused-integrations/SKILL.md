@@ -898,18 +898,18 @@ API key stored as `ANTHROPIC_API_KEY`. `fused.api.anthropic_connect()` returns a
 def udf(question: str = "Explain map projections in three sentences."):
     client = fused.api.anthropic_connect()
     message = client.messages.create(
-        model="claude-sonnet-4-20250514",
+        model="claude-sonnet-5-5",
         max_tokens=1024,
         messages=[{"role": "user", "content": question}],
     )
-    return message.content[0].text
+    return next(b.text for b in message.content if b.type == "text")
 ```
 
 ### System prompt
 
 ```python
 client.messages.create(
-    model="claude-sonnet-4-20250514",
+    model="claude-sonnet-5-5",
     max_tokens=1024,
     system="You are a geospatial data expert. Answer concisely.",
     messages=[{"role": "user", "content": question}],
@@ -920,7 +920,7 @@ client.messages.create(
 
 ```python
 with client.messages.stream(
-    model="claude-sonnet-4-20250514",
+    model="claude-sonnet-5-5",
     max_tokens=1024,
     messages=[{"role": "user", "content": "Write a Haversine function."}],
 ) as stream:
@@ -941,7 +941,7 @@ tools = [{
     },
 }]
 message = client.messages.create(
-    model="claude-sonnet-4-20250514",
+    model="claude-sonnet-5-5",
     max_tokens=1024,
     tools=tools,
     messages=[{"role": "user", "content": "What's the weather in San Francisco?"}],
@@ -958,7 +958,7 @@ import base64
 with open("satellite.png", "rb") as f:
     image_data = base64.standard_b64encode(f.read()).decode()
 client.messages.create(
-    model="claude-sonnet-4-20250514",
+    model="claude-sonnet-5-5",
     max_tokens=1024,
     messages=[{
         "role": "user",
@@ -971,6 +971,8 @@ client.messages.create(
 ```
 
 > **Anthropic image format differs from OpenAI.** Anthropic uses `{"type": "image", "source": {"type": "base64", "media_type": ..., "data": ...}}`. OpenAI uses `{"type": "image_url", "image_url": {"url": "data:image/png;base64,..."}}`. Don't swap them.
+
+Responses can start with a `thinking` block: read the first block whose `type` is `"text"`, not `content[0]`.
 
 Token usage is on `message.usage.input_tokens` / `message.usage.output_tokens`.
 

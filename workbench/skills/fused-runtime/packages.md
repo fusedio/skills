@@ -1,12 +1,12 @@
 # Packages in the Fused UDF runtime images
 
-<!-- Generated from the runtime images' lockfiles. Do not edit by hand. -->
+<!-- Realtime column: from a live UDF run on the realtime engine. Batch column: from the runtime images' lockfiles. Do not edit by hand. -->
 
 Python 3.12, linux x86_64. `realtime` is the default engine;
 `batch` is `engine="medium"`/`"large"` and other instance jobs.
 `—` means the package is not installed in that image.
 
-Realtime: 702 packages. Batch: 619 packages.
+Realtime: 692 packages. Batch: 619 packages.
 
 ## By category
 
@@ -24,7 +24,7 @@ Realtime: 702 packages. Batch: 619 packages.
 | pysal | 24.7 | 24.7 |
 | libpysal | 4.14.1 | 4.14.1 |
 | movingpandas | 0.20.0 | 0.20.0 |
-| geopy | 2.4.1 | 2.4.1 |
+| geopy | 2.5.0 | 2.4.1 |
 | topojson | 1.10 | 1.10 |
 | geoarrow-pyarrow | 0.2.0 | 0.2.0 |
 | rtree | 1.4.1 | 1.4.1 |
@@ -112,17 +112,17 @@ Realtime: 702 packages. Batch: 619 packages.
 | psycopg2-binary | 2.9.12 | 2.9.12 |
 | sqlalchemy | 2.0.51 | — |
 | google-cloud-bigquery | 3.42.0 | 3.42.0 |
-| snowflake-connector-python | 4.7.2 | 4.7.2 |
+| snowflake-connector-python | 4.8.0 | 4.7.2 |
 | lancedb | 0.33.0 | 0.33.0 |
 
 ### Cloud / IO
 
 | Package | realtime | batch |
 |---|---|---|
-| fsspec | 2024.12.0 | 2024.12.0 |
-| s3fs | 2024.12.0 | 2024.12.0 |
-| gcsfs | 2024.12.0 | 2024.12.0 |
-| adlfs | 2024.12.0 | 2024.12.0 |
+| fsspec | 2026.6.0 | 2024.12.0 |
+| s3fs | 2026.6.0 | 2024.12.0 |
+| gcsfs | 2026.7.0 | 2024.12.0 |
+| adlfs | 2026.8.0 | 2024.12.0 |
 | boto3 | 1.41.5 | 1.40.61 |
 | aioboto3 | 7.0.0 | 15.5.0 |
 | google-cloud-storage | 3.12.0 | 3.12.0 |
@@ -144,16 +144,15 @@ Realtime: 702 packages. Batch: 619 packages.
 | transformers | 5.12.1 | 5.12.1 |
 | sentence-transformers | 5.6.0 | 5.6.0 |
 | huggingface-hub | 1.20.0 | 1.20.0 |
-| datasets | 3.6.0 | — |
+| datasets | 5.0.1 | — |
 | onnxruntime | 1.27.0 | — |
-| segment-geospatial | 0.10.8 | — |
 | geoai-py | 0.37.2 | — |
 | torchgeo | 0.7.2 | — |
 | timm | 1.0.27 | — |
 | rembg | — | 2.0.69 |
 | openai | 2.43.0 | 2.43.0 |
 | anthropic | 0.109.2 | 0.109.2 |
-| litellm | 1.89.2 | 1.89.2 |
+| litellm | 1.97.0 | 1.89.2 |
 | ortools | 9.15.6755 | 9.15.6755 |
 
 ### Viz
@@ -186,8 +185,10 @@ Realtime: 702 packages. Batch: 619 packages.
 
 | Package | realtime | batch |
 |---|---|---|
+| adlfs | 2026.8.0 | 2024.12.0 |
 | aioboto3 | 7.0.0 | 15.5.0 |
 | aiobotocore | 2.26.0 | 2.25.1 |
+| anyio | 4.14.2 | 4.14.0 |
 | boto3 | 1.41.5 | 1.40.61 |
 | botocore | 1.41.5 | 1.40.61 |
 | daytona | 0.187.0 | 0.176.0 |
@@ -195,22 +196,40 @@ Realtime: 702 packages. Batch: 619 packages.
 | daytona-api-client-async | 0.187.0 | 0.176.0 |
 | daytona-toolbox-api-client | 0.187.0 | 0.176.0 |
 | daytona-toolbox-api-client-async | 0.187.0 | 0.176.0 |
+| fsspec | 2026.6.0 | 2024.12.0 |
+| gcsfs | 2026.7.0 | 2024.12.0 |
+| geopy | 2.5.0 | 2.4.1 |
+| gitpython | 3.2.0 | 3.1.60 |
 | gradio-client | 1.14.0 | 0.15.1 |
+| jupyterlab | 4.6.4 | 4.6.2 |
 | linopy | 0.8.0 | 0.6.1 |
+| litellm | 1.97.0 | 1.89.2 |
+| mahotas | 1.4.13 | git |
 | markdown-it-py | 2.2.0 | 4.2.0 |
 | mdit-py-plugins | 0.3.3 | 0.6.1 |
+| multidict | 6.9.1 | 6.7.1 |
+| notebook | 7.6.3 | 7.5.7 |
+| oauthlib | 4.0.0 | 3.3.1 |
 | polars | 1.41.2 | 0.20.31 |
+| pyjwt | 2.15.1 | 2.13.0 |
+| s3fs | 2026.6.0 | 2024.12.0 |
 | s3transfer | 0.15.0 | 0.14.0 |
-| shiny | 1.6.3 | 1.2.0 |
+| shiny | 1.8.0 | 1.2.0 |
+| snowflake-connector-python | 4.8.0 | 4.7.2 |
+| soupsieve | 2.10 | 2.8.4 |
 | stac-geoparquet | 0.3.2 | 0.2.1 |
+| tornado | 6.5.10 | 6.5.7 |
+| urllib3 | 2.8.0 | 2.7.0 |
 | uvicorn | 0.35.0 | 0.49.0 |
+| weasyprint | 70.0 | 68.1 |
 | websockets | 15.0.1 | 11.0.3 |
+| werkzeug | 3.1.9 | 3.1.8 |
 
 ## Only in one image
 
-Realtime only: addict, albumentations, antlr4-python3-runtime, black, boto3-stubs, botocore-stubs, datasets, docopt, e2cnn, einops, flatbuffers, gdown, geoai-py, google-cloud-secret-manager, greenlet, groundingdino-py, grpc-google-iam-v1, gunicorn, httptools, hydra-core, importlib-resources, iopath, ipyvue, ipyvuetify, jsonargparse, jupyter-loopback, jupyter-server-proxy, kornia, kornia-rs, leafmap, lightly, lightly-utils, lightning, lightning-utilities, line-profiler, localtileserver, mangum, ml-dtypes, mmcv, mmdet, mmengine, mmrotate, multiprocess, mypy-boto3-ec2, mypy-boto3-logs, mypy-boto3-s3, omegaconf, onnx, onnxruntime, opencv-python, overturemaps, patool, polars-runtime-32, portalocker, prometheus-fastapi-instrumentator, pycocotools, pygtfs, pysocks, pytokens, pytorch-lightning, qudida, rio-cogeo, sam2, segment-anything-hq, segment-anything-py, segment-geospatial, segmentation-models-pytorch, server-thread, shinychat, simpervisor, smoothify, sqlalchemy, supervision, termcolor, terminaltables, timm, torchgeo, torchinfo, torchmetrics, torchsr, torchvision, types-awscrt, types-s3transfer, typeshed-client, uvloop, whitebox, whiteboxgui, xxhash, yapf
+Realtime only: addict, albumentations, antlr4-python3-runtime, black, boto3-stubs, botocore-stubs, datasets, docopt, e2cnn, einops, flatbuffers, gdown, geoai-py, google-cloud-secret-manager, google-cloud-storage-control, greenlet, groundingdino-py, grpc-google-iam-v1, gunicorn, httptools, hydra-core, importlib-resources, ipyvue, ipyvuetify, jsonargparse, jupyter-loopback, jupyter-server-proxy, kornia, kornia-rs, leafmap, lightly, lightly-utils, lightning, lightning-utilities, line-profiler, localtileserver, mangum, ml-dtypes, mmcv, mmdet, mmengine, mmrotate, multiprocess, mypy-boto3-ec2, mypy-boto3-logs, mypy-boto3-s3, omegaconf, onnx, onnxruntime, opencv-python, overturemaps, polars-runtime-32, prometheus-fastapi-instrumentator, pycocotools, pygtfs, pysocks, pytokens, pytorch-lightning, qudida, rio-cogeo, segment-anything-py, segmentation-models-pytorch, server-thread, shinychat, simpervisor, smoothify, sqlalchemy, supervision, termcolor, terminaltables, timm, torchgeo, torchinfo, torchmetrics, torchsr, torchvision, types-awscrt, types-s3transfer, typeshed-client, uvloop, whitebox, whiteboxgui, xxhash, yapf
 
-Batch only: appdirs, moto, pymatting, pytest-asyncio, rembg, responses
+Batch only: appdirs, azure-datalake-store, moto, osmpythontools, pymatting, pytest-asyncio, rembg, responses, rpy2, rpy2-rinterface, rpy2-robjects
 
 ## All packages
 
@@ -219,7 +238,7 @@ Batch only: appdirs, moto, pymatting, pytest-asyncio, rembg, responses
 | absl-py | 2.4.0 | 2.4.0 |
 | access | 1.1.10.post3 | 1.1.10.post3 |
 | addict | 2.4.0 | — |
-| adlfs | 2024.12.0 | 2024.12.0 |
+| adlfs | 2026.8.0 | 2024.12.0 |
 | aenum | 3.1.17 | 3.1.17 |
 | affine | 2.4.0 | 2.4.0 |
 | aioboto3 | 7.0.0 | 15.5.0 |
@@ -240,7 +259,7 @@ Batch only: appdirs, moto, pymatting, pytest-asyncio, rembg, responses
 | annotated-types | 0.7.0 | 0.7.0 |
 | anthropic | 0.109.2 | 0.109.2 |
 | antlr4-python3-runtime | 4.9.3 | — |
-| anyio | 4.14.0 | 4.14.0 |
+| anyio | 4.14.2 | 4.14.0 |
 | anywidget | 0.11.0 | 0.11.0 |
 | appdirs | — | 1.4.4 |
 | arcgis | 2.4.3 | 2.4.3 |
@@ -257,7 +276,7 @@ Batch only: appdirs, moto, pymatting, pytest-asyncio, rembg, responses
 | atpublic | 7.0.0 | 7.0.0 |
 | attrs | 26.1.0 | 26.1.0 |
 | azure-core | 1.41.0 | 1.41.0 |
-| azure-datalake-store | 0.0.53 | 0.0.53 |
+| azure-datalake-store | — | 0.0.53 |
 | azure-identity | 1.25.3 | 1.25.3 |
 | azure-storage-blob | 12.30.0 | 12.30.0 |
 | babel | 2.18.0 | 2.18.0 |
@@ -313,7 +332,7 @@ Batch only: appdirs, moto, pymatting, pytest-asyncio, rembg, responses
 | dask | 2025.2.0 | 2025.2.0 |
 | databricks-sdk | 0.118.0 | 0.118.0 |
 | dataclasses-json | 0.6.7 | 0.6.7 |
-| datasets | 3.6.0 | — |
+| datasets | 5.0.1 | — |
 | datashader | 0.19.1 | 0.19.1 |
 | dateparser | 1.4.1 | 1.4.1 |
 | daytona | 0.187.0 | 0.176.0 |
@@ -364,10 +383,10 @@ Batch only: appdirs, moto, pymatting, pytest-asyncio, rembg, responses
 | fpdf2 | 2.8.7 | 2.8.7 |
 | fqdn | 1.5.1 | 1.5.1 |
 | frozenlist | 1.8.0 | 1.8.0 |
-| fsspec | 2024.12.0 | 2024.12.0 |
+| fsspec | 2026.6.0 | 2024.12.0 |
 | future | 1.0.0 | 1.0.0 |
 | gcloud | 0.18.3 | 0.18.3 |
-| gcsfs | 2024.12.0 | 2024.12.0 |
+| gcsfs | 2026.7.0 | 2024.12.0 |
 | gdal | 3.9.3 | 3.9.3 |
 | gdown | 6.1.0 | — |
 | geemap | 0.35.3 | 0.35.3 |
@@ -382,10 +401,10 @@ Batch only: appdirs, moto, pymatting, pytest-asyncio, rembg, responses
 | geojson2vt | 1.0.1 | 1.0.1 |
 | geomet | 1.1.0 | 1.1.0 |
 | geopandas | 1.1.3 | 1.1.3 |
-| geopy | 2.4.1 | 2.4.1 |
+| geopy | 2.5.0 | 2.4.1 |
 | giddy | 2.3.8 | 2.3.8 |
 | gitdb | 4.0.12 | 4.0.12 |
-| gitpython | 3.1.60 | 3.1.60 |
+| gitpython | 3.2.0 | 3.1.60 |
 | google-api-core | 2.31.0 | 2.31.0 |
 | google-api-python-client | 2.197.0 | 2.197.0 |
 | google-auth | 2.55.0 | 2.55.0 |
@@ -397,6 +416,7 @@ Batch only: appdirs, moto, pymatting, pytest-asyncio, rembg, responses
 | google-cloud-core | 2.6.0 | 2.6.0 |
 | google-cloud-secret-manager | 2.29.0 | — |
 | google-cloud-storage | 3.12.0 | 3.12.0 |
+| google-cloud-storage-control | 1.16.0 | — |
 | google-crc32c | 1.8.0 | 1.8.0 |
 | google-resumable-media | 2.10.0 | 2.10.0 |
 | googleapis-common-protos | 1.75.0 | 1.75.0 |
@@ -427,7 +447,7 @@ Batch only: appdirs, moto, pymatting, pytest-asyncio, rembg, responses
 | httpx-ws | 0.7.2 | 0.7.2 |
 | hubspot-api-client | 12.0.0 | 12.0.0 |
 | huggingface-hub | 1.20.0 | 1.20.0 |
-| hydra-core | 1.3.5 | — |
+| hydra-core | 1.3.7 | — |
 | hydrosignatures | 0.15.2 | 0.15.2 |
 | hyperframe | 6.1.0 | 6.1.0 |
 | ibis-framework | 10.8.0 | 10.8.0 |
@@ -442,7 +462,6 @@ Batch only: appdirs, moto, pymatting, pytest-asyncio, rembg, responses
 | iniconfig | 2.3.0 | 2.3.0 |
 | inquirerpy | 0.3.4 | 0.3.4 |
 | invoke | 2.2.1 | 2.2.1 |
-| iopath | 0.1.10 | — |
 | ipyevents | 2.0.4 | 2.0.4 |
 | ipyfilechooser | 0.6.0 | 0.6.0 |
 | ipykernel | 7.3.0 | 7.3.0 |
@@ -487,7 +506,7 @@ Batch only: appdirs, moto, pymatting, pytest-asyncio, rembg, responses
 | jupyter-server | 2.20.0 | 2.20.0 |
 | jupyter-server-proxy | 4.5.0 | — |
 | jupyter-server-terminals | 0.5.4 | 0.5.4 |
-| jupyterlab | 4.6.2 | 4.6.2 |
+| jupyterlab | 4.6.4 | 4.6.2 |
 | jupyterlab-pygments | 0.3.0 | 0.3.0 |
 | jupyterlab-server | 2.28.0 | 2.28.0 |
 | jupyterlab-widgets | 3.0.16 | 3.0.16 |
@@ -508,19 +527,19 @@ Batch only: appdirs, moto, pymatting, pytest-asyncio, rembg, responses
 | libpysal | 4.14.1 | 4.14.1 |
 | lightly | 1.5.25 | — |
 | lightly-utils | 0.0.2 | — |
-| lightning | 2.6.5 | — |
+| lightning | 2.6.6 | — |
 | lightning-utilities | 0.15.3 | — |
 | line-profiler | 4.2.0 | — |
 | linkify-it-py | 2.1.0 | 2.1.0 |
 | linopy | 0.8.0 | 0.6.1 |
-| litellm | 1.89.2 | 1.89.2 |
+| litellm | 1.97.0 | 1.89.2 |
 | llvmlite | 0.45.1 | 0.45.1 |
 | localtileserver | 1.0.0 | — |
 | locket | 1.0.0 | 1.0.0 |
 | loguru | 0.7.3 | 0.7.3 |
 | lxml | 6.1.1 | 6.1.1 |
 | lz4 | 4.4.5 | 4.4.5 |
-| mahotas | git | git |
+| mahotas | 1.4.13 | git |
 | mangum | 0.17.0 | — |
 | mapbox-vector-tile | 2.2.0 | 2.2.0 |
 | mapclassify | 2.10.0 | 2.10.0 |
@@ -554,7 +573,7 @@ Batch only: appdirs, moto, pymatting, pytest-asyncio, rembg, responses
 | msal | 1.37.0 | 1.37.0 |
 | msal-extensions | 1.3.1 | 1.3.1 |
 | msgpack | 1.2.1 | 1.2.1 |
-| multidict | 6.7.1 | 6.7.1 |
+| multidict | 6.9.1 | 6.7.1 |
 | multipledispatch | 1.0.0 | 1.0.0 |
 | multiprocess | 0.70.16 | — |
 | multiurl | 0.3.9 | 0.3.9 |
@@ -571,7 +590,7 @@ Batch only: appdirs, moto, pymatting, pytest-asyncio, rembg, responses
 | nest-asyncio2 | 1.7.2 | 1.7.2 |
 | netcdf4 | 1.7.4 | 1.7.4 |
 | networkx | 3.6.1 | 3.6.1 |
-| notebook | 7.5.7 | 7.5.7 |
+| notebook | 7.6.3 | 7.5.7 |
 | notebook-shim | 0.2.4 | 0.2.4 |
 | notion-client | 3.1.0 | 3.1.0 |
 | numba | 0.62.1 | 0.62.1 |
@@ -580,7 +599,7 @@ Batch only: appdirs, moto, pymatting, pytest-asyncio, rembg, responses
 | numpy | 2.3.5 | 2.3.5 |
 | nvidia-nccl-cu12 | 2.30.7 | 2.30.7 |
 | oauth2client | 4.1.3 | 4.1.3 |
-| oauthlib | 3.3.1 | 3.3.1 |
+| oauthlib | 4.0.0 | 3.3.1 |
 | obstore | 0.8.2 | 0.8.2 |
 | odc-geo | 0.5.1 | 0.5.1 |
 | odc-stac | 0.3.11 | 0.3.11 |
@@ -605,7 +624,7 @@ Batch only: appdirs, moto, pymatting, pytest-asyncio, rembg, responses
 | ortools | 9.15.6755 | 9.15.6755 |
 | osm2geojson | 0.2.9 | 0.2.9 |
 | osmnx | 1.9.3 | 1.9.3 |
-| osmpythontools | 0.3.6 | 0.3.6 |
+| osmpythontools | — | 0.3.6 |
 | oso-cloud | 1.5.1 | 1.5.1 |
 | overpass | 0.7.2 | 0.7.2 |
 | overturemaps | 0.18.0 | — |
@@ -621,7 +640,6 @@ Batch only: appdirs, moto, pymatting, pytest-asyncio, rembg, responses
 | parsy | 2.2 | 2.2 |
 | partd | 1.4.2 | 1.4.2 |
 | pathspec | 1.1.1 | 1.1.1 |
-| patool | 4.0.5 | — |
 | patsy | 1.0.2 | 1.0.2 |
 | pdal | 3.5.3 | 3.5.3 |
 | pendulum | 3.2.0 | 3.2.0 |
@@ -643,7 +661,6 @@ Batch only: appdirs, moto, pymatting, pytest-asyncio, rembg, responses
 | polars | 1.41.2 | 0.20.31 |
 | polars-runtime-32 | 1.41.2 | — |
 | pooch | 1.9.0 | 1.9.0 |
-| portalocker | 3.2.0 | — |
 | prometheus-client | 0.25.0 | 0.25.0 |
 | prometheus-fastapi-instrumentator | 6.1.0 | — |
 | prompt-toolkit | 3.0.52 | 3.0.52 |
@@ -685,7 +702,7 @@ Batch only: appdirs, moto, pymatting, pytest-asyncio, rembg, responses
 | pygments | 2.20.0 | 2.20.0 |
 | pygrib | 2.1.8 | 2.1.8 |
 | pygtfs | 0.1.11 | — |
-| pyjwt | 2.13.0 | 2.13.0 |
+| pyjwt | 2.15.1 | 2.13.0 |
 | pykalman | 0.11.2 | 0.11.2 |
 | pylerc | 4.1 | 4.1 |
 | pymatting | — | 1.1.15 |
@@ -752,19 +769,18 @@ Batch only: appdirs, moto, pymatting, pytest-asyncio, rembg, responses
 | rio-tiler | 6.8.0 | 6.8.0 |
 | rioxarray | 0.15.7 | 0.15.7 |
 | rpds-py | 2026.5.1 | 2026.5.1 |
-| rpy2 | 3.6.7 | 3.6.7 |
-| rpy2-rinterface | 3.6.6 | 3.6.6 |
-| rpy2-robjects | 3.6.5 | 3.6.5 |
+| rpy2 | — | 3.6.7 |
+| rpy2-rinterface | — | 3.6.6 |
+| rpy2-robjects | — | 3.6.5 |
 | rsa | 4.9.1 | 4.9.1 |
 | rtoml | 0.10.0 | 0.10.0 |
 | rtree | 1.4.1 | 1.4.1 |
 | ruamel-yaml | 0.19.1 | 0.19.1 |
 | ruff | 0.15.17 | 0.15.17 |
 | s2geometry | 0.9.0 | 0.9.0 |
-| s3fs | 2024.12.0 | 2024.12.0 |
+| s3fs | 2026.6.0 | 2024.12.0 |
 | s3transfer | 0.15.0 | 0.14.0 |
 | safetensors | 0.8.0 | 0.8.0 |
-| sam2 | 1.1.0 | — |
 | scikit-base | 0.13.2 | 0.13.2 |
 | scikit-image | 0.26.0 | 0.26.0 |
 | scikit-learn | 1.9.0 | 1.9.0 |
@@ -772,9 +788,7 @@ Batch only: appdirs, moto, pymatting, pytest-asyncio, rembg, responses
 | scooby | 0.11.2 | 0.11.2 |
 | seaborn | 0.13.2 | 0.13.2 |
 | secretstorage | 3.5.0 | 3.5.0 |
-| segment-anything-hq | 0.3 | — |
 | segment-anything-py | 1.0.1 | — |
-| segment-geospatial | 0.10.8 | — |
 | segmentation-models-pytorch | 0.5.0 | — |
 | segregation | 2.5.4 | 2.5.4 |
 | send2trash | 2.1.0 | 2.1.0 |
@@ -786,7 +800,7 @@ Batch only: appdirs, moto, pymatting, pytest-asyncio, rembg, responses
 | shap | 0.45.1 | 0.45.1 |
 | shapely | 2.0.7 | 2.0.7 |
 | shellingham | 1.5.4 | 1.5.4 |
-| shiny | 1.6.3 | 1.2.0 |
+| shiny | 1.8.0 | 1.2.0 |
 | shinychat | 0.5.1 | — |
 | simpervisor | 1.0.0 | — |
 | simple-salesforce | 1.12.9 | 1.12.9 |
@@ -797,10 +811,10 @@ Batch only: appdirs, moto, pymatting, pytest-asyncio, rembg, responses
 | smmap | 5.0.3 | 5.0.3 |
 | smoothify | 0.3.1 | — |
 | sniffio | 1.3.1 | 1.3.1 |
-| snowflake-connector-python | 4.7.2 | 4.7.2 |
+| snowflake-connector-python | 4.8.0 | 4.7.2 |
 | snuggs | 1.4.7 | 1.4.7 |
 | sortedcontainers | 2.4.0 | 2.4.0 |
-| soupsieve | 2.8.4 | 2.8.4 |
+| soupsieve | 2.10 | 2.8.4 |
 | spaghetti | 1.7.6 | 1.7.6 |
 | spglm | 1.1.0 | 1.1.0 |
 | spherely | 0.1.1 | 0.1.1 |
@@ -857,7 +871,7 @@ Batch only: appdirs, moto, pymatting, pytest-asyncio, rembg, responses
 | torchmetrics | 1.9.0 | — |
 | torchsr | 1.0.4 | — |
 | torchvision | 0.25.0+cpu | — |
-| tornado | 6.5.7 | 6.5.7 |
+| tornado | 6.5.10 | 6.5.7 |
 | tqdm | 4.68.3 | 4.68.3 |
 | traitlets | 5.15.1 | 5.15.1 |
 | traittypes | 0.2.3 | 0.2.3 |
@@ -883,7 +897,7 @@ Batch only: appdirs, moto, pymatting, pytest-asyncio, rembg, responses
 | uri-template | 1.3.0 | 1.3.0 |
 | uritemplate | 4.2.0 | 4.2.0 |
 | url-normalize | 3.0.0 | 3.0.0 |
-| urllib3 | 2.7.0 | 2.7.0 |
+| urllib3 | 2.8.0 | 2.7.0 |
 | urlpath | 1.2.0 | 1.2.0 |
 | us | 3.2.0 | 3.2.0 |
 | utm | 0.8.1 | 0.8.1 |
@@ -895,12 +909,12 @@ Batch only: appdirs, moto, pymatting, pytest-asyncio, rembg, responses
 | vt2geojson | 0.2.1 | 0.2.1 |
 | watchfiles | 0.19.0 | 0.19.0 |
 | wcwidth | 0.8.1 | 0.8.1 |
-| weasyprint | 68.1 | 68.1 |
+| weasyprint | 70.0 | 68.1 |
 | webcolors | 25.10.0 | 25.10.0 |
 | webencodings | 0.5.1 | 0.5.1 |
 | websocket-client | 1.9.0 | 1.9.0 |
 | websockets | 15.0.1 | 11.0.3 |
-| werkzeug | 3.1.8 | 3.1.8 |
+| werkzeug | 3.1.9 | 3.1.8 |
 | wheel | 0.47.0 | 0.47.0 |
 | whitebox | 2.3.6 | — |
 | whitebox-workflows | 2.0.6 | 2.0.6 |
