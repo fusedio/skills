@@ -9,7 +9,7 @@ A UDF runs in one of two prebuilt images. Both are Python **3.12** on linux x86_
 
 | Engine | Image | Notes |
 |---|---|---|
-| default (`engine` unset / `"realtime"`), `udf.map()` workers | **realtime** | ~700 packages; includes the AI extra (torch CPU, torchvision, onnxruntime, segment-geospatial, geoai) |
+| default (`engine` unset / `"realtime"`), `udf.map()` workers | **realtime** | ~700 packages; includes the AI extra (torch CPU, torchvision, onnxruntime, geoai) |
 | `engine="medium"` / `"large"`, other instance jobs | **batch** | ~620 packages; no torchvision/onnxruntime/datasets/geoai |
 
 ## Checking a package
