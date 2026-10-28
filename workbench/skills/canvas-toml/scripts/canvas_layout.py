@@ -66,14 +66,24 @@ DEFAULT_SIZES: dict[str, tuple[int, int]] = {
 ARRANGE_ROW_FACTOR = 3.5
 
 # Description panel (node-description-panel.tsx + textbox-renderer.tsx).
-# Rendered BELOW the node body, outside ``height``:
-#   marginTop 4px + padding 4px top + 4px bottom + lines * (14px * scale * 1.5)
-DESC_PANEL_GAP = 4
+# Rendered BELOW the node body, outside ``height``. The workbench measures the
+# panel's offsetHeight in the browser and adds THAT to the child's height
+# (folder-layout.ts getNodeDimensions): padding 4px top + 4px bottom, the
+# ProseMirror paragraph(s) at 14px * scale * 1.5 line height, plus the last
+# paragraph's 8px bottom margin. The 4px marginTop gap is outside offsetHeight
+# and is not counted. offsetHeight is an integer, so the result is rounded.
+# One line at the default scale: 4 + 4 + 31.5 + 8 = 47.5 → 48 (checked against
+# canvases the workbench saved).
 DESC_PANEL_PADDING = 4
+DESC_PARAGRAPH_MARGIN = 8
 DESC_FONT_PX = 14
 DESC_LINE_HEIGHT = 1.5
 DESC_DEFAULT_SCALE = 1.5  # DEFAULT_NODE_DESCRIPTION_SCALE_FACTOR
 DESC_AVG_CHAR_EM = 0.55  # rough average glyph width for wrap estimate
+# The browser wraps text by real glyph widths; this script only estimates
+# them. A folder whose declared height is within this many px per described
+# child of the estimate is taken as the workbench's own measurement and kept.
+DESC_TOLERANCE_PER_CHILD = 8
 
 KIND_BY_EXT = {".py": "udf", ".json": "json", ".html": "html", ".md": "text"}
 
@@ -132,15 +142,20 @@ def description_lines(
     return lines
 
 
+def description_panel_px(lines: int, scale: float = DESC_DEFAULT_SCALE) -> float:
+    """The panel's offsetHeight for ``lines`` rendered lines (0 for none)."""
+    if lines <= 0:
+        return 0.0
+    line_px = DESC_FONT_PX * scale * DESC_LINE_HEIGHT
+    exact = 2 * DESC_PANEL_PADDING + lines * line_px + DESC_PARAGRAPH_MARGIN
+    return float(math.floor(exact + 0.5))
+
+
 def description_height(
     text: str, width_px: float, scale: float = DESC_DEFAULT_SCALE
 ) -> float:
     """Estimated extra height (px) the description panel adds below a node."""
-    lines = description_lines(text, width_px, scale)
-    if lines == 0:
-        return 0.0
-    line_px = DESC_FONT_PX * scale * DESC_LINE_HEIGHT
-    return DESC_PANEL_GAP + 2 * DESC_PANEL_PADDING + lines * line_px
+    return description_panel_px(description_lines(text, width_px, scale), scale)
 
 
 def folder_grid_layout(
@@ -357,6 +372,10 @@ class Node:
     eff_h: float = 0.0  # body + description (nodes) / packed height (folders)
     desc_h: float = 0.0
     computed_children: dict[str, tuple[float, float]] = field(default_factory=dict)
+    # folders: the packed height from estimated description panels, and the
+    # declared height it was close enough to that the declared one is kept.
+    packed_h: float = 0.0
+    height_kept: bool = False
 
     @property
     def is_folder(self) -> bool:
@@ -495,7 +514,17 @@ class Canvas:
             f.eff_w = effective_folder_width(f.width, [k.eff_w for k in kids])
             positions, height = folder_grid_layout(f.eff_w, kids_sizes)
             f.computed_children = positions
-            f.eff_h = height
+            f.packed_h = height
+            # Description panels are measured by the browser; this script
+            # estimates them. A declared height within the estimate's slack is
+            # the workbench's own number: keep it, and lay out around it.
+            slack = DESC_TOLERANCE_PER_CHILD * sum(1 for k in kids if k.desc_h > 0)
+            width_ok = f.width is None or round(f.width) == f.eff_w
+            f.height_kept = (
+                f.height is not None and width_ok and slack > 0
+                and abs(f.height - height) <= slack
+            )
+            f.eff_h = f.height if f.height_kept and f.height is not None else height
 
     def _depth(self, n: Node) -> int:
         d = 0
@@ -530,6 +559,14 @@ class Canvas:
                     folder=f.name,
                     declared=f.height,
                     computed=f.eff_h,
+                )
+            elif f.height_kept and f.height is not None and abs(f.height - f.packed_h) > 0.5:
+                self.info(
+                    "folder height kept (description panels are measured by the browser; "
+                    "the declared height is within the estimate's slack)",
+                    folder=f.name,
+                    declared=f.height,
+                    estimated=f.packed_h,
                 )
             for child, (cx, cy) in f.computed_children.items():
                 k = self.nodes[child]
@@ -592,6 +629,11 @@ class Canvas:
                 changed.append(f.name)
             if _set_num(f.raw, "width", f.eff_w) | _set_num(f.raw, "height", f.eff_h):
                 changed.append(f.name)
+            if f.height_kept:
+                # The workbench measured this folder; its child positions are
+                # the real ones too, and this script's are only estimates.
+                f.width, f.height = f.eff_w, f.eff_h
+                continue
             for child, (cx, cy) in f.computed_children.items():
                 k = self.nodes[child]
                 if _set_num(k.raw, "x", cx) | _set_num(k.raw, "y", cy):
@@ -672,7 +714,10 @@ def _num(v: Any) -> float | None:
 
 
 def _clean(v: float) -> int | float:
-    return int(v) if float(v).is_integer() else round(v, 3)
+    """A number as the workbench stores it: integral values as ints, the rest
+    untouched (rounding would make every rewrite a change the sync has to
+    push)."""
+    return int(v) if float(v).is_integer() else v
 
 
 def _set_num(raw: dict[str, Any], key: str, value: float) -> bool:
@@ -687,93 +732,119 @@ def _r(r: Rect) -> list[float]:
     return [_clean(r.x), _clean(r.y), _clean(r.w), _clean(r.h)]
 
 
-NODE_KEY_ORDER = [
-    "udfName",
-    "type",
-    "folderName",
-    "folderColor",
-    "childUdfOrder",
-    "isLocked",
-    "title",
-    "description",
-    "visible",
-    "x",
-    "y",
-    "zIndex",
-    "width",
-    "height",
-]
+
+
+_BASIC_ESCAPES = {"\\": "\\\\", '"': '\\"', "\b": "\\b", "\f": "\\f",
+                  "\n": "\\n", "\r": "\\r", "\t": "\\t"}
+
+
+def _needs_escape(c: str) -> bool:
+    return c < " " or c == "\x7f"
+
+
+def _basic_str(s: str) -> str:
+    out = []
+    for c in s:
+        if c in _BASIC_ESCAPES:
+            out.append(_BASIC_ESCAPES[c])
+        elif _needs_escape(c):
+            out.append(f"\\u{ord(c):04X}")
+        else:
+            out.append(c)
+    return '"' + "".join(out) + '"'
 
 
 def _toml_str(s: str) -> str:
-    return json.dumps(s, ensure_ascii=False)
+    """A string as rtoml (toml_edit) writes it: a literal string when that
+    saves escaping a backslash or a double quote, else a basic string with
+    escapes; the multi-line forms when the text holds a newline."""
+    control = any(_needs_escape(c) and c != "\n" for c in s)
+    if "\n" in s and not control:
+        if ("\\" in s or '"' in s) and "'''" not in s:
+            return "'''\n" + s + "'''"
+        body = s.replace("\\", "\\\\").replace('"""', '""\\"')
+        return '"""\n' + body + '"""'
+    if not control and ("\\" in s or '"' in s) and "'" not in s:
+        return "'" + s + "'"
+    return _basic_str(s)
+
+
+def _toml_key(k: str) -> str:
+    return k if k and all(c.isascii() and (c.isalnum() or c in "_-") for c in k) else _basic_str(k)
+
+
+def _toml_float(v: float) -> str:
+    if v != v:
+        return "nan"
+    if v in (math.inf, -math.inf):
+        return "inf" if v > 0 else "-inf"
+    text = repr(v)
+    if "e" in text or "E" in text:
+        # rtoml writes every float positionally, shortest digits, never 1e16
+        from decimal import Decimal
+        text = format(Decimal(text), "f")
+        if "." not in text:
+            text += ".0"
+    return text
 
 
 def _toml_value(v: Any) -> str:
     if isinstance(v, bool):
         return "true" if v else "false"
-    if isinstance(v, (int, float)):
-        return repr(_clean(v)) if isinstance(v, float) else str(v)
+    if isinstance(v, float):
+        return _toml_float(v)
+    if isinstance(v, int):
+        return str(v)
     if isinstance(v, str):
         return _toml_str(v)
     if isinstance(v, list):
-        if v and all(isinstance(i, list) for i in v):
-            return "[\n" + "".join(f"  {_toml_value(i)},\n" for i in v) + "]"
         return "[" + ", ".join(_toml_value(i) for i in v) + "]"
     if isinstance(v, dict):
-        return "{ " + ", ".join(f"{k} = {_toml_value(x)}" for k, x in v.items()) + " }"
+        return "{ " + ", ".join(f"{_toml_key(k)} = {_toml_value(x)}" for k, x in v.items()) + " }"
     raise TypeError(f"cannot write {type(v).__name__} to TOML")
 
 
+def _is_aot(v: Any) -> bool:
+    return isinstance(v, list) and bool(v) and all(isinstance(i, dict) for i in v)
+
+
 def _emit_table(
-    lines: list[str],
-    header: str | None,
-    table: dict[str, Any],
-    key_order: list[str] | None = None,
+    lines: list[str], path: str, table: dict[str, Any], header: str | None
 ) -> None:
+    """One table in the layout ``rtoml`` writes — the same library the Fused
+    server and fused-render's sync use for canvas.toml, so a file this
+    script rewrites differs from theirs only where a number changed: keys in
+    document order, scalars first, then arrays of tables, then sub-tables;
+    arrays (edges included) inline on one line; a blank line before every
+    table header. ``path`` is the dotted key of ``table`` ("" at the root),
+    ``header`` the line that opens it (None at the root)."""
     keys = list(table)
-    if key_order:
-        keys = [k for k in key_order if k in table] + [
-            k for k in keys if k not in key_order
-        ]
-    scalars = [
-        k
-        for k in keys
-        if not isinstance(table[k], dict)
-        and not (
-            isinstance(table[k], list)
-            and table[k]
-            and all(isinstance(i, dict) for i in table[k])
-        )
-    ]
+    plain = [k for k in keys if not isinstance(table[k], (dict, list))]
+    arrays = [k for k in keys if isinstance(table[k], list) and not _is_aot(table[k])]
+    scalars = plain + arrays  # rtoml: plain values first, then arrays, in document order
+    aots = [k for k in keys if _is_aot(table[k])]
     sub_tables = [k for k in keys if isinstance(table[k], dict)]
-    aots = [
-        k
-        for k in keys
-        if isinstance(table[k], list)
-        and table[k]
-        and all(isinstance(i, dict) for i in table[k])
-    ]
-    if header is not None:
-        lines.append(f"[{header}]")
+    # rtoml writes a table's header only when the table has values of its
+    # own (or nothing at all); a table that only holds sub-tables is implied.
+    if header is not None and (scalars or not (aots or sub_tables) or header.startswith("[[")):
+        if lines:
+            lines.append("")
+        lines.append(header)
     for k in scalars:
-        lines.append(f"{k} = {_toml_value(table[k])}")
-    lines.append("")
-    for k in sub_tables:
-        _emit_table(lines, f"{header}.{k}" if header else k, table[k])
+        lines.append(f"{_toml_key(k)} = {_toml_value(table[k])}")
     for k in aots:
+        name = f"{path}.{_toml_key(k)}" if path else _toml_key(k)
         for item in table[k]:
-            lines.append(f"[[{header}.{k}]]" if header else f"[[{k}]]")
-            _emit_table(lines, None, item, NODE_KEY_ORDER if k == "nodes" else None)
+            _emit_table(lines, name, item, f"[[{name}]]")
+    for k in sub_tables:
+        name = f"{path}.{_toml_key(k)}" if path else _toml_key(k)
+        _emit_table(lines, name, table[k], f"[{name}]")
 
 
 def dump_toml(doc: dict[str, Any]) -> str:
     lines: list[str] = []
-    _emit_table(lines, None, doc)
-    text = "\n".join(lines).rstrip() + "\n"
-    while "\n\n\n" in text:
-        text = text.replace("\n\n\n", "\n\n")
-    return text
+    _emit_table(lines, "", doc, None)
+    return "\n".join(lines) + "\n"
 
 
 # --------------------------------------------------------------------------- #
@@ -867,14 +938,7 @@ def cmd_folder_size(args: argparse.Namespace) -> int:
         parts = spec.split("x")
         w, h = float(parts[0]), float(parts[1])
         desc_lines = int(parts[2]) if len(parts) > 2 else 0
-        extra = description_height("x" * 1, w) if desc_lines == 1 else 0.0
-        if desc_lines > 1:
-            extra = (
-                DESC_PANEL_GAP
-                + 2 * DESC_PANEL_PADDING
-                + desc_lines * DESC_FONT_PX * DESC_DEFAULT_SCALE * DESC_LINE_HEIGHT
-            )
-        children.append((f"child_{i}", w, h + extra))
+        children.append((f"child_{i}", w, h + description_panel_px(desc_lines)))
     width = effective_folder_width(args.width, [w for _, w, _ in children])
     positions, height = folder_grid_layout(width, children)
     rows = len({y for _, y in positions.values()})

@@ -3,13 +3,7 @@ version = 2
 name = "Folder layout example"
 
 [canvas]
-edges = [
-  ["controls", "load_cities"],
-  ["load_cities", "city_stats"],
-  ["city_stats", "cities_map"],
-  ["city_stats", "stats_chart"],
-  ["city_stats", "report"],
-]
+edges = [["controls", "load_cities"], ["load_cities", "city_stats"], ["city_stats", "cities_map"], ["city_stats", "stats_chart"], ["city_stats", "report"]]
 
 [[canvas.nodes]]
 udfName = "intro"
@@ -38,12 +32,12 @@ udfName = "Data"
 type = "udf-folder"
 folderName = "Data"
 folderColor = "#9370DB40"
-childUdfOrder = ["load_cities", "city_stats"]
 x = 0
-y = 618.5
+y = 623
 zIndex = 0
 width = 1555
-height = 690
+height = 694
+childUdfOrder = ["load_cities", "city_stats"]
 
 [[canvas.nodes]]
 udfName = "load_cities"
@@ -74,24 +68,24 @@ udfName = "Views"
 type = "udf-folder"
 folderName = "Views"
 folderColor = "#4682B440"
-childUdfOrder = ["stats_chart", "report"]
 x = 0
-y = 1383.5
+y = 1392
 zIndex = 0
 width = 1580
 height = 1290
+childUdfOrder = ["stats_chart", "report"]
 
 [[canvas.nodes]]
 udfName = "Maps"
 type = "udf-folder"
 folderName = "Maps"
 folderColor = "#2E8B5740"
-childUdfOrder = ["cities_map"]
 x = 0
-y = 2748.5
+y = 2757
 zIndex = 0
 width = 980
 height = 715
+childUdfOrder = ["cities_map"]
 
 [[canvas.nodes]]
 udfName = "cities_map"

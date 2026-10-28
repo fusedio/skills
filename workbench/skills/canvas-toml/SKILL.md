@@ -335,11 +335,15 @@ python3 $SCRIPT place ./my_canvas --center 1200,800 --size 350x250
 Workflow when authoring or editing a canvas:
 
 1. Write every node with its real `width`/`height`. Give top-level nodes a **row intent** only: nodes you want on the same row get the same `y`, rows get increasing `y`, columns increasing `x` (rough numbers are fine). Folder children: any `x`/`y`, e.g. `0`.
-2. Run `fix`. It rewrites `canvas.toml` in place: folders get their packed `width`/`height` and child positions, top-level rows get `y = previous row bottom + 75` and columns `x = previous right + 75`, where "bottom" includes folder packing and description panels. Comments in the file are not kept — keep notes in `.md` nodes, not TOML comments.
+2. Run `fix`. It rewrites `canvas.toml` in place: folders get their packed `width`/`height` and child positions, top-level rows get `y = previous row bottom + 75` and columns `x = previous right + 75`, where "bottom" includes folder packing and description panels. Comments in the file are not kept — keep notes in `.md` nodes, not TOML comments. The file comes back in the same layout the Fused server and fused-render write (keys in document order, `edges` on one line, a blank line before each table), so a `fix` that changes nothing leaves the file byte-identical and a `fix` that changes a number diffs by that number only.
 3. Run `check` (also run by `fix`). Ship only when it prints `ok`. `fused workbench canvas validate` does **not** check layout.
 4. Adding one node to an existing canvas: `place --near <node>` gives the slot the workbench itself would use (right, then below, above, left); `place --center x,y` spirals out from a point the way the toolbar "add node" does. Then `check`.
 
-`check` output levels: `error` = the workbench will show something different from your file (overlap, folder size); `warn` = probable visual problem (description panel runs into a neighbour, negative coordinates); `info` = harmless (child x/y differ from the packed position).
+`check` output levels: `error` = the workbench will show something different from your file (overlap, folder size); `warn` = probable visual problem (description panel runs into a neighbour, negative coordinates); `info` = harmless (child x/y differ from the packed position; a folder height kept as the workbench measured it).
+
+Description panels are measured in the browser from the rendered text; the script only estimates them (one line at the default scale is 48 px: 4 + 4 padding, 31.5 line, 8 paragraph margin). So a folder whose declared height is within 8 px per described child of the estimate is taken as the **workbench's own measurement**: `check` passes it, `fix` keeps its height and its child positions. Never "correct" such a folder by hand to the script's number — the workbench writes its own back on the next load and the two keep overwriting each other.
+
+**The file is not yours alone.** Under fused-render, `canvas.toml` is also written by the sync: a source file you add gets a default `[[canvas.nodes]]` row synthesized a few seconds later if you have not written one, an open workbench writes its edits back, a push can be followed by the server's copy. Re-read the file before every edit instead of matching text you read earlier, and write a new file **and its row in the same change set** — a row you add later for a file the sync already rowed is a second row for one name, which `fused workbench canvas validate` does not catch (fused-render folds the two into one before pushing; the server keeps only the first).
 
 ### Node sizes
 
