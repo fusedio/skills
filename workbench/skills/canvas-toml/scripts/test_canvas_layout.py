@@ -472,6 +472,32 @@ class KeptHeightEdges(unittest.TestCase):
         c.apply_folder_fix()
         self.assertEqual((c.nodes["Data"].width, c.nodes["Data"].height), (780, 1290.0))
 
+    def test_children_at_the_origin_are_repacked_not_kept(self) -> None:
+        text = SERVER_CANVAS.replace("x = 40\ny = 698\n", "x = 0\ny = 0\n")
+        (self.dir / "canvas.toml").write_text(text)
+        c = cl.Canvas.load(self.dir)
+        c.check()
+        self.assertFalse(c.nodes["Data"].height_kept)
+        changed = c.apply_folder_fix()
+        self.assertIn("tsunami_data", changed)
+        self.assertEqual((c.nodes["tsunami_data"].raw["x"], c.nodes["tsunami_data"].raw["y"]), (40, 698))
+        self.assertEqual(c.nodes["Data"].height, 1286)
+
+    def test_top_level_occupancy_includes_the_panel_gap(self) -> None:
+        # b sits 551 px under a's body; a's panel starts at 504 (4 px gap)
+        # and ends at 552, so on screen they touch by one pixel.
+        (self.dir / "canvas.toml").write_text(
+            '[canvas]\nedges = []\n\n[[canvas.nodes]]\nudfName = "load_trips"\nx = 0\ny = 0\n'
+            'width = 700\nheight = 500\ndescription = "one line"\n\n[[canvas.nodes]]\n'
+            'udfName = "map_pickups"\nx = 0\ny = 551\nwidth = 700\nheight = 500\n')
+        c = cl.Canvas.load(self.dir)
+        c.check()
+        self.assertEqual(c.nodes["load_trips"].occupied_h, 500 + 48 + 4)
+        msgs = [p["msg"] for p in c.problems if p["level"] != "info"]
+        self.assertTrue(any(m.startswith("description panel overlaps") for m in msgs), msgs)
+        c.apply_restack()
+        self.assertEqual(c.nodes["map_pickups"].y, 500 + 48 + 4 + 75)
+
     def test_no_described_children_means_no_slack(self) -> None:
         text = SERVER_CANVAS.replace('description = "NYC yellow taxi trips (Jan 2023 sample)"\n', "")
         text = text.replace('description = "NOAA historical tsunami events (plain table)"\n', "")

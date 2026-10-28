@@ -74,6 +74,7 @@ ARRANGE_ROW_FACTOR = 3.5
 # and is not counted. offsetHeight is an integer, so the result is rounded.
 # One line at the default scale: 4 + 4 + 31.5 + 8 = 47.5 → 48 (checked against
 # canvases the workbench saved).
+DESC_PANEL_GAP = 4  # marginTop between the node body and the panel: on screen, not in offsetHeight
 DESC_PANEL_PADDING = 4
 DESC_PARAGRAPH_MARGIN = 8
 DESC_FONT_PX = 14
@@ -202,6 +203,25 @@ def min_folder_width(
     """Port of ``computeMinFolderWidth``: widest child + 2 * padding, at least 200."""
     widest = max(list(child_widths) or [0])
     return max(FOLDER_MIN_WIDTH, widest + padding * 2)
+
+
+def _children_placed(folder_w: float, kids: list[Node]) -> bool:
+    """True when every child sits where the workbench could have packed it:
+    inside the folder's inset, none on top of another. Children an author
+    left at 0,0 (or stacked) are not a measurement to keep."""
+    rects: list[Rect] = []
+    for k in kids:
+        if k.x is None or k.y is None:
+            return False
+        if k.x < FOLDER_PADDING - 0.5 or k.y < FOLDER_TOP_INSET - 0.5:
+            return False
+        if k.x + k.eff_w > folder_w - FOLDER_PADDING + 0.5:
+            return False
+        r = Rect(k.x, k.y, k.eff_w, k.eff_h)
+        if any(r.intersects(o) for o in rects):
+            return False
+        rects.append(r)
+    return True
 
 
 def effective_folder_width(
@@ -378,6 +398,13 @@ class Node:
     height_kept: bool = False
 
     @property
+    def occupied_h(self) -> float:
+        """Height this node takes on screen at the top level: the body, the
+        description panel and the gap above it (inside a folder the
+        workbench packs by offsetHeight alone, so ``eff_h`` has no gap)."""
+        return self.eff_h + (DESC_PANEL_GAP if self.desc_h > 0 else 0)
+
+    @property
     def is_folder(self) -> bool:
         return self.kind == "folder"
 
@@ -523,6 +550,7 @@ class Canvas:
             f.height_kept = (
                 f.height is not None and width_ok and slack > 0
                 and abs(f.height - height) <= slack
+                and _children_placed(f.eff_w, kids)
             )
             f.eff_h = f.height if f.height_kept and f.height is not None else height
 
@@ -538,7 +566,7 @@ class Canvas:
         return [self.nodes[n] for n in self.order if self.nodes[n].parent is None]
 
     def rect(self, n: Node, with_description: bool = True) -> Rect:
-        h = n.eff_h if (with_description or n.is_folder) else (n.height or 0)
+        h = n.occupied_h if (with_description or n.is_folder) else (n.height or 0)
         return Rect(n.x or 0.0, n.y or 0.0, n.eff_w, h)
 
     # -- checks ----------------------------------------------------------- #
@@ -674,7 +702,7 @@ class Canvas:
                     changed.append(n.name)
                 n.x, n.y = x, row_y
                 prev_right = x + n.eff_w
-                bottom = max(bottom, row_y + n.eff_h)
+                bottom = max(bottom, row_y + n.occupied_h)
             prev_bottom = bottom
         return changed
 
@@ -690,7 +718,7 @@ class Canvas:
                 if tops
                 else (0.0, 0.0)
             )
-        items = [(n.name, n.eff_w, n.eff_h) for n in tops_sorted]
+        items = [(n.name, n.eff_w, n.occupied_h) for n in tops_sorted]
         pos = arrange_rows(items, origin=origin, columns=columns)
         changed: list[str] = []
         for name, (x, y) in pos.items():
