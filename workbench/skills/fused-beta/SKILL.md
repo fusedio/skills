@@ -68,7 +68,7 @@ Every generated method takes `engine=` as a keyword-only argument on top of the 
 
 ## Calling over HTTP
 
-Any caller can start the same tasks without the Python SDK. Base URL `https://www.fused.io/server/v1` (or your deployment's `/server/v1`).
+Any caller can start the same tasks without the Python SDK. Base URL `https://www.fused.io/server` (or your deployment's `/server`).
 
 Authenticate with one of:
 
@@ -93,16 +93,16 @@ Status codes on `POST /v1/tasks/run`: 404 unknown `task`, 422 invalid `args`, 40
 ### With a user token
 
 ```bash
-BASE=https://www.fused.io/server/v1
+BASE=https://www.fused.io/server
 AUTH="Authorization: Bearer $FUSED_TOKEN"        # python -c "import fused; print(fused.api.credentials.access_token())"
 
-ID=$(curl -s -X POST "$BASE/tasks/run" -H "$AUTH" -H "Content-Type: application/json" \
+ID=$(curl -s -X POST "$BASE/v1/tasks/run" -H "$AUTH" -H "Content-Type: application/json" \
   -d '{"task": "beta.example.hello", "args": {"n": 3}}' | jq -r .id)
 
-curl -s "$BASE/tasks/$ID" -H "$AUTH" | jq .status       # repeat until succeeded or failed
-curl -s "$BASE/tasks/$ID/logs" -H "$AUTH"
+curl -s "$BASE/v1/tasks/$ID" -H "$AUTH" | jq .status       # repeat until succeeded or failed
+curl -s "$BASE/v1/tasks/$ID/logs" -H "$AUTH"
 
-URL=$(curl -s -D - -o /dev/null "$BASE/tasks/$ID/result" -H "$AUTH" \
+URL=$(curl -s -D - -o /dev/null "$BASE/v1/tasks/$ID/result" -H "$AUTH" \
   | tr -d '\r' | awk -F': ' 'tolower($1)=="x-fused-redirect"{print $2}')
 curl -s "$URL"                                           # no Authorization header
 ```
@@ -112,14 +112,14 @@ curl -s "$URL"                                           # no Authorization head
 Same calls; only the header changes.
 
 ```bash
-BASE=https://www.fused.io/server/v1
+BASE=https://www.fused.io/server
 AUTH="Authorization: Fused-Service-Token $SERVICE_ACCOUNT_ID:$SERVICE_TOKEN"
 
-ID=$(curl -s -X POST "$BASE/tasks/run" -H "$AUTH" -H "Content-Type: application/json" \
+ID=$(curl -s -X POST "$BASE/v1/tasks/run" -H "$AUTH" -H "Content-Type: application/json" \
   -d '{"task": "beta.example.hello", "args": {"n": 3}, "engine": "small"}' | jq -r .id)
 
-curl -s "$BASE/tasks/$ID" -H "$AUTH" | jq .status
-curl -s -D - -o /dev/null "$BASE/tasks/$ID/result" -H "$AUTH"   # 204 + x-fused-redirect
+curl -s "$BASE/v1/tasks/$ID" -H "$AUTH" | jq .status
+curl -s -D - -o /dev/null "$BASE/v1/tasks/$ID/result" -H "$AUTH"   # 204 + x-fused-redirect
 ```
 
 Fetch the `x-fused-redirect` URL without the header, as above. If the result response is 200 with a body instead of 204, read the body directly.
