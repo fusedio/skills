@@ -5,6 +5,8 @@ description: Call the team-built `fused.beta` methods — UDFs the Fused team wr
 
 # Calling `fused.beta` methods
 
+> **CLI version:** commands below are written `fused workbench …` (only the 2.9.2b0+ pre-releases have this namespace; released versions such as 2.9.1 and 2.9.3 don't). If `fused workbench` fails with `No such command 'workbench'`, drop the word `workbench` — e.g. `fused beta list`. If `beta` itself is missing (`No such command 'beta'`), the installed fused predates the beta catalog: use `GET /v1/beta/catalog` over HTTP (below). See `fused-workbench-cli`.
+
 `fused.beta` holds **UDFs built by the Fused team**. Each is a method like `fused.beta.example.hello(...)`, grouped by canvas (`example` is the canvas, `hello` the method). The UDF code is **not visible to you**: it stays on Fused's servers, and every call runs there. You only see each method's signature and docs.
 
 Because the code is hidden, the signature and docs are the whole contract. Do not guess a method name, an argument name or a return shape. Do not decide a method does not exist because you cannot find it in the SDK or in the docs for other Fused APIs.
