@@ -1,6 +1,6 @@
 ---
 name: fused-beta
-description: Call the team-built `fused.beta` methods — UDFs the Fused team wrote whose code stays on Fused's servers and whose calls run there — from Python (`fused.beta.<canvas>.<udf>(...)`), the CLI, or over HTTP (`POST /v1/tasks/run` with `task: "beta.<canvas>.<udf>"`, user or service-account token). Covers discovery with `fused workbench beta list|show`, `fused.beta.catalog()` and `GET /v1/beta/catalog`, the `TaskRun` handle for realtime and batch runs, and following a run to its result. Use when code mentions `fused.beta`, when asked to call a Fused team or beta UDF or method, or when starting beta tasks over HTTP.
+description: Call the team-built `fused.beta` methods — UDFs the Fused team wrote whose code stays on Fused's servers and whose calls run there — from Python (`fused.beta.{canvas}.{udf}(...)`), the CLI, or over HTTP (`POST /v1/tasks/run` with `task: "beta.{canvas}.{udf}"`, user or service-account token). Covers discovery with `fused workbench beta list|show`, `fused.beta.catalog()` and `GET /v1/beta/catalog`, the `TaskRun` handle for realtime and batch runs, and following a run to its result. Use when code mentions `fused.beta`, when asked to call a Fused team or beta UDF or method, or when starting beta tasks over HTTP.
 ---
 
 # Calling `fused.beta` methods
@@ -46,7 +46,7 @@ Each canvas has a short description of when to use it. Each method has:
 
 A call returns a `TaskRun` immediately; the work runs on the Fused server.
 
-- **Realtime** (the default): `fused.beta.<canvas>.<udf>(...).wait().result()`. For runs of a few minutes at most.
+- **Realtime** (the default): `fused.beta.{canvas}.{udf}(...).wait().result()`. For runs of a few minutes at most.
 - **Batch**: pass `engine="small"`, `"medium"` or `"large"`, then follow it with `run.tail()` (stream the logs) and read `run.result()`. No time limit.
 - `fused.h3.get_run(id)` brings a run back by its `id`.
 - `run.result()` returns what the UDF returned (a DataFrame, a dict, ...).
@@ -72,13 +72,13 @@ Any caller can start the same tasks without the Python SDK. Base URL `https://ww
 
 Authenticate with one of:
 
-- A user token: `Authorization: Bearer <user token>`. In Python get it with `fused.api.credentials.access_token()`.
-- A service-account token: `Authorization: Fused-Service-Token <service-account-id>:<token>`. A service account's runs belong to its execution environment.
+- A user token: `Authorization: Bearer {user token}`. In Python get it with `fused.api.credentials.access_token()`.
+- A service-account token: `Authorization: Fused-Service-Token {service-account-id}:{token}`. A service account's runs belong to its execution environment.
 
 Start a run (returns 202 with the run, including its `id`):
 
     POST /v1/tasks/run
-    {"task": "beta.<canvas>.<udf>", "args": {...}, "engine": "realtime"}
+    {"task": "beta.{canvas}.{udf}", "args": {...}, "engine": "realtime"}
 
 For example `{"task": "beta.example.hello", "args": {"n": 3}}`. `task` is the method's `task` name from the catalog, `args` are its arguments by name, and `engine` is `realtime` (default), `small`, `medium` or `large`. A batch run that would exceed the execution environment's quota is accepted and waits as `pending` until there is room.
 
