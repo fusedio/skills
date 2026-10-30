@@ -42,7 +42,7 @@ Each canvas has a short description of when to use it. In `fused.beta.catalog(fo
 |---|---|
 | `call` | The Python call path, `fused.beta.example.hello` |
 | `task` | The name to run over HTTP, always `beta.run` |
-| `signature` | Argument names, types and defaults. Use only these. |
+| `signature` | Argument names, types and defaults. Use only these. `Any` means the author gave no usable type; `= ...` means a default the catalog cannot show. Read `doc` for both. |
 | `summary`, `doc` | What it does, each argument, what it returns |
 
 ## The run handle
@@ -133,14 +133,18 @@ Fetch the `x-fused-redirect` URL without the header, as above. If the result res
 
 ## Authoring a canvas for fused.beta
 
-Publishing is admin-only, from Workbench (the `/v1/beta/canvas/{name}` endpoints behind it are not for callers). A canvas is a directory of `<udf>.py` files plus a `README.md`; try it with `fused.beta.local` first. Publishing checks every rule and reports failures as `<udf>.py:<line>: <reason>`:
+Publishing is admin-only, from Workbench (the `/v1/beta/canvas/{name}` endpoints behind it are not for callers). A canvas is a directory of `<udf>.py` files, ideally with a `README.md`; try it with `fused.beta.local` first. An ordinary canvas publishes as it is. Only the rules the runtime needs block a publish, reported as `<udf>.py:<line>: <reason>`:
 
-- Canvas name: a Python identifier, not starting with `_`, not `catalog` or `local`. At least one UDF.
-- `README.md`: its first paragraph says when to use the canvas (it becomes the catalog summary).
-- Each `<udf>.py`: exactly one `@fused.udf` function, named like the file, not `async`.
-- Parameters: usable as keywords (no positional-only, `*args` or `**kwargs`); each annotated with `str`, `int`, `float`, `bool`, `None`, `list[...]`, `dict[str, ...]`, `Literal[...]` or `X | None` (not `typing.Optional`); defaults are JSON literals.
-- Reserved parameter names: `engine`, `job_id`, `base_url`, `result_path`, `canvas`, `udf`, and anything starting with `_` or `model_`.
-- A return annotation, and a docstring with `Args:`, `Returns:` and `Example:` sections: they are the whole contract a caller sees.
+- Canvas name: a Python identifier, not starting with `_`, not `catalog` or `local`. At least one UDF, each named as a public Python identifier.
+- Each `<udf>.py`: parses, with exactly one `@fused.udf` function.
+- Parameters: usable as keywords (no positional-only, `*args` or `**kwargs`); none named `engine`, `job_id`, `base_url`, `result_path`, `canvas` or `udf`, or starting with `_` or `model_`.
+
+Everything else still publishes and comes back as a warning in the publish dialog. Fix them when you can, because they are the whole contract a caller or agent sees:
+
+- `README.md` whose first paragraph says when to use the canvas (it becomes the catalog summary; without it the summary is empty).
+- The function named like its file, not `async`.
+- Every parameter annotated with `str`, `int`, `float`, `bool`, `None`, `list[...]`, `dict[str, ...]`, `Literal[...]` or `X | None` (not `typing.Optional`), with JSON-literal defaults. A parameter without such an annotation is published as `Any` (anything is accepted); a non-JSON default shows as `= ...` and the catalog cannot say what it is.
+- A return annotation, and a docstring with `Args:`, `Returns:` and `Example:` sections.
 
 ## Rules of thumb
 
