@@ -24,9 +24,10 @@ fused beta skill ./skills/fused-beta         # writes SKILL.md there, listing ev
 ```
 
 ```python
-print(fused.beta.catalog())                    # markdown, like `beta catalog`
+print(fused.beta.catalog())                    # markdown, like `beta catalog`: one line per method
 print(fused.beta.catalog("example.hello"))     # one canvas or canvas.udf, full docs
 fused.beta.catalog("example.hello", format="json")   # a dict
+help(fused.beta)                               # the HTTP API (the catalog itself does not repeat it)
 dir(fused.beta); dir(fused.beta.example)       # the published canvases; a canvas's methods
 ```
 
@@ -75,7 +76,7 @@ Every method takes `engine=` as a keyword-only argument on top of the arguments 
 
 ## Calling over HTTP
 
-Any caller can start the same tasks without the Python SDK. Base URL `https://www.fused.io/server` (or your deployment's `/server`); the paths below include the `/v1` prefix.
+Any caller can start the same tasks without the Python SDK (the same guide is in `help(fused.beta)`). Base URL `https://www.fused.io/server` (or your deployment's `/server`); the paths below include the `/v1` prefix.
 
 Authenticate with one of:
 
