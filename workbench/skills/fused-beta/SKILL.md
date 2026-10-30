@@ -1,11 +1,11 @@
 ---
 name: fused-beta
-description: Call the team-built `fused.beta` methods — UDFs the Fused team wrote whose code stays on Fused's servers and whose calls run there — from Python (`fused.beta.{canvas}.{udf}(...)`), the CLI, or over HTTP (`POST /v1/tasks/run` with `task: "beta.{canvas}.{udf}"`, user or service-account token). Covers discovery with `fused workbench beta list|show`, `fused.beta.catalog()` and `GET /v1/beta/catalog`, the `TaskRun` handle for realtime and batch runs, and following a run to its result. Use when code mentions `fused.beta`, when asked to call a Fused team or beta UDF or method, or when starting beta tasks over HTTP.
+description: Call the team-built `fused.beta` methods — UDFs the Fused team wrote whose code stays on Fused's servers and whose calls run there — from Python (`fused.beta.{canvas}.{udf}(...)` or `fused.beta("canvas", "udf", ...)`), the CLI, or over HTTP (`POST /v1/tasks/run` with `task: "beta.run"`, user or service-account token). Covers discovery with `fused beta catalog`, `fused.beta.catalog()` and the public catalog JSON, the `TaskRun` handle for realtime and batch runs, following a run to its result, trying a canvas directory locally with `fused.beta.local`, and the authoring rules a canvas must meet. Use when code mentions `fused.beta`, when asked to call a Fused team or beta UDF or method, when starting beta tasks over HTTP, or when writing a canvas for `fused.beta`.
 ---
 
 # Calling `fused.beta` methods
 
-> **CLI version:** commands below are written `fused workbench …` (only the 2.9.2b0+ pre-releases have this namespace; released versions such as 2.9.1 and 2.9.3 don't). If `fused workbench` fails with `No such command 'workbench'`, drop the word `workbench` — e.g. `fused beta list`. If `beta` itself is missing (`No such command 'beta'`), the installed fused predates the beta catalog: use `GET /v1/beta/catalog` over HTTP (below). See `fused-workbench-cli`.
+> **CLI version:** the commands below are `fused beta …`; `fused workbench beta …` is an alias that also works. If `fused beta` fails with `No such command 'beta'`, the installed fused predates the beta catalog: read the public catalog JSON (below) instead. See `fused-workbench-cli`.
 
 `fused.beta` holds **UDFs built by the Fused team**. Each is a method like `fused.beta.example.hello(...)`, grouped by canvas (`example` is the canvas, `hello` the method). The UDF code is **not visible to you**: it stays on Fused's servers, and every call runs there. You only see each method's signature and docs.
 
@@ -16,40 +16,41 @@ Because the code is hidden, the signature and docs are the whole contract. Do no
 Always look up what exists before writing a call. Any of these gives the same catalog:
 
 ```bash
-fused workbench beta list                    # every canvas and method, one line each
-fused workbench beta show example            # one canvas, full docs
-fused workbench beta show example.hello      # one method, full docs
-fused workbench --format json beta show example.hello   # machine-readable
+fused beta catalog                           # every canvas and method, one line each
+fused beta catalog example                   # one canvas, full docs
+fused beta catalog example.hello             # one method, full docs
+fused --format json beta catalog example.hello   # machine-readable
+fused beta skill ./skills/fused-beta         # writes SKILL.md there, listing every method
 ```
 
 ```python
-print(fused.beta.catalog())                    # markdown, like `beta list`
+print(fused.beta.catalog())                    # markdown, like `beta catalog`
 print(fused.beta.catalog("example.hello"))     # one canvas or canvas.udf, full docs
 fused.beta.catalog("example.hello", format="json")   # a dict
+dir(fused.beta); dir(fused.beta.example)       # the published canvases; a canvas's methods
 ```
 
-```
-GET /v1/beta/catalog                           # JSON: {"canvases": [...]}
-GET /v1/beta/catalog?name=example.hello&format=markdown
+```bash
+curl -s https://fused-asset.s3.us-west-2.amazonaws.com/.beta/catalog.json   # public, no auth
 ```
 
-The `--format` flag goes before `beta`. An unknown name is an error (`ValueError` in Python, 404 over HTTP) that lists the known names.
+The `--format` flag goes before `beta`. An unknown name is a `ValueError` in Python and the CLI that lists the known names; `fused.beta.nosuch` or `fused.beta.example.nosuch` is an `AttributeError`. The catalog JSON holds `{"canvases": {name: {version, summary, udfs: {udf: {signature, doc, ...}}}}}`, never code.
 
-Each canvas has a short description of when to use it. Each method has:
+Each canvas has a short description of when to use it. In `fused.beta.catalog(format="json")` each method has:
 
 | Field | Meaning |
 |---|---|
 | `call` | The Python call path, `fused.beta.example.hello` |
-| `task` | The name to run over HTTP, `beta.example.hello` |
+| `task` | The name to run over HTTP, always `beta.run` |
 | `signature` | Argument names, types and defaults. Use only these. |
 | `summary`, `doc` | What it does, each argument, what it returns |
 
 ## The run handle
 
-A call returns a `TaskRun` immediately; the work runs on the Fused server.
+A call returns a `TaskRun` immediately; the work runs on the Fused server. `fused.beta("example", "hello", n=3)` and `fused.beta.example.hello(n=3)` are the same call; arguments are keyword-only.
 
 - **Realtime** (the default): `fused.beta.{canvas}.{udf}(...).wait().result()`. For runs of a few minutes at most.
-- **Batch**: pass `engine="small"`, `"medium"` or `"large"`, then follow it with `run.tail()` (stream the logs) and read `run.result()`. No time limit.
+- **Batch**: pass `engine="small"`, `"medium"` or `"large"`, then follow it with `run.tail()` (stream the logs, returns when the run ends) and read `run.result()`. No time limit. `result()` never waits: it returns None while the run is pending or running.
 - `fused.h3.get_run(id)` brings a run back by its `id`.
 - `run.result()` returns what the UDF returned (a DataFrame, a dict, ...).
 
@@ -59,18 +60,22 @@ import fused
 run = fused.beta.example.hello(n=3)          # returns at once
 df = run.wait().result()                      # realtime: block, then read the value
 
-run = fused.beta.example.hello(n=3, engine="small")   # batch job
+run = fused.beta("example", "hello", n=3, engine="small")   # batch job, same call
 run.tail()                                    # follow the logs to the end
 df = run.result()
 
 run = fused.h3.get_run(run.id)                # later, from anywhere
 ```
 
-Every generated method takes `engine=` as a keyword-only argument on top of the arguments in its signature.
+Every method takes `engine=` as a keyword-only argument on top of the arguments in its signature.
+
+## Trying a canvas before it is published
+
+`fused.beta.local("/path/to/canvas")` loads a canvas directory (one `<udf>.py` per UDF; the directory name is the canvas name) and runs its UDFs **in this process**, called the same way: `local = fused.beta.local("./example"); local.hello(n=3)` returns the value directly (no `TaskRun`, no `engine=`). `dir(local)` lists its UDFs. Inside a UDF, published or local, `fused.load("other_udf")` and `fused.run("other_udf")` by bare name resolve to the sibling UDF of the same canvas at the same version.
 
 ## Calling over HTTP
 
-Any caller can start the same tasks without the Python SDK. Base URL `https://www.fused.io/server` (or your deployment's `/server`).
+Any caller can start the same tasks without the Python SDK. Base URL `https://www.fused.io/server` (or your deployment's `/server`); the paths below include the `/v1` prefix.
 
 Authenticate with one of:
 
@@ -80,17 +85,17 @@ Authenticate with one of:
 Start a run (returns 202 with the run, including its `id`):
 
     POST /v1/tasks/run
-    {"task": "beta.{canvas}.{udf}", "args": {...}, "engine": "realtime"}
+    {"task": "beta.run", "args": {"canvas": "{canvas}", "udf": "{udf}", "args": {...}}, "engine": "realtime"}
 
-For example `{"task": "beta.example.hello", "args": {"n": 3}}`. `task` is the method's `task` name from the catalog, `args` are its arguments by name, and `engine` is `realtime` (default), `small`, `medium` or `large`. A batch run that would exceed the execution environment's quota is accepted and waits as `pending` until there is room.
+For example `{"task": "beta.run", "args": {"canvas": "example", "udf": "hello", "args": {"n": 3}}}`. `task` is always `beta.run`; `args.canvas` and `args.udf` name the method and `args.args` are its arguments by name; `engine` is `realtime` (default), `small`, `medium` or `large`. A batch run that would exceed the execution environment's quota is accepted and waits as `pending` until there is room.
 
 Then follow it:
 
-- `GET /v1/tasks/{id}`: `status` is `pending`, `running`, `succeeded` or `failed`.
-- `GET /v1/tasks/{id}/logs`: the log lines.
+- `GET /v1/tasks/{id}`: `status` is `pending`, `running`, `succeeded` or `failed`; `error` is the reason a failed run reports.
+- `GET /v1/tasks/{id}/logs`: the log lines, oldest first.
 - `GET /v1/tasks/{id}/result`: 202 while running. When ready it answers 204 with the output's presigned URL in the `x-fused-redirect` header and its type in `x-fused-content-type`. Fetch that URL **without** the Authorization header to get the bytes. Some deployments stream the output in the response body instead. 404 means the run failed or has no output.
 
-Status codes on `POST /v1/tasks/run`: 404 unknown `task`, 422 invalid `args`, 400 unknown `engine`, 409 while another run of the same target is in progress.
+Status codes on `POST /v1/tasks/run`: 404 for an unknown `task` or an unpublished `args.canvas`, 422 for an unknown `args.udf` or `args.args` that do not match the signature, 400 for an unknown `engine`, 403 when a basic-tier plan asks for a batch engine (realtime only).
 
 ### With a user token
 
@@ -99,7 +104,7 @@ BASE=https://www.fused.io/server
 AUTH="Authorization: Bearer $FUSED_TOKEN"        # python -c "import fused; print(fused.api.credentials.access_token())"
 
 ID=$(curl -s -X POST "$BASE/v1/tasks/run" -H "$AUTH" -H "Content-Type: application/json" \
-  -d '{"task": "beta.example.hello", "args": {"n": 3}}' | jq -r .id)
+  -d '{"task": "beta.run", "args": {"canvas": "example", "udf": "hello", "args": {"n": 3}}}' | jq -r .id)
 
 curl -s "$BASE/v1/tasks/$ID" -H "$AUTH" | jq .status       # repeat until succeeded or failed
 curl -s "$BASE/v1/tasks/$ID/logs" -H "$AUTH"
@@ -118,7 +123,7 @@ BASE=https://www.fused.io/server
 AUTH="Authorization: Fused-Service-Token $SERVICE_ACCOUNT_ID:$SERVICE_TOKEN"
 
 ID=$(curl -s -X POST "$BASE/v1/tasks/run" -H "$AUTH" -H "Content-Type: application/json" \
-  -d '{"task": "beta.example.hello", "args": {"n": 3}, "engine": "small"}' | jq -r .id)
+  -d '{"task": "beta.run", "args": {"canvas": "example", "udf": "hello", "args": {"n": 3}}, "engine": "small"}' | jq -r .id)
 
 curl -s "$BASE/v1/tasks/$ID" -H "$AUTH" | jq .status
 curl -s -D - -o /dev/null "$BASE/v1/tasks/$ID/result" -H "$AUTH"   # 204 + x-fused-redirect
@@ -126,9 +131,20 @@ curl -s -D - -o /dev/null "$BASE/v1/tasks/$ID/result" -H "$AUTH"   # 204 + x-fus
 
 Fetch the `x-fused-redirect` URL without the header, as above. If the result response is 200 with a body instead of 204, read the body directly.
 
+## Authoring a canvas for fused.beta
+
+Publishing is admin-only, from Workbench (the `/v1/beta/canvas/{name}` endpoints behind it are not for callers). A canvas is a directory of `<udf>.py` files plus a `README.md`; try it with `fused.beta.local` first. Publishing checks every rule and reports failures as `<udf>.py:<line>: <reason>`:
+
+- Canvas name: a Python identifier, not starting with `_`, not `catalog` or `local`. At least one UDF.
+- `README.md`: its first paragraph says when to use the canvas (it becomes the catalog summary).
+- Each `<udf>.py`: exactly one `@fused.udf` function, named like the file, not `async`.
+- Parameters: usable as keywords (no positional-only, `*args` or `**kwargs`); each annotated with `str`, `int`, `float`, `bool`, `None`, `list[...]`, `dict[str, ...]`, `Literal[...]` or `X | None` (not `typing.Optional`); defaults are JSON literals.
+- Reserved parameter names: `engine`, `job_id`, `base_url`, `result_path`, `canvas`, `udf`, and anything starting with `_` or `model_`.
+- A return annotation, and a docstring with `Args:`, `Returns:` and `Example:` sections: they are the whole contract a caller sees.
+
 ## Rules of thumb
 
 - Run the catalog command first, and copy method and argument names from it.
 - Read the method's `doc` for what it returns; the result's format follows the value the method returned, and `x-fused-content-type` names it (for example `application/json`, or a parquet or binary type for a table or file).
 - Use `engine="small"` or larger for work that may take more than a few minutes; realtime runs are short.
-- The catalog comes from the installed `fused` version or the deployed server, so it is always current for where you call.
+- The catalog is one public file shared by every deployment and cached for 60 s in the SDK, so what `fused beta catalog` prints is what the server runs.
