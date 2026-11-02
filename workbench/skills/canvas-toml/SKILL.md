@@ -117,7 +117,7 @@ height = 500
 | `type` | string | no | Omit for standard UDF, JSON-UI, text and HTML template nodes (kind comes from the file extension); `"udf-folder"` for folder nodes |
 | `textBoxColor` | string | no | Background color for textbox nodes |
 | `textBoxGradient` | boolean | no | Textbox gradient toggle |
-| `textBoxScaleFactor` | number | no | Textbox content scale |
+| `textBoxScaleFactor` | number | no | Textbox content scale. Use `0.5`, `1`, `1.5`, `2` or `3` (the size dropdown presets, also for `nodeDescriptionScaleFactor`); other values render but leave the dropdown blank |
 | `textBoxAlignment` | string | no | Textbox content alignment |
 | `widgetBackgroundColor` | string | no | Background color for JSON-UI widget nodes |
 
