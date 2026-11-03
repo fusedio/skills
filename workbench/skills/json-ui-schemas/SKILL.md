@@ -150,6 +150,12 @@ To let viewers change a tile UDF's arguments, put the inputs and the map in one 
 - Give every input a `defaultValue`, so `$param` has a value on the first load.
 - The input's `param` name and the UDF argument name can be different (`band_index=$band`).
 - No `sql-runner` is needed: a `fused-map` layer's `udf` runs the UDF directly.
+- A tiled layer takes a `sql` too (`udf` with `tile: true`, or `fused-hex`): it runs on each tile as it loads, reading the tile's rows as `{{source}}` (a udf layer may also write its own `{{udf}}`). Use it for `WHERE`, computed columns and `GROUP BY` the cell column; the result must keep the cell column (`h3`, `fused-hex`) or the geometry (vector layers). `LIMIT`, `ORDER BY`, `USING SAMPLE` and other UDFs are not available per tile. `raster`, `mvt` and `tileUrl` layers take no `sql`.
+
+  ```json
+  {"id": "hot", "type": "fused-hex", "source": {"endpoint": "/retrieve/era5/daily/bbox", "dateMin": "2024-07-01", "dateMax": "2024-07-31", "variables": ["t2m_mean"]},
+   "sql": "SELECT * FROM {{source}} WHERE t2m_mean > 300"}
+  ```
 
 ## Common conventions
 
