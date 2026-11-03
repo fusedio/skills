@@ -1,6 +1,6 @@
 ---
 name: fused-h3
-description: Ingest data into H3 hex datasets and query them with the `fused.h3` API — partitioning points, geometries, gridded rasters (ERA5-style) or tables that already carry an H3 column into hex-sorted Parquet as server-side runs, registering them with `fused.h3.index`, and reading them back with `fused.h3.query`. Also covers the published ERA5 and GridMET hex datasets. Use when converting data to H3, building or appending to a hex dataset, following or retrying a partition/index run, querying one by point/bbox/cell/time, or reading ERA5/GridMET weather by location.
+description: Ingest data into H3 hex datasets and query them with the `fused.h3` API — partitioning points, geometries, gridded rasters (ERA5-style) or tables that already carry an H3 column into hex-sorted Parquet as server-side runs, registering them with `fused.h3.index`, and reading them back with `fused.h3.query`. Also covers the published ERA5 and GridMET hex datasets. Use when converting data to H3, building or appending to a hex dataset, following or retrying a partition/index run, querying one by point/bbox/cell/time, or reading ERA5/GridMET weather by location. Also use when showing a hex dataset on a map or visualising it (the `fused-map` `fused-hex` layer, zoomed-out overviews, `chunk_res_offset`), or calling `/h3/query` directly from a widget or HTML page.
 ---
 
 # H3 ingestion with `fused.h3`
@@ -17,6 +17,8 @@ The workflow is always:
 All four steps work from anywhere the `fused` SDK is authenticated: a notebook, a script, or a UDF. Nothing is read or uploaded from the calling machine. `partition` and `index` send a description of the work to the Fused server and **return as soon as the run has started**. Call `run.tail()` to follow it to the end.
 
 For the published ERA5 and GridMET hex datasets (read-only, no ingestion needed), see [`datasets.md`](datasets.md).
+
+To show an indexed dataset on a map, or call `/h3/query` from a widget, see [`map.md`](map.md).
 
 ## Choosing how rows get a hex
 

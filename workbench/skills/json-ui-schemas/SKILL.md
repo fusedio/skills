@@ -79,6 +79,7 @@ Input widgets set canvas params (edge: widget → UDF). Output widgets show a UD
 - **Output, charts:** `bar-chart`, `line-chart`, `stacked-bar-chart`, `stacked-area-chart`, `scatter-chart`, `donut-chart`, `heatmap-chart`
 - **Output, tables:** `sql-table`
 - **Output, maps:** `fused-map` (mature, use it by default), `kepler-map`, `map` (legacy)
+  - To draw an indexed H3 dataset, use a `fused-map` layer of type `fused-hex`: see the `fused-h3` skill's `map.md`.
 - **Meta / advanced:** `widget-builder`, `transformer`, `ai-chat`
 
 ## `html` and `iframe` widgets vs an HTML template node
