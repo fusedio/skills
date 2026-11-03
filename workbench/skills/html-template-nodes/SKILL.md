@@ -208,6 +208,8 @@ A JSON-UI widget can be placed inside the page. Write its spec as the text of a 
 - **Inputs set params with the HTML node as origin.** A dropdown inside the element that sets `city` is indistinguishable from the page calling `fused.params.set("city", …)`: the page's `onChange` fires and downstream UDFs re-run.
 - **Read once; lifetime follows the DOM.** The spec is read when the element connects. To change it, replace the element. Removing the element removes the widget. Every iframe reload (substitution change, upstream run, Run button) drops widgets and the page re-registers them on load.
 - **Errors in place.** A spec that fails to parse or validate shows the workbench's standard error card inside the element.
+- **Only authored elements render.** The workbench renders the specs it finds in the node's source file. An element the page creates at runtime from other text (for example by echoing a param) renders nothing. Elements inside a template inlined through `{{other_html_node}}` are not rendered either; put the widget in the outer page.
+- **Write the spec raw.** The text between the tags is parsed as is: write `<`, `>` and `&` directly, not as HTML entities. Scripting against the widget from the page is not possible; use `fused.params` to talk to it.
 - **Painted above the page.** The widget uses the workbench theme and sits above the page's own content: page modals, tooltips and sticky headers cannot cover it. Hide or remove the element while a page modal is open.
 - Works the same on the canvas, on the share page (`/share/<token>/<html_node>`, where `$param` in the spec hydrates from the URL like any node param) and inside fused-render's embedded workbench.
 
