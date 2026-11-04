@@ -86,6 +86,7 @@ Input widgets set canvas params (edge: widget → UDF). Output widgets show a UD
 
 - **`html` widget** (`{"type":"html","props":{"value":"<h2>$city</h2>"}}`): a sandboxed iframe inside a JSON-UI layout. It gets `$param` / `{{udf}}` substitution and the same `window.fused` bridge as HTML template nodes (`fused.env`, `fused.params.get/getAll/set/onChange`, `await fused.runPython(udfName, params)`). Full contract, substitution grammar and pitfalls: the `html-template-nodes` skill. Use the widget for a small custom snippet next to other widgets; use a standalone HTML template node (`.html` file) for a full custom page.
 - **`iframe` widget**: embeds a URL or an HTML-returning UDF (`src: "{{my_udf}}"`); no scripting against the canvas. Use it to show a UDF-generated page (folium, plotly `to_html`, …) or an external site.
+- **`<fused-widget>` inside an HTML node**: the reverse direction, a JSON-UI widget inside a custom page. The element's text is a widget spec from this skill (`{"type":…,"props":{…}}`); the workbench renders it over the element's box with the HTML node's edges and identity. Details in the `html-template-nodes` skill, section "Embedding widgets".
 - Edges apply to all three: the source UDF needs an edge into the widget's node.
 
 ## `sql-runner`: one named SQL result for child widgets

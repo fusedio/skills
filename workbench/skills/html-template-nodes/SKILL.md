@@ -1,6 +1,6 @@
 ---
 name: html-template-nodes
-description: Authoring reference for Fused canvas HTML template nodes — the `.html` file in a canvas folder that renders as a sandboxed iframe with `window.fused` (`fused.params`, `fused.runPython`) and `$param` / `{{udf}}` substitution. Use when creating, editing, debugging, wiring, or sharing an HTML node, when a page needs to read canvas params or call a canvas UDF from JavaScript, or when deciding between an HTML node, the JSON-UI `html` widget, the `iframe` widget, and a Python UDF that returns HTML.
+description: Authoring reference for Fused canvas HTML template nodes — the `.html` file in a canvas folder that renders as a sandboxed iframe with `window.fused` (`fused.params`, `fused.runPython`) and `$param` / `{{udf}}` substitution. Use when creating, editing, debugging, wiring, or sharing an HTML node, when a page needs to read canvas params or call a canvas UDF from JavaScript, when a page should embed a JSON-UI widget (`<fused-widget>`), or when deciding between an HTML node, the JSON-UI `html` widget, the `iframe` widget, and a Python UDF that returns HTML.
 ---
 
 # Fused canvas HTML template nodes
@@ -185,6 +185,35 @@ Rules the example follows:
 - Before writing rendering code for an unknown result shape, `console.log` the first `runPython` result (open the browser devtools on the canvas) — do not invent column names.
 - Keep data preparation in Python UDFs; the page renders and coordinates UI behaviour.
 
+## Embedding widgets with `<fused-widget>`
+
+A JSON-UI widget can be placed inside the page. Write its spec as the text of a `<fused-widget>` element; the workbench renders the widget over that element's box.
+
+```html
+<fused-widget style="display:block;height:64px">
+  { "type": "dropdown",
+    "props": { "label": "City", "param": "city",
+               "sql": "SELECT DISTINCT city AS value, city AS label FROM {{rain}} ORDER BY 1" } }
+</fused-widget>
+
+<fused-widget style="display:block;height:260px">
+  { "type": "bar-chart",
+    "props": { "sql": "SELECT month, mm FROM {{rain}} WHERE city = $city ORDER BY 1" } }
+</fused-widget>
+```
+
+- **Text is the spec.** Same schema as a `.json` widget file (`type`, `props`, optional `children`), parsed as JSON5. See `json-ui-schemas`.
+- **The element is the box.** Size it with CSS; `height` at least. The widget fills it. There is no auto-sizing.
+- **Same wiring as a widget node.** `{{udf}}` and `$param` inside the spec belong to the widget and resolve live through the HTML node's edges; the page-level substitution pass skips `<fused-widget>` blocks, so they never reload the iframe. A `{{udf}}` inside the spec still needs the edge `["udf", "html_node"]` in `canvas.toml` (the UI infers it from the source as usual).
+- **Inputs set params with the HTML node as origin.** A dropdown inside the element that sets `city` is indistinguishable from the page calling `fused.params.set("city", …)`: the page's `onChange` fires and downstream UDFs re-run.
+- **Read once; lifetime follows the DOM.** The spec is read when the element connects. To change it, replace the element. Removing the element removes the widget. Every iframe reload (substitution change, upstream run, Run button) drops widgets and the page re-registers them on load.
+- **Errors in place.** A spec that fails to parse or validate shows the workbench's standard error card inside the element.
+- **Sidebar edits write into the block.** A `fused-map` inside the element is editable from its sidebar on your own canvas (Add layer, basemap, layer styles, filters): each edit is written into that `<fused-widget>` block of the `.html` file, one undo step in the code editor, exactly as it would be for a `.json` widget node. The rest of the page is untouched. On a share page the edits are runtime overrides, as for any widget.
+- **Only authored elements render.** The workbench renders the specs it finds in the node's source file. An element the page creates at runtime from other text (for example by echoing a param) renders nothing. Elements inside a template inlined through `{{other_html_node}}` are not rendered either; put the widget in the outer page.
+- **Write the spec raw.** The text between the tags is parsed as is: write `<`, `>` and `&` directly, not as HTML entities. Scripting against the widget from the page is not possible; use `fused.params` to talk to it.
+- **Painted above the page.** The widget uses the workbench theme and sits above the page's own content: page modals, tooltips and sticky headers cannot cover it. Hide or remove the element while a page modal is open.
+- Works the same on the canvas, on the share page (`/share/<token>/<html_node>`, where `$param` in the spec hydrates from the URL like any node param) and inside fused-render's embedded workbench.
+
 ## Iframe environment
 
 - `sandbox="allow-scripts"`: opaque origin, no cookies, no `localStorage`, no same-origin fetch to the app. All canvas communication goes through `fused.*`. Outbound `fetch` to HTTPS APIs that permit cross-origin requests (the sandbox sends `Origin: null`) and CDN scripts (`<script src="https://cdn.jsdelivr.net/...">`) work.
@@ -230,6 +259,7 @@ Do not report success from `validate` alone: it checks structure, not rendering 
 | Embed an external site or a UDF that returns a full HTML page, no scripting against the canvas | JSON-UI `iframe` widget (`src: "https://..."` or `src: "{{udf}}"`) |
 | Generate HTML server-side from Python (Jinja, folium, plotly `to_html`) | Python UDF returning a `str`; show it via `{{udf}}` in an HTML node, the `iframe` widget, or its own node output |
 | Standard controls, charts, tables, maps with no custom code | JSON-UI widgets (see `json-ui-schemas`) |
+| A standard widget (control, chart, table, map) inside a custom page | `<fused-widget>` element in the HTML node (see [Embedding widgets](#embedding-widgets-with-fused-widget)) |
 
 ## Not fused-render
 
