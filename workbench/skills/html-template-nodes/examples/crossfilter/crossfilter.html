@@ -1,0 +1,217 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8" />
+<style>
+  :root { --bg: #111; --fg: #eee; --muted: #8a8a8a; --dim: #3a3a3a; --accent: #E8FF59; }
+  * { box-sizing: border-box; }
+  body { margin: 0; padding: 12px; font: 13px system-ui, sans-serif; background: var(--bg); color: var(--fg); }
+  .layout { display: grid; grid-template-columns: 1fr 380px; gap: 16px; height: calc(100vh - 24px); }
+  .map { height: 100%; }
+  .panel { display: flex; flex-direction: column; gap: 16px; overflow: auto; }
+  h3 { margin: 0 0 6px; font-size: 13px; }
+  small { color: var(--muted); font-weight: normal; }
+  input { width: 90px; background: #222; color: var(--fg); border: 1px solid var(--dim); padding: 4px; }
+  button { background: #222; color: var(--fg); border: 1px solid var(--dim); padding: 6px 10px; cursor: pointer; }
+  #hist { display: block; width: 100%; height: 150px; cursor: crosshair; user-select: none; }
+  .room { display: grid; grid-template-columns: 130px 1fr 50px; gap: 8px; align-items: center; padding: 3px 0; cursor: pointer; }
+  .room .bar { height: 14px; background: var(--accent); }
+  .room.off .bar { background: var(--dim); }
+  .room .n { text-align: right; color: var(--muted); }
+  #status { color: var(--muted); min-height: 2.6em; }
+</style>
+</head>
+<body>
+<div class="layout">
+  <fused-widget class="map">
+    {
+      "type": "fused-map",
+      "props": {
+        "style": "height:100%",
+        "centerLng": -122.44, "centerLat": 37.76, "zoom": 11.5,
+        "selectParam": "selected",
+        "selectKey": "id",
+        "layers": [{
+          "id": "listings",
+          "type": "scatterplot",
+          "udf": "{{airbnb_listings}}",
+          "latColumn": "lat", "lngColumn": "lng",
+          "filters": [
+            { "attr": "price", "type": "range", "min": "$p_min", "max": "$p_max" },
+            { "attr": "room_type", "type": "categories", "values": "$room_types" }
+          ],
+          "tooltip": ["name", "room_type", "price"],
+          "style": { "fillColor": [232, 255, 89], "pointRadius": 3 }
+        }]
+      }
+    }
+  </fused-widget>
+  <div class="panel">
+    <div>
+      <h3>Price</h3>
+      <label>Min <input id="pmin" type="number" step="10" /></label>
+      <label>Max <input id="pmax" type="number" step="10" /></label>
+    </div>
+    <div>
+      <h3>Price histogram <small>drag to filter, click to clear</small></h3>
+      <svg id="hist"></svg>
+    </div>
+    <div>
+      <h3>Room type <small>click to filter</small></h3>
+      <div id="rooms"></div>
+    </div>
+    <div id="status">Loading…</div>
+    <div><button id="clear">Clear all filters</button></div>
+  </div>
+</div>
+
+<script>
+  const SOURCE = "{".repeat(2) + "listings" + "}".repeat(2);
+  const P = "$";
+  const BIN = 50;
+  const LAST_BIN = 20;
+
+  const byId = (id) => document.getElementById(id);
+  const hist = byId("hist");
+  const rooms = byId("rooms");
+  const status = byId("status");
+
+  const num = (v) => (v === null || v === undefined || v === "" || isNaN(Number(v)) ? null : Number(v));
+  const list = (v) => (Array.isArray(v) ? v : typeof v === "string" && v ? v.split(",") : []);
+
+  function filters(p, skip) {
+    const where = [];
+    const params = {};
+    const lo = num(p.p_min);
+    const hi = num(p.p_max);
+    if (skip !== "price" && (lo !== null || hi !== null)) {
+      where.push("price BETWEEN " + P + "price");
+      params.price = { min: lo, max: hi };
+    }
+    const types = list(p.room_types);
+    if (skip !== "room_type" && types.length) {
+      where.push("room_type IN " + P + "room_types");
+      params.room_types = types;
+    }
+    const sel = p.selected;
+    if (sel && sel.bbox) {
+      where.push("lng BETWEEN " + P + "box_lng AND lat BETWEEN " + P + "box_lat");
+      params.box_lng = { min: sel.bbox[0], max: sel.bbox[2] };
+      params.box_lat = { min: sel.bbox[1], max: sel.bbox[3] };
+    } else if (sel && sel.ids && sel.ids.length) {
+      where.push("id IN " + P + "ids");
+      params.ids = sel.ids;
+    }
+    return { where: where.length ? " WHERE " + where.join(" AND ") : "", params };
+  }
+
+  function query(select, p, skip, rest) {
+    const f = filters(p, skip);
+    return fused.query("SELECT " + select + " FROM " + SOURCE + f.where + " " + rest, { params: f.params });
+  }
+
+  let gen = 0;
+  async function draw(p) {
+    const my = ++gen;
+    if (document.activeElement !== byId("pmin")) byId("pmin").value = num(p.p_min) ?? "";
+    if (document.activeElement !== byId("pmax")) byId("pmax").value = num(p.p_max) ?? "";
+    try {
+      const [bins, types, total] = await Promise.all([
+        query("LEAST(FLOOR(price / " + BIN + "), " + LAST_BIN + ") AS bin, COUNT(*) AS n", p, "price", "GROUP BY 1 ORDER BY 1"),
+        query("room_type, COUNT(*) AS n", p, "room_type", "GROUP BY 1 ORDER BY 2 DESC"),
+        query("COUNT(*) AS n", p, null, ""),
+      ]);
+      if (my !== gen) return;
+      drawHistogram(bins, p);
+      drawRooms(types, p);
+      const sel = p.selected;
+      status.textContent = total[0].n.toLocaleString() + " listings match"
+        + (sel && sel.mode === "box" ? " inside the map box" : sel && sel.mode === "click" ? " among " + sel.count + " clicked" : "")
+        + ". Shift+drag on the map to select an area, Escape to clear it.";
+    } catch (e) {
+      if (my !== gen) return;
+      if (e.type === "not_ready") {
+        setTimeout(() => my === gen && draw(fused.params.getAll()), 500);
+        return;
+      }
+      status.textContent = e.type + ": " + e.message;
+    }
+  }
+
+  function drawHistogram(rows, p) {
+    const w = hist.clientWidth;
+    const h = hist.clientHeight;
+    const step = w / (LAST_BIN + 1);
+    const max = Math.max(1, ...rows.map((r) => r.n));
+    const lo = num(p.p_min);
+    const hi = num(p.p_max);
+    const on = (b) => (lo === null || b * BIN >= lo) && (hi === null || b * BIN < hi);
+    let svg = "";
+    for (const r of rows) {
+      const bh = (r.n / max) * (h - 18);
+      const fill = lo === null && hi === null ? "var(--accent)" : on(r.bin) ? "var(--accent)" : "var(--dim)";
+      svg += '<rect x="' + (r.bin * step + 1) + '" y="' + (h - 16 - bh) + '" width="' + (step - 2) + '" height="' + bh + '" fill="' + fill + '"><title>' + label(r.bin) + ": " + r.n + "</title></rect>";
+    }
+    for (const b of [0, 5, 10, 15, LAST_BIN]) {
+      svg += '<text x="' + (b * step) + '" y="' + (h - 3) + '" fill="#8a8a8a" font-size="10">' + label(b) + "</text>";
+    }
+    hist.innerHTML = svg + '<rect id="brush" y="0" height="' + (h - 16) + '" width="0" fill="white" fill-opacity="0.15"></rect>';
+  }
+
+  const label = (b) => (b === LAST_BIN ? BIN * LAST_BIN + "+" : String(b * BIN));
+
+  function binAt(x) {
+    return Math.max(0, Math.min(LAST_BIN, Math.floor(x / (hist.clientWidth / (LAST_BIN + 1)))));
+  }
+
+  const xOf = (e) => e.clientX - hist.getBoundingClientRect().left;
+  let dragFrom = null;
+  hist.addEventListener("mousedown", (e) => { dragFrom = xOf(e); });
+  hist.addEventListener("mousemove", (e) => {
+    const brush = byId("brush");
+    if (dragFrom === null || !brush) return;
+    brush.setAttribute("x", Math.min(dragFrom, xOf(e)));
+    brush.setAttribute("width", Math.abs(xOf(e) - dragFrom));
+  });
+  window.addEventListener("mouseup", (e) => {
+    if (dragFrom === null) return;
+    const x0 = dragFrom;
+    const x1 = xOf(e);
+    dragFrom = null;
+    if (Math.abs(x1 - x0) < 4) {
+      fused.params.set({ p_min: null, p_max: null });
+      return;
+    }
+    const a = binAt(Math.min(x0, x1));
+    const b = binAt(Math.max(x0, x1));
+    fused.params.set({ p_min: a * BIN, p_max: b === LAST_BIN ? null : (b + 1) * BIN });
+  });
+
+  function drawRooms(rows, p) {
+    const chosen = list(p.room_types);
+    const max = Math.max(1, ...rows.map((r) => r.n));
+    rooms.innerHTML = "";
+    for (const r of rows) {
+      const row = document.createElement("div");
+      row.className = "room" + (chosen.length && !chosen.includes(r.room_type) ? " off" : "");
+      row.innerHTML = "<span></span><div class=\"bar\" style=\"width:" + (100 * r.n / max) + "%\"></div><span class=\"n\">" + r.n + "</span>";
+      row.firstChild.textContent = r.room_type;
+      row.addEventListener("click", () => {
+        const next = chosen.includes(r.room_type) ? chosen.filter((t) => t !== r.room_type) : [...chosen, r.room_type];
+        fused.params.set("room_types", next.length ? next : null);
+      });
+      rooms.appendChild(row);
+    }
+  }
+
+  byId("pmin").addEventListener("change", (e) => fused.params.set("p_min", num(e.target.value)));
+  byId("pmax").addEventListener("change", (e) => fused.params.set("p_max", num(e.target.value)));
+  byId("clear").addEventListener("click", () => {
+    fused.params.set({ p_min: null, p_max: null, room_types: null, selected: null });
+  });
+
+  fused.params.onChange(draw);
+  draw(fused.params.getAll());
+</script>
+</body>
+</html>

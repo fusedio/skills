@@ -1,0 +1,8 @@
+{
+  "type": "bar-chart",
+  "props": {
+    "title": "Listings per room type",
+    "sql": "SELECT room_type AS label, COUNT(*) AS value FROM {{listings}} GROUP BY 1 ORDER BY 2 DESC",
+    "rotateLabels": false
+  }
+}
