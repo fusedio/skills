@@ -214,13 +214,13 @@ These need a workbench that includes fusedlabs/application#8451 and #8469 (unsta
 - Rows: for a `udf` layer without `tile`, the UDF's whole result, with neither the layer's `filters` nor its `sql` applied. For a tiled layer (`tile: true`, `fused-hex`), the rows of the tiles loaded now; they change as the view moves.
 - The source exists only while its map is on the page. A chart opened alone at `/share/<token>/<chart_node>` shows `UDF 'listings' is not connected via an edge`.
 - Until the layer has rows, SQL widgets show loading and `fused.query` rejects `not_ready`.
-- `fused workbench canvas validate` flags `{{layer_id}}` as an unknown node: add `[validate] skip = ["widget_refs"]` and check the names by hand.
+- `fused workbench canvas validate` flags `{{layer_id}}` as an unknown node, as it does a `sql-runner` name; same workaround.
 
 ## Common conventions
 
 - `param` syncs a widget's value with a canvas parameter (or a form field when nested in `form`).
 - `sql` fields accept DuckDB queries with `{{source_name}}` and `$param_name` placeholders. Required output columns vary by widget: check the schema. When referencing a canvas UDF's data, use `sql-runner` and reference its `name` in the widgets' SQL, rather than `{{udf_name}}` directly.
-- `$param` values render by type in any widget `sql` and in `fused.query`: a string is quoted, a number is written as is, an unset param becomes `''`. An array becomes `('a', 'b')` for `IN $list` (`IN ($list)` works too); an empty array becomes `(NULL)` and matches no rows. A `{min, max}` object becomes `min AND max` for `BETWEEN $range`, and a missing bound is unbounded. Inside a quoted SQL string a `$param` is replaced by its raw text.
+- `$param` values render by type in any widget `sql`: a string is quoted, a number is written as is, an unset param becomes `''`. An array becomes `('a', 'b')` for `IN $list` (`IN ($list)` works too); an empty array becomes `(NULL)` and matches no rows. A `{min, max}` object becomes `min AND max` for `BETWEEN $range`, and a missing bound is unbounded. Inside a quoted SQL string a `$param` is replaced by its raw text. `fused.query` renders `opts.params` the same way, except that a `$name` missing from `params` rejects (see `html-template-nodes`).
 - `style` is always a CSS string (`"padding: 8px; color: red"`), not an object.
 - Charts default `barColor`/`lineColor` to Fused lime yellow (`#E8FF59`).
 
