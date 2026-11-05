@@ -96,7 +96,7 @@ Injected by the host at render time. Never define `window.fused` yourself; never
 | `fused.params.getAll()` | Plain-object copy of every visible param. |
 | `fused.params.set(name, value)` | Broadcast to connected nodes with this node as origin. `set(name, null)` clears. `set({ a: 1, b: "x" })` sets several. Any JSON value; throws on empty key or function value. Fires your own `onChange`. |
 | `fused.params.onChange(cb)` | `cb(allParams)` after any visible param changes, own `set` included. Returns an unsubscribe function. No-op updates do not fire. |
-| `await fused.runPython(udfName, params?, opts?)` | Runs a connected canvas UDF **by node name** (not a path, not `user/name`). Resolves with the parsed JSON body: DataFrame → **array of row objects**; non-JSON output → text. Rejects with an `Error` carrying `.type` and `.message`. |
+| `await fused.runPython(udfName, params?, opts?)` | Runs a connected canvas UDF **by node name** (not a path, not `user/name`). Resolves with the parsed JSON body: DataFrame → **array of row objects**; `str` → the string; dict → object, list and scalars as returned (builds with fusedlabs/application#8474, 2026-11-05 on). **Older builds: a dict does NOT arrive as JSON** — the server answers it with its multi-file zip envelope, the bridge parsed only `json` content-types and handed everything else over as `.text()`, so the page received the zip bytes as a string starting with `PK` and nothing threw. Until the build you run has it, return a DataFrame or a `str` (`json.dumps(d)` and `JSON.parse` on the page), and keep the shape check below. Rejects with an `Error` carrying `.type` and `.message`. |
 | `await fused.query(sql, opts?)` | Runs one DuckDB query in the viewer's browser over `{{name}}` sources and resolves with an **array of row objects**. A source is a `fused-map` layer id, a `sql-runner` name, or a connected UDF. Rejects with an `Error` carrying `.type` and `.message`. See [`fused.query` details](#fusedquery-details). |
 | Not available | `readFile`, `writeFile`, `stat`, `rawUrl`, `ai`, `fileIndex`, `capture`, `trackJob`, `daemon`. These members are simply absent (`typeof fused.readFile === "undefined"`), so calling them throws a `TypeError`. Anything needing files or Python goes in a UDF; call it with `runPython`. |
 
@@ -105,7 +105,7 @@ Injected by the host at render time. Never define `window.fused` yourself; never
 - `params` values are sent as strings (non-strings JSON-encoded). Annotate the UDF's parameters (`n: int`, `bbox: list`, `flag: bool`) so they coerce; unannotated numeric params arrive as strings.
 - Your params merge over the UDF's own panel values (yours win, the panel fills the gaps) — same as `{{udf?k=v}}`.
 - **Stale-cancel by default, keyed per `udfName`**: a newer call supersedes the in-flight one and the superseded promise **never settles**. `opts.key` regroups (`{ key: "chart-a" }`), `opts.key: null` allows full concurrency, `opts.signal` is your own `AbortSignal` (rejects with `.type === "aborted"`).
-- Error types: `not_allowed` (no edge from a node with that name into this node — this is also what a misspelled or non-existent name produces, since the edge check runs first), `not_found` (edge exists but the node is gone), `no_environment` (workbench has no active execution environment yet), `invalid_args`, `udf_error` (the UDF raised; `.message` has the error text), `aborted`.
+- Error types: `not_allowed` (no edge from a node with that name into this node — this is also what a misspelled or non-existent name produces, since the edge check runs first), `not_found` (edge exists but the node is gone), `no_environment` (workbench has no active execution environment yet), `invalid_args`, `udf_error` (the UDF raised; `.message` has the error text), `bad_output` (the UDF returned something that cannot be delivered as JSON, an image say; #8474 on), `aborted`. A `udf_error` also carries `.stdout`, `.traceback` (the Python traceback) and `.lineno` (#8474 on), the same keys fused-render puts on its rejections.
 - Always `try/catch` and render the error into the page. Uncaught rejections are silent — there is no traceback overlay in the workbench.
 - On the canvas the call runs the **live** node code through the authenticated realtime path. On a share page it runs through the canvas share token (no execution environment needed).
 - When a connected source UDF finishes a new run, the host **reloads the iframe** so `runPython` calls refetch. Design `draw()` to be re-runnable from scratch. The node toolbar's "Invalidate cache" / run button also just reloads the iframe.
@@ -205,6 +205,8 @@ Params ARE state. Controls write params only; `onChange` is the single re-render
     try {
       const rows = await fused.runPython("city_stats", { city: p.city, limit: Number(p.limit ?? 10) });
       if (my !== gen) return;    // a newer draw() ran meanwhile (e.g. city cleared)
+      // Shape check: on builds before application#8474 a dict return comes back as zip bytes in a string ("PK…"), silently.
+      if (!Array.isArray(rows)) throw Object.assign(new Error(typeof rows === "string" && rows.startsWith("PK") ? "UDF returned a dict/list; return a DataFrame or str" : "unexpected result shape"), { type: "bad_shape" });
       out.textContent = rows.map(r => `${r.name}: ${r.value}`).join("\n");
     } catch (e) {
       if (e.type === "aborted" || my !== gen) return;
@@ -694,11 +696,24 @@ The fused-render desktop runtime also exposes `window.fused`, but with a differe
 | `fused.env` | `"workbench"` | `"local"` / `"hosted"` |
 | `runPython` target | canvas UDF **node name** | path to a sibling `.py` |
 | `params` values | any JSON value | strings only (`set("n", 5)` throws) |
-| Rejection extras | `.type`, `.message` | `.type`, `.message`, `.traceback`, `.stdout` |
+| Rejection extras | `.type`, `.message` (+ `.stdout`, `.traceback`, `.lineno` on `udf_error`, #8474 on) | `.type`, `.message`, `.traceback`, `.stdout` |
 | Uncaught `runPython` rejection | silent | red traceback overlay |
 | Files / AI / capture / jobs | not available | available |
 
 Branch on `fused.env === "workbench"` when one page must run in both.
+
+### Porting a fused-render page to an HTML node
+
+Each of these passes every obvious check (UDF runs, edge is right, fetch is fast) and still leaves the page on `Loading…`. Grep for them before debugging anything else:
+
+| fused-render leftover | What happens in the workbench | Fix |
+|---|---|---|
+| `.py` returns a dict | on builds before application#8474: a zip blob in a string (`PK…`), no error, page never draws | return a DataFrame or `json.dumps(...)`, or confirm the build; keep the shape check from [Wiring pattern](#wiring-pattern) |
+| `err.traceback` / `err.stdout` in the catch | `undefined` on builds before #8474; set from the server's error body after | render `e.type + ": " + e.message`, append `e.traceback` when present |
+| `isPreview()` / `_preview=1` checks | never true; no preview mode exists | delete the branch |
+| cache or scratch under `/tmp/...` or a `.fused/cache` folder | the runtime's disk is temporary and not shared between runs | drop it; `@fused.udf(cache_max_age=...)` already caches |
+| uncaught `runPython` error, no timeout | silent — no overlay, nothing on screen | `try/catch` everything, race the call with a timeout, render every failure into the page |
+| `fused.readFile` / `rawUrl` / `ai` / `capture` | `TypeError` (member absent) | move the work into a UDF |
 
 ## Pitfalls checklist
 
@@ -712,6 +727,7 @@ Branch on `fused.env === "workbench"` when one page must run in both.
 - Reading a control's value in `draw()` instead of the param.
 - Not catching `runPython`; treating `.type === "aborted"` as an error.
 - Expecting `{{udf}}` (columnar object) and `runPython` (array of rows) to have the same shape.
+- A UDF returning a dict to `runPython` on a build before application#8474 → zip bytes as a string, no error, page stuck on `Loading…`. Return a DataFrame or `str` there; newer builds deliver the dict.
 - Unannotated numeric UDF params arriving as strings.
 - Assuming fused-render members exist (`readFile`, `rawUrl`, `ai`).
 - `<script src>` to a relative path (silent 404, dead page).
