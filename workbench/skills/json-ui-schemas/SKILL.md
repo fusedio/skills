@@ -161,7 +161,7 @@ To let viewers change a tile UDF's arguments, put the inputs and the map in one 
 
 ## `fused-map`: filters bound to params, box select, layers as SQL sources
 
-These need a workbench that includes fusedlabs/application#8451 and #8469 (unstable on 2026-11-05). `fused workbench json-ui validate` against a deployment without them rejects a `"$param"` filter bound; validate with `fused workbench --env <env> json-ui validate` for the deployment you push to. For a complete map plus custom charts that filter each other, see the `html-template-nodes` skill, section "Cross-filtering a map with custom charts".
+Validate the spec with `fused workbench --env <env> json-ui validate <file>` for the deployment you push to, and read `"valid"` in the output (the command exits 0 either way). If it rejects a `"$param"` filter bound or `selectParam`, that deployment does not support these features: tell the user and do not use them. For a complete map plus custom charts that filter each other, see the `html-template-nodes` skill, section "Cross-filtering a map with custom charts".
 
 ```json
 {
@@ -204,7 +204,7 @@ These need a workbench that includes fusedlabs/application#8451 and #8469 (unsta
   | `layer`, `key` | layer id, `selectKey` (`null` when the box picked nothing) | same | `null` |
   | `truncated` | `false` | `false` | `false` |
 
-- Filter a box by `bbox`, not by `ids`: picking misses overlapping points (954 ids for a box that held 1,876 rows).
+- Filter a box by `bbox`, not by `ids`: `ids` holds only the features the map picked and misses overlapping points.
 - The selection is session state: it is not saved with the canvas. On a share page it does go into the URL and from there into every UDF run (see `html-template-nodes`, Sharing).
 
 **Layers as SQL sources: `{{layer_id}}`.**
@@ -221,7 +221,7 @@ These need a workbench that includes fusedlabs/application#8451 and #8469 (unsta
 
 - `param` syncs a widget's value with a canvas parameter (or a form field when nested in `form`).
 - `sql` fields accept DuckDB queries with `{{source_name}}` and `$param_name` placeholders. Required output columns vary by widget: check the schema. To reuse one SQL result in several widgets, name it with a `sql-runner` and reference that name.
-- `$param` values render by type in any widget `sql` (on a workbench with fusedlabs/application#8451; older ones render arrays and objects as one quoted string): a string is quoted, a number is written as is, an unset param becomes `''`. An array becomes `('a', 'b')` for `IN $list` (`IN ($list)` works too); an empty array becomes `(NULL)` and matches no rows. A `{min, max}` object becomes `min AND max` for `BETWEEN $range`; a missing bound becomes `-1e308` / `1e308`, so use it on numeric columns. Inside a quoted SQL string a `$param` is replaced by its raw text. `fused.query` renders `opts.params` the same way, except that a `$name` missing from `params` rejects (see `html-template-nodes`).
+- `$param` values render by type in any widget `sql`: a string is quoted, a number is written as is, an unset param becomes `''`. An array becomes `('a', 'b')` for `IN $list` (`IN ($list)` works too); an empty array becomes `(NULL)` and matches no rows. A `{min, max}` object becomes `min AND max` for `BETWEEN $range`; a missing bound becomes `-1e308` / `1e308`, so use it on numeric columns. Inside a quoted SQL string a `$param` is replaced by its raw text. `fused.query` renders `opts.params` the same way, except that a `$name` missing from `params` rejects (see `html-template-nodes`).
 - `style` is always a CSS string (`"padding: 8px; color: red"`), not an object.
 - Charts default `barColor`/`lineColor` to Fused lime yellow (`#E8FF59`).
 

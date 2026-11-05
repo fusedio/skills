@@ -114,7 +114,7 @@ Injected by the host at render time. Never define `window.fused` yourself; never
 
 `fused.query("SELECT … FROM {{name}} …", { params, maxRows, key, signal })`
 
-Needs a workbench that includes fusedlabs/application#8469 (unstable on 2026-11-05). Check before building on it: `typeof fused.query === "function"` in the page.
+Check that the deployment supports it before building on it: `typeof fused.query === "function"` in the page. If it is not a function, tell the user that this deployment does not support `fused.query` and stop.
 
 - **Sources.** Each `{{name}}` in the SQL resolves to, in this order:
   1. a `fused-map` layer whose `id` is `name`, or a `sql-runner` whose `name` is `name`, when it is in reach: inside this page (a `<fused-widget>` map), or on a node with an edge into this node, or drawn from a UDF with an edge into this node;
@@ -133,7 +133,7 @@ Needs a workbench that includes fusedlabs/application#8469 (unstable on 2026-11-
   | `{ min, max }` | `100 AND 200`; a missing or `null` bound becomes `-1e308` / `1e308` | `price BETWEEN $range` on a numeric column |
   | anything inside a quoted SQL string | its raw text (the name still needs an entry in `params`) | `'prefix_$name'` |
 
-- **`opts.maxRows`** appends `LIMIT n` unless the word `LIMIT` appears anywhere in the SQL (a subquery's counts). There is no cap by default: `SELECT id FROM {{listings}}` returned all 5,765 rows. Aggregate in SQL (`GROUP BY`, `COUNT(*)`) rather than pulling raw rows into the page.
+- **`opts.maxRows`** appends `LIMIT n` unless the word `LIMIT` appears anywhere in the SQL (a subquery's counts). There is no cap by default. Aggregate in SQL (`GROUP BY`, `COUNT(*)`) rather than pulling raw rows into the page.
 - **Result.** An array of row objects. `COUNT(*)` and other BIGINT values arrive as numbers (as strings above 2^53).
 - **Stale-cancel is keyed by the SQL text plus the options.** Repeating the exact same call while one is in flight supersedes it and the older promise never settles. A call with different SQL or different params does **not** cancel the older one: both settle, in any order. When a redraw changes the filters, drop late results with a generation counter (see [Wiring pattern](#wiring-pattern)) or give each chart its own `opts.key` (a newer call with that key supersedes the older). Never share one key among calls you await together: the superseded call never settles, so `Promise.all` never resolves. `opts.signal` aborts: the promise rejects with `.type === "aborted"`.
 - **Errors** (`e.type`):
@@ -259,14 +259,16 @@ A JSON-UI widget can be placed inside the page. Write its spec as the text of a 
 
 ## Cross-filtering a map with custom charts
 
-A cross-filter view is a map plus charts where a choice in any one of them filters all the others. Build it as **one HTML node**: a `fused-map` inside `<fused-widget>`, plus charts and controls the page draws itself. A complete, tested example is in [`examples/crossfilter/`](examples/crossfilter/) next to this file. The template below is the same code. It needs a workbench with `fused.query`, `$param` filters and `selectParam` (fusedlabs/application#8451 and #8469; unstable on 2026-11-05).
+Use this when a map and charts must filter each other: a choice in any one of them filters all the others. Build it as **one HTML node**: a `fused-map` inside `<fused-widget>`, plus charts and controls the page draws itself. Start from the [Template](#template); the same files are in [`examples/crossfilter/`](examples/crossfilter/) next to this file.
 
-How it works, in plain words:
+First check the deployment: `typeof fused.query === "function"` in the page (see [`fused.query` details](#fusedquery-details)). If it is not a function, the deployment also lacks `$param` filters and `selectParam`: tell the user and stop.
 
-1. **Every filter is a canvas param.** This is the [Wiring pattern](#wiring-pattern) with `fused.query` in place of `runPython`: controls and charts only call `fused.params.set`, and `fused.params.onChange(draw)` redraws everything. The map's box select writes the `selected` param.
-2. **The map filters itself.** Its layer `filters` name the same params (`"min": "$p_min"`). When a param changes, the map hides the points that fail, in the browser.
-3. **The charts ask SQL.** Each chart calls `fused.query` over the map's layer (`{{listings}}`, the layer `id`) and adds the active filters as a `WHERE` clause. `{{listings}}` holds every row of the UDF's result, filtered or not, so the page must apply the filters itself.
-4. **Each chart ignores its own filter.** The price histogram applies the room-type and map-box filters but not the price range, so every bar stays visible and the brushed range is drawn highlighted. The room-type chart does the same for room types.
+Follow these rules:
+
+1. **Make every filter a canvas param.** Use the [Wiring pattern](#wiring-pattern) with `fused.query` in place of `runPython`: controls and charts only call `fused.params.set`, and `fused.params.onChange(draw)` redraws everything. Give the map a `selectParam` so its box select writes the `selected` param.
+2. **Bind the map's layer `filters` to the same params** (`"min": "$p_min"`). The map then hides the points that fail, in the browser.
+3. **Draw each chart from `fused.query` over the map's layer** (`{{listings}}`, the layer `id`), and add the active filters as a `WHERE` clause yourself. `{{listings}}` holds every row of the UDF's result, whatever the map's filters.
+4. **Leave each chart's own filter out of its query.** The price histogram applies the room-type and map-box filters but not the price range, so every bar stays visible; draw the brushed range highlighted. Do the same for the room-type chart.
 
 ### Names that must match
 
@@ -628,7 +630,7 @@ It shows every row of the layer and does not follow the filters. A `{{layer_id}}
 | The map does not filter, the charts do | The map spec's `$name` differs from the name the script sets (`$pmin` vs `p_min`) | Same names in both, see the table |
 | Shift+drag on the map does nothing | No `selectParam` on the map | Add `"selectParam": "selected"` |
 | Shift+click selects a point but the charts ignore it; `selected.ids` is `[]` | The rows have no `id` column and `selectKey` is not set | Set `"selectKey"` to your id column |
-| A box counts fewer rows than are inside it | Filtering a box by `ids`: they are the features the map picked, and overlapping points are missed (954 of 1,876 rows in one test box) | Filter `mode: "box"` by `bbox`; use `ids` only when `bbox` is `null` |
+| A box counts fewer rows than are inside it | Filtering a box by `ids`: they are the features the map picked, and overlapping points are missed | Filter `mode: "box"` by `bbox`; use `ids` only when `bbox` is `null` |
 | An old result overwrites a newer one after quick clicks | Calls with different SQL do not cancel each other | Generation counter, or one `opts.key` per chart |
 | `canvas validate` says `{{ref}} references unknown node 'listings'` | Validate checks `{{name}}` against node names only | `[validate] skip = ["widget_refs"]`, then check the names by hand |
 | `json-ui validate` prints `"valid": false` for `"min": "$p_min"` | The deployment predates `$param` filters | Validate with `--env` set to the deployment you push to. If that one rejects it, the feature is not deployed there. The command exits 0 either way: read `"valid"` |
