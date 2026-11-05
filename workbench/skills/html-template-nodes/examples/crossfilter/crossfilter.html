@@ -130,7 +130,7 @@
         + ". Shift+drag on the map to select an area, Escape to clear it.";
     } catch (e) {
       if (my !== gen) return;
-      if ((e.type === "not_ready" || e.type === "not_allowed") && tries < 20) {
+      if ((e.type === "not_ready" || e.type === "not_allowed") && tries < 120) {
         setTimeout(() => my === gen && draw(fused.params.getAll(), tries + 1), 500);
         return;
       }
