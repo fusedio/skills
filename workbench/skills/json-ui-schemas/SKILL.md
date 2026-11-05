@@ -185,7 +185,7 @@ These need a workbench that includes fusedlabs/application#8451 and #8469 (unsta
 
 - A range filter's `min` / `max` and a categories filter's `values` take a `"$param"` string in place of a literal. The map reads the param live and filters in the browser.
 - While the param is unset, that bound (or that categories filter) is off. A categories filter with an empty list keeps every feature.
-- Range bound values are numbers. A param holding `{min, max}` fills both bounds when either bound names it (`"min": "$price", "max": "$price"`). A categories param holds an array.
+- Range bound values are numbers. A param holding `{min, max}` fills each bound that names it from the matching key; write `"min": "$price", "max": "$price"` to bind both to one param. A categories param holds an array.
 - Editing a bound filter in the map's sidebar writes the new value to the param, not into the spec, so everything reading the param follows. Removing a bound filter in the sidebar clears its params.
 - A feature whose `attr` is missing or null fails an active filter (SQL `BETWEEN` and `IN` drop nulls too).
 
@@ -214,14 +214,14 @@ These need a workbench that includes fusedlabs/application#8451 and #8469 (unsta
 - A layer id equal to a UDF name shadows that UDF for every SQL widget and `fused.query` in reach. The sidebar's Add layer names a new layer after its UDF, so rename the layer when you also read the UDF itself.
 - Rows: for a `udf` layer without `tile`, the UDF's whole result, with neither the layer's `filters` nor its `sql` applied. For a tiled layer (`tile: true`, `fused-hex`), the rows of the tiles loaded now; they change as the view moves.
 - The source exists only while its map is on the page. A chart opened alone at `/share/<token>/<chart_node>` shows `UDF 'listings' is not connected via an edge`.
-- Until the layer has rows, SQL widgets show loading and `fused.query` rejects `not_ready`.
+- Until the layer has rows, SQL widgets show loading and `fused.query` rejects `not_ready`. A layer whose UDF failed stays in that state.
 - `fused workbench canvas validate` flags `{{layer_id}}` as an unknown node, as it does a `sql-runner` name; same workaround.
 
 ## Common conventions
 
 - `param` syncs a widget's value with a canvas parameter (or a form field when nested in `form`).
 - `sql` fields accept DuckDB queries with `{{source_name}}` and `$param_name` placeholders. Required output columns vary by widget: check the schema. To reuse one SQL result in several widgets, name it with a `sql-runner` and reference that name.
-- `$param` values render by type in any widget `sql`: a string is quoted, a number is written as is, an unset param becomes `''`. An array becomes `('a', 'b')` for `IN $list` (`IN ($list)` works too); an empty array becomes `(NULL)` and matches no rows. A `{min, max}` object becomes `min AND max` for `BETWEEN $range`; a missing bound becomes `-1e308` / `1e308`, so use it on numeric columns. Inside a quoted SQL string a `$param` is replaced by its raw text. `fused.query` renders `opts.params` the same way, except that a `$name` missing from `params` rejects (see `html-template-nodes`).
+- `$param` values render by type in any widget `sql` (on a workbench with fusedlabs/application#8451; older ones render arrays and objects as one quoted string): a string is quoted, a number is written as is, an unset param becomes `''`. An array becomes `('a', 'b')` for `IN $list` (`IN ($list)` works too); an empty array becomes `(NULL)` and matches no rows. A `{min, max}` object becomes `min AND max` for `BETWEEN $range`; a missing bound becomes `-1e308` / `1e308`, so use it on numeric columns. Inside a quoted SQL string a `$param` is replaced by its raw text. `fused.query` renders `opts.params` the same way, except that a `$name` missing from `params` rejects (see `html-template-nodes`).
 - `style` is always a CSS string (`"padding: 8px; color: red"`), not an object.
 - Charts default `barColor`/`lineColor` to Fused lime yellow (`#E8FF59`).
 

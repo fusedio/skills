@@ -131,24 +131,24 @@ Needs a workbench that includes fusedlabs/application#8469 (unstable on 2026-11-
   | array | `('Hotel room', 'Shared room')` | `room_type IN $types` (`IN ($types)` works too) |
   | empty array `[]` | `(NULL)`, matches **no** rows | leave the clause out when the list is empty |
   | `{ min, max }` | `100 AND 200`; a missing or `null` bound becomes `-1e308` / `1e308` | `price BETWEEN $range` on a numeric column |
-  | anything inside a quoted SQL string | its raw text | `'prefix_$name'` |
+  | anything inside a quoted SQL string | its raw text (the name still needs an entry in `params`) | `'prefix_$name'` |
 
-- **`opts.maxRows`** appends `LIMIT n` unless the SQL has its own `LIMIT`. There is no cap by default: `SELECT id FROM {{listings}}` returned all 5,765 rows. Aggregate in SQL (`GROUP BY`, `COUNT(*)`) rather than pulling raw rows into the page.
-- **Result.** An array of row objects. `COUNT(*)` and other BIGINT values arrive as numbers.
+- **`opts.maxRows`** appends `LIMIT n` unless the word `LIMIT` appears anywhere in the SQL (a subquery's counts). There is no cap by default: `SELECT id FROM {{listings}}` returned all 5,765 rows. Aggregate in SQL (`GROUP BY`, `COUNT(*)`) rather than pulling raw rows into the page.
+- **Result.** An array of row objects. `COUNT(*)` and other BIGINT values arrive as numbers (as strings above 2^53).
 - **Stale-cancel is keyed by the SQL text plus the options.** Repeating the exact same call while one is in flight supersedes it and the older promise never settles. A call with different SQL or different params does **not** cancel the older one: both settle, in any order. When a redraw changes the filters, drop late results with a generation counter (see [Wiring pattern](#wiring-pattern)) or give each chart its own `opts.key` (a newer call with that key supersedes the older). Never share one key among calls you await together: the superseded call never settles, so `Promise.all` never resolves. `opts.signal` aborts: the promise rejects with `.type === "aborted"`.
 - **Errors** (`e.type`):
 
   | `.type` | When |
   |---|---|
   | `not_allowed` | `name` is neither a source in reach nor a UDF with an edge into this node. A misspelled name lands here too, and so does a `{{layer_id}}` queried right after page load, before the map in the page has mounted. Message: `UDF 'name' is not connected to this node. Add an edge from it to this node.` |
-  | `not_ready` | The layer has no rows yet (its UDF is still running) or the UDF is still running. Retry after a short wait. |
-  | `query_error` | DuckDB rejected the SQL (syntax, unknown column). `.message` is DuckDB's text. |
+  | `not_ready` | The layer has no rows yet (its UDF is still running) or the UDF is still running. Retry after a short wait. A layer whose UDF failed also stays `not_ready`, with nothing on the map: if it never clears, run the UDF on its own node. |
+  | `query_error` | DuckDB rejected the SQL (syntax, unknown column; `.message` is DuckDB's text), a `sql-runner` view failed, or a UDF source could not be loaded (for example `UDF 'x' has no cached result. Run the UDF first.`). |
   | `invalid_args` | A `$name` has no value in `params`, `params` is not an object, or the SQL uses `{{udf?k=v}}` (not supported: run the UDF with `fused.runPython`). |
   | `not_found` | There is an edge, but nothing on the canvas publishes or runs under that name. Unknown names usually reject `not_allowed` first. |
   | `aborted` | Your `opts.signal` aborted. |
 
   An empty or non-string `sql` rejects with a plain `Error` that has no `.type`.
-- Every call is written to the node's runtime log: `fused.query started: <sql>`, then `completed: N rows in Ms` or `failed (<type>, Ms): <message>`.
+- Every call is written to the node's runtime log: `fused.query started: <first 120 characters of the sql>`, then `completed: N rows in Ms`, `failed (<type>, Ms): <message>` or `aborted after Ms`.
 - The query runs in the viewer's browser. Querying a layer does not run its UDF again.
 
 ## Edges
@@ -507,6 +507,7 @@ def udf(path: str = "s3://fused-sample/demo_data/airbnb_listings_sf.parquet"):
     } catch (e) {
       if (my !== gen) return;
       if (e.type === "not_ready" || (e.type === "not_allowed" && tries < 20)) {
+        if (tries === 20) status.textContent = "Still waiting for the map layer. If this stays, its UDF may have failed.";
         setTimeout(() => my === gen && draw(fused.params.getAll(), tries + 1), 500);
         return;
       }
@@ -593,7 +594,7 @@ What each part of the script does:
 
 - `read(p)` turns the params into plain values once per draw.
 - `filters(f, skip)` builds the `WHERE` clause and `opts.params`, one `add()` per active filter, leaving out the filter named by `skip`. A map box filters by `bbox` (`[west, south, east, north]`); a shift+click selection has `bbox: null` and filters by `id IN $ids`.
-- `draw(p)` runs the three queries together and drops stale results with `gen`. It retries every 500 ms: on `not_ready` until the layer has rows, on `not_allowed` for 10 s, because the map publishes its layer a moment after the page loads.
+- `draw(p)` runs the three queries together and drops stale results with `gen`. It retries every 500 ms: on `not_allowed` for 10 s, because the map publishes its layer a moment after the page loads, and on `not_ready` until the layer has rows, saying so in the status line after 10 s.
 - The brush sets `p_max` to just below the next bin (`249.99`), because both the map filter and SQL `BETWEEN` include the upper bound.
 
 Optional: a plain JSON-UI chart on another node can read the same layer. `room_chart.json`, with the edge `["crossfilter", "room_chart"]`:
@@ -619,6 +620,7 @@ It shows every row of the layer and does not follow the filters. A `{{layer_id}}
 | The page flashes and loses its state on every filter change | `$p_min` (or any `$param`) written literally in the page outside `<fused-widget>`; the host substitutes it and reloads the page | Build `$` at runtime (`const P = "$"`); pass values in `opts.params` |
 | `not_allowed: UDF 'listings' is not connected to this node` that does not go away | The name in `{{…}}` is not the layer `id` (a map inside the page is always in reach) | Make `SOURCE` and the layer `id` the same word |
 | Charts stay on `not_allowed` or `not_ready` after a fresh load | No retry; the map publishes its layer only after it has mounted and loaded the UDF | Retry those two types for a while, as `draw` does |
+| The status stays on `Still waiting for the map layer` and the map is empty | The layer's UDF failed; `fused.query` reports that as `not_ready` | Open the UDF node and fix the error it shows |
 | A row on a bin edge (price exactly 250) is counted in the brushed range | The brush's upper bound equals the next bin's start; map filters and `BETWEEN` include it | Stop just below the next bin, as the template does |
 | A chart's bars vanish when you click one, so you cannot pick another | The chart applies its own filter | Pass the chart's own filter as `skip` |
 | All charts go blank when the last category is unselected | `IN $room_types` with `[]` matches nothing | Set the param to `null` when the list empties; add the clause only for a non-empty list |

@@ -126,6 +126,7 @@
     } catch (e) {
       if (my !== gen) return;
       if (e.type === "not_ready" || (e.type === "not_allowed" && tries < 20)) {
+        if (tries === 20) status.textContent = "Still waiting for the map layer. If this stays, its UDF may have failed.";
         setTimeout(() => my === gen && draw(fused.params.getAll(), tries + 1), 500);
         return;
       }
