@@ -70,6 +70,7 @@
   const P = "$";
   const BIN = 50;
   const LAST_BIN = 20;
+  const label = (b) => (b === LAST_BIN ? BIN * LAST_BIN + "+" : String(b * BIN));
 
   const byId = (id) => document.getElementById(id);
   const hist = byId("hist");
@@ -149,7 +150,7 @@
     let svg = "";
     for (const r of rows) {
       const bh = (r.n / max) * (h - 18);
-      const fill = lo === null && hi === null ? "var(--accent)" : on(r.bin) ? "var(--accent)" : "var(--dim)";
+      const fill = on(r.bin) ? "var(--accent)" : "var(--dim)";
       svg += '<rect x="' + (r.bin * step + 1) + '" y="' + (h - 16 - bh) + '" width="' + (step - 2) + '" height="' + bh + '" fill="' + fill + '"><title>' + label(r.bin) + ": " + r.n + "</title></rect>";
     }
     for (const b of [0, 5, 10, 15, LAST_BIN]) {
@@ -158,8 +159,6 @@
     }
     hist.innerHTML = svg + '<rect id="brush" y="0" height="' + (h - 16) + '" width="0" fill="white" fill-opacity="0.15"></rect>';
   }
-
-  const label = (b) => (b === LAST_BIN ? BIN * LAST_BIN + "+" : String(b * BIN));
 
   function binAt(x) {
     return Math.max(0, Math.min(LAST_BIN, Math.floor(x / (hist.clientWidth / (LAST_BIN + 1)))));
