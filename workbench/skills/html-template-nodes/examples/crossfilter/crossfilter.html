@@ -80,7 +80,7 @@
   const inputs = [byId("p_min"), byId("p_max")];
 
   const num = (v) => (v === null || v === undefined || v === "" || isNaN(Number(v)) ? null : Number(v));
-  const list = (v) => (Array.isArray(v) ? v : typeof v === "string" && v ? v.split(",") : []);
+  const list = (v) => (Array.isArray(v) ? v : typeof v === "string" ? v.split(",").map((t) => t.trim()).filter(Boolean) : []);
   const read = (p) => ({ lo: num(p.p_min), hi: num(p.p_max), types: list(p.room_types), sel: p.selected });
 
   function filters(f, skip) {
@@ -125,7 +125,7 @@
       status.textContent = total[0].n.toLocaleString() + " listings match" + scope + ".";
     } catch (e) {
       if (my !== gen) return;
-      if ((e.type === "not_ready" || e.type === "not_allowed") && tries < 120) {
+      if (e.type === "not_ready" || (e.type === "not_allowed" && tries < 20)) {
         setTimeout(() => my === gen && draw(fused.params.getAll(), tries + 1), 500);
         return;
       }
@@ -186,7 +186,8 @@
       row.innerHTML = "<span></span><div class=\"bar\" style=\"width:" + (100 * r.n / max) + "%\"></div><span class=\"n\">" + r.n + "</span>";
       row.querySelector("span").textContent = r.room_type;
       row.addEventListener("click", () => {
-        const next = f.types.includes(r.room_type) ? f.types.filter((t) => t !== r.room_type) : [...f.types, r.room_type];
+        const now = list(fused.params.get("room_types"));
+        const next = now.includes(r.room_type) ? now.filter((t) => t !== r.room_type) : [...now, r.room_type];
         fused.params.set("room_types", next.length ? next : null);
       });
       rooms.appendChild(row);

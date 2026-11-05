@@ -116,7 +116,7 @@ A `sql-runner` names one SQL result. Its SQL can read several UDFs, and runners 
 }
 ```
 
-- `sql-runner` publishes its result as `{{name}}` to every SQL widget in reach, not only its children: a sibling in the same widget file, a widget on a node with an edge from the runner's node, and `fused.query` in an HTML node with that edge. A widget on a node without that edge does not see it and logs `UDF 'data' is not connected via an edge`.
+- `sql-runner` publishes its result as `{{name}}` to every SQL widget in reach, not only its children: a sibling in the same widget file, a widget on a node with an edge from the runner's node, and `fused.query` in an HTML node with that edge. A widget on a node without that edge does not see it and logs `UDF 'data' is not connected via an edge`. Keep runner names unique across connected nodes: when two are in reach, the first one published wins.
 - It caps rows at `maxRows`, 10,000 by default: set it when the UDF returns more (see Known gotchas).
 - `fused workbench canvas validate` wrongly flags `{{name}}` as an unknown node.
   `[validate] skip = ["widget_refs"]` in `canvas.toml` works around it, but turns off the whole check: review other `{{name}}` refs by hand.
@@ -187,12 +187,12 @@ These need a workbench that includes fusedlabs/application#8451 and #8469 (unsta
 - While the param is unset, that bound (or that categories filter) is off. A categories filter with an empty list keeps every feature.
 - Range bound values are numbers. A param holding `{min, max}` fills both bounds when either bound names it (`"min": "$price", "max": "$price"`). A categories param holds an array.
 - Editing a bound filter in the map's sidebar writes the new value to the param, not into the spec, so everything reading the param follows. Removing a bound filter in the sidebar clears its params.
-- A feature that lacks the filter's `attr` fails an active filter.
+- A feature whose `attr` is missing or null fails an active filter (SQL `BETWEEN` and `IN` drop nulls too).
 
 **Box select: `selectParam` and `selectKey`.**
 
 - `selectParam` names a param the map writes. Shift+drag draws a box and dims the map outside it. Shift+click toggles one feature. Escape or a plain click on the map clears.
-- `selectKey` is the property whose values go into `ids`. Default: the cell column on hex layers, else `id`. Set it when your id column has another name; without a matching property `ids` stays `[]`.
+- `selectKey` is the property whose values go into `ids`. Default: the cell column (`h3Column`, else `hex`) on hex layers or rows that have one, else `id`. Set it when your id column has another name; without a matching property `ids` stays `[]`.
 - The value:
 
   | Field | Box (shift+drag) | Shift+click | After clearing |
@@ -201,16 +201,17 @@ These need a workbench that includes fusedlabs/application#8451 and #8469 (unsta
   | `bbox` | `[west, south, east, north]` | `null` | `null` |
   | `ids` | `selectKey` values of the features the map picked in the box | the clicked features' values | `[]` |
   | `count` | number of picked features | number of clicked features | `0` |
-  | `layer`, `key` | layer id, `selectKey` | same | `null` |
+  | `layer`, `key` | layer id, `selectKey` (`null` when the box picked nothing) | same | `null` |
   | `truncated` | `false` | `false` | `false` |
 
 - Filter a box by `bbox`, not by `ids`: picking misses overlapping points (954 ids for a box that held 1,876 rows).
-- The selection is session state: it is not saved with the canvas.
+- The selection is session state: it is not saved with the canvas. On a share page it does go into the URL and from there into every UDF run (see `html-template-nodes`, Sharing).
 
 **Layers as SQL sources: `{{layer_id}}`.**
 
 - Each layer of a `fused-map` on the page is a SQL source named by its `id`. Any SQL widget (`bar-chart`, `metric`, `sql-table`, …) and `fused.query` can `SELECT … FROM {{layer_id}}`.
 - Reach: the reading widget is in the map's node, or on a node with an edge from the map's node, or on a node with an edge from the layer's UDF.
+- A layer id equal to a UDF name shadows that UDF for every SQL widget and `fused.query` in reach. The sidebar's Add layer names a new layer after its UDF, so rename the layer when you also read the UDF itself.
 - Rows: for a `udf` layer without `tile`, the UDF's whole result, with neither the layer's `filters` nor its `sql` applied. For a tiled layer (`tile: true`, `fused-hex`), the rows of the tiles loaded now; they change as the view moves.
 - The source exists only while its map is on the page. A chart opened alone at `/share/<token>/<chart_node>` shows `UDF 'listings' is not connected via an edge`.
 - Until the layer has rows, SQL widgets show loading and `fused.query` rejects `not_ready`.
@@ -219,8 +220,8 @@ These need a workbench that includes fusedlabs/application#8451 and #8469 (unsta
 ## Common conventions
 
 - `param` syncs a widget's value with a canvas parameter (or a form field when nested in `form`).
-- `sql` fields accept DuckDB queries with `{{source_name}}` and `$param_name` placeholders. Required output columns vary by widget: check the schema. When referencing a canvas UDF's data, use `sql-runner` and reference its `name` in the widgets' SQL, rather than `{{udf_name}}` directly.
-- `$param` values render by type in any widget `sql`: a string is quoted, a number is written as is, an unset param becomes `''`. An array becomes `('a', 'b')` for `IN $list` (`IN ($list)` works too); an empty array becomes `(NULL)` and matches no rows. A `{min, max}` object becomes `min AND max` for `BETWEEN $range`, and a missing bound is unbounded. Inside a quoted SQL string a `$param` is replaced by its raw text. `fused.query` renders `opts.params` the same way, except that a `$name` missing from `params` rejects (see `html-template-nodes`).
+- `sql` fields accept DuckDB queries with `{{source_name}}` and `$param_name` placeholders. Required output columns vary by widget: check the schema. To reuse one SQL result in several widgets, name it with a `sql-runner` and reference that name.
+- `$param` values render by type in any widget `sql`: a string is quoted, a number is written as is, an unset param becomes `''`. An array becomes `('a', 'b')` for `IN $list` (`IN ($list)` works too); an empty array becomes `(NULL)` and matches no rows. A `{min, max}` object becomes `min AND max` for `BETWEEN $range`; a missing bound becomes `-1e308` / `1e308`, so use it on numeric columns. Inside a quoted SQL string a `$param` is replaced by its raw text. `fused.query` renders `opts.params` the same way, except that a `$name` missing from `params` rejects (see `html-template-nodes`).
 - `style` is always a CSS string (`"padding: 8px; color: red"`), not an object.
 - Charts default `barColor`/`lineColor` to Fused lime yellow (`#E8FF59`).
 

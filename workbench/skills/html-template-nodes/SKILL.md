@@ -114,6 +114,8 @@ Injected by the host at render time. Never define `window.fused` yourself; never
 
 `fused.query("SELECT … FROM {{name}} …", { params, maxRows, key, signal })`
 
+Needs a workbench that includes fusedlabs/application#8469 (unstable on 2026-11-05). Check before building on it: `typeof fused.query === "function"` in the page.
+
 - **Sources.** Each `{{name}}` in the SQL resolves to, in this order:
   1. a `fused-map` layer whose `id` is `name`, or a `sql-runner` whose `name` is `name`, when it is in reach: inside this page (a `<fused-widget>` map), or on a node with an edge into this node, or drawn from a UDF with an edge into this node;
   2. else the cached result of a UDF named `name` with an edge into this node.
@@ -125,14 +127,15 @@ Injected by the host at render time. Never define `window.fused` yourself; never
   | number | `100` | `price > $min` |
   | string | `'it''s'` (quoted, `'` doubled) | `room_type = $t` |
   | `null` | `''` | avoid: leave the clause out instead |
+  | `undefined` (an unset `fused.params` value) | dropped in transit: the call rejects `invalid_args` | leave the clause out |
   | array | `('Hotel room', 'Shared room')` | `room_type IN $types` (`IN ($types)` works too) |
   | empty array `[]` | `(NULL)`, matches **no** rows | leave the clause out when the list is empty |
-  | `{ min, max }` | `100 AND 200`; a missing or `null` bound is unbounded | `price BETWEEN $range` |
+  | `{ min, max }` | `100 AND 200`; a missing or `null` bound becomes `-1e308` / `1e308` | `price BETWEEN $range` on a numeric column |
   | anything inside a quoted SQL string | its raw text | `'prefix_$name'` |
 
 - **`opts.maxRows`** appends `LIMIT n` unless the SQL has its own `LIMIT`. There is no cap by default: `SELECT id FROM {{listings}}` returned all 5,765 rows. Aggregate in SQL (`GROUP BY`, `COUNT(*)`) rather than pulling raw rows into the page.
 - **Result.** An array of row objects. `COUNT(*)` and other BIGINT values arrive as numbers.
-- **Stale-cancel is keyed by the SQL text plus the options.** Repeating the exact same call while one is in flight supersedes it and the older promise never settles. A call with different SQL or different params does **not** cancel the older one: both settle, in any order. When a redraw changes the filters, drop late results with a generation counter (see [Wiring pattern](#wiring-pattern)) or pass the same `opts.key` to every call of one chart (a newer call with that key supersedes the older). `opts.signal` aborts: the promise rejects with `.type === "aborted"`.
+- **Stale-cancel is keyed by the SQL text plus the options.** Repeating the exact same call while one is in flight supersedes it and the older promise never settles. A call with different SQL or different params does **not** cancel the older one: both settle, in any order. When a redraw changes the filters, drop late results with a generation counter (see [Wiring pattern](#wiring-pattern)) or give each chart its own `opts.key` (a newer call with that key supersedes the older). Never share one key among calls you await together: the superseded call never settles, so `Promise.all` never resolves. `opts.signal` aborts: the promise rejects with `.type === "aborted"`.
 - **Errors** (`e.type`):
 
   | `.type` | When |
@@ -237,7 +240,7 @@ A JSON-UI widget can be placed inside the page. Write its spec as the text of a 
 
 <fused-widget style="display:block;height:260px">
   { "type": "bar-chart",
-    "props": { "sql": "SELECT month, mm FROM {{rain}} WHERE city = $city ORDER BY 1" } }
+    "props": { "sql": "SELECT month AS label, mm AS value FROM {{rain}} WHERE city = $city ORDER BY 1" } }
 </fused-widget>
 ```
 
@@ -256,7 +259,7 @@ A JSON-UI widget can be placed inside the page. Write its spec as the text of a 
 
 ## Cross-filtering a map with custom charts
 
-A cross-filter view is a map plus charts where a choice in any one of them filters all the others. Build it as **one HTML node**: a `fused-map` inside `<fused-widget>`, plus charts and controls the page draws itself. A complete, tested example is in [`examples/crossfilter/`](examples/crossfilter/) next to this file. The template below is the same code.
+A cross-filter view is a map plus charts where a choice in any one of them filters all the others. Build it as **one HTML node**: a `fused-map` inside `<fused-widget>`, plus charts and controls the page draws itself. A complete, tested example is in [`examples/crossfilter/`](examples/crossfilter/) next to this file. The template below is the same code. It needs a workbench with `fused.query`, `$param` filters and `selectParam` (fusedlabs/application#8451 and #8469; unstable on 2026-11-05).
 
 How it works, in plain words:
 
@@ -284,14 +287,14 @@ Param values the template relies on:
 | Param | Value | Unset (`undefined`) means |
 |---|---|---|
 | `p_min`, `p_max` | number | no bound on that side; the map ignores it and the page leaves it out of the SQL |
-| `room_types` | array of strings | no category filter. Clear with `null`, never `[]` (see [Mistakes](#mistakes-and-their-symptoms)). |
+| `room_types` | array of strings | no category filter. Treat `[]` the same (the map sidebar writes `[]` when every category is unchecked); clear with `null` yourself (see [Mistakes](#mistakes-and-their-symptoms)). |
 | `selected` | `{ layer, key, ids, count, bbox, mode, truncated }`, set by the map | no selection. After Escape or a plain click it is `{ mode: "none", ids: [], bbox: null, … }`, not `undefined`: test `bbox` and `ids.length`, not the object. |
 
 ### Recipe
 
 1. **Write the data UDF** (`airbnb_listings.py`). Return one row per point: an integer `id`, `lat` and `lng` as numbers, and the columns you filter on. Return the whole table; the map loads it once.
 2. **Write the HTML node** (`crossfilter.html`). Copy the template. Rename per [Names that must match](#names-that-must-match): the layer `id` and `SOURCE` must be the same word, and every `$param` in the map spec must be a name the script sets.
-3. **Add the edges** in `canvas.toml`: `["<data_udf>", "<html_node>"]` so the map can run the UDF. For a JSON-UI widget on another node that reads `{{<layer_id>}}`, also add `["<html_node>", "<widget_node>"]` and `[validate] skip = ["widget_refs"]` (validate does not know layer ids). Without such a widget, leave out `room_chart.json`, its node, its edge and the `[validate]` block.
+3. **Add the edges** in `canvas.toml`: `["<data_udf>", "<html_node>"]`, as for any UDF the page reads (the workbench UI infers it from the spec too). For a JSON-UI widget on another node that reads `{{<layer_id>}}`, also add `["<html_node>", "<widget_node>"]` and `[validate] skip = ["widget_refs"]` (validate does not know layer ids). Without such a widget, leave out `room_chart.json`, its node, its edge and the `[validate]` block.
 4. **Validate and push.**
    ```sh
    fused workbench canvas validate ./my_canvas
@@ -458,7 +461,7 @@ def udf(path: str = "s3://fused-sample/demo_data/airbnb_listings_sf.parquet"):
   const inputs = [byId("p_min"), byId("p_max")];
 
   const num = (v) => (v === null || v === undefined || v === "" || isNaN(Number(v)) ? null : Number(v));
-  const list = (v) => (Array.isArray(v) ? v : typeof v === "string" && v ? v.split(",") : []);
+  const list = (v) => (Array.isArray(v) ? v : typeof v === "string" ? v.split(",").map((t) => t.trim()).filter(Boolean) : []);
   const read = (p) => ({ lo: num(p.p_min), hi: num(p.p_max), types: list(p.room_types), sel: p.selected });
 
   function filters(f, skip) {
@@ -503,7 +506,7 @@ def udf(path: str = "s3://fused-sample/demo_data/airbnb_listings_sf.parquet"):
       status.textContent = total[0].n.toLocaleString() + " listings match" + scope + ".";
     } catch (e) {
       if (my !== gen) return;
-      if ((e.type === "not_ready" || e.type === "not_allowed") && tries < 120) {
+      if (e.type === "not_ready" || (e.type === "not_allowed" && tries < 20)) {
         setTimeout(() => my === gen && draw(fused.params.getAll(), tries + 1), 500);
         return;
       }
@@ -564,7 +567,8 @@ def udf(path: str = "s3://fused-sample/demo_data/airbnb_listings_sf.parquet"):
       row.innerHTML = "<span></span><div class=\"bar\" style=\"width:" + (100 * r.n / max) + "%\"></div><span class=\"n\">" + r.n + "</span>";
       row.querySelector("span").textContent = r.room_type;
       row.addEventListener("click", () => {
-        const next = f.types.includes(r.room_type) ? f.types.filter((t) => t !== r.room_type) : [...f.types, r.room_type];
+        const now = list(fused.params.get("room_types"));
+        const next = now.includes(r.room_type) ? now.filter((t) => t !== r.room_type) : [...now, r.room_type];
         fused.params.set("room_types", next.length ? next : null);
       });
       rooms.appendChild(row);
@@ -589,7 +593,7 @@ What each part of the script does:
 
 - `read(p)` turns the params into plain values once per draw.
 - `filters(f, skip)` builds the `WHERE` clause and `opts.params`, one `add()` per active filter, leaving out the filter named by `skip`. A map box filters by `bbox` (`[west, south, east, north]`); a shift+click selection has `bbox: null` and filters by `id IN $ids`.
-- `draw(p)` runs the three queries together, drops stale results with `gen`, and retries `not_allowed` / `not_ready` every 500 ms for up to a minute while the map loads its layer.
+- `draw(p)` runs the three queries together and drops stale results with `gen`. It retries every 500 ms: on `not_ready` until the layer has rows, on `not_allowed` for 10 s, because the map publishes its layer a moment after the page loads.
 - The brush sets `p_max` to just below the next bin (`249.99`), because both the map filter and SQL `BETWEEN` include the upper bound.
 
 Optional: a plain JSON-UI chart on another node can read the same layer. `room_chart.json`, with the edge `["crossfilter", "room_chart"]`:
@@ -613,7 +617,7 @@ It shows every row of the layer and does not follow the filters. A `{{layer_id}}
 |---|---|---|
 | Charts show `query_error: Parser Error: syntax error at or near "WHERE"` (or `"GROUP"`, or `at end of input`) | `"{{listings}}"` written literally in the script; the host replaced it with an empty string | Build it at runtime: `"{".repeat(2) + "listings" + "}".repeat(2)` |
 | The page flashes and loses its state on every filter change | `$p_min` (or any `$param`) written literally in the page outside `<fused-widget>`; the host substitutes it and reloads the page | Build `$` at runtime (`const P = "$"`); pass values in `opts.params` |
-| `not_allowed: UDF 'listings' is not connected to this node` that never goes away | The name in `{{…}}` is not the layer `id`, or the map lost its edge from the UDF | Make `SOURCE`, the layer `id` and `{{…}}` the same word; keep `["<udf>", "<html_node>"]` |
+| `not_allowed: UDF 'listings' is not connected to this node` that does not go away | The name in `{{…}}` is not the layer `id` (a map inside the page is always in reach) | Make `SOURCE` and the layer `id` the same word |
 | Charts stay on `not_allowed` or `not_ready` after a fresh load | No retry; the map publishes its layer only after it has mounted and loaded the UDF | Retry those two types for a while, as `draw` does |
 | A row on a bin edge (price exactly 250) is counted in the brushed range | The brush's upper bound equals the next bin's start; map filters and `BETWEEN` include it | Stop just below the next bin, as the template does |
 | A chart's bars vanish when you click one, so you cannot pick another | The chart applies its own filter | Pass the chart's own filter as `skip` |
@@ -625,7 +629,7 @@ It shows every row of the layer and does not follow the filters. A `{{layer_id}}
 | A box counts fewer rows than are inside it | Filtering a box by `ids`: they are the features the map picked, and overlapping points are missed (954 of 1,876 rows in one test box) | Filter `mode: "box"` by `bbox`; use `ids` only when `bbox` is `null` |
 | An old result overwrites a newer one after quick clicks | Calls with different SQL do not cancel each other | Generation counter, or one `opts.key` per chart |
 | `canvas validate` says `{{ref}} references unknown node 'listings'` | Validate checks `{{name}}` against node names only | `[validate] skip = ["widget_refs"]`, then check the names by hand |
-| `json-ui validate` rejects `"min": "$p_min"` | The deployment you validate against predates `$param` filters | Validate with `--env` set to the deployment you push to (see `json-ui-schemas`) |
+| `json-ui validate` prints `"valid": false` for `"min": "$p_min"` | The deployment predates `$param` filters | Validate with `--env` set to the deployment you push to. If that one rejects it, the feature is not deployed there. The command exits 0 either way: read `"valid"` |
 | On a share page the map shows `Running` after every filter change | Expected on share pages, see [Sharing](#sharing) | Nothing to change in the page; keep the UDF cheap |
 
 ## Iframe environment
@@ -641,7 +645,7 @@ It shows every row of the layer and does not follow the filters. A `{{layer_id}}
 - `fused workbench canvas share <canvas>` prints `https://<host>/canvas/<token>`. Each HTML node is then also reachable standalone at `https://<host>/share/<token>/<udfName>` — the same route JSON-UI widgets use.
 - Query params hydrate canvas params on load: `?city=Paris&limit=5&bbox=[1,2,3,4]`. `true`/`false` → booleans, numeric strings → numbers, `{...}`/`[...]` → parsed JSON, otherwise string. HTML nodes accept **any** param name from the URL (because `fused.params.set` can broadcast any name), and `set` calls sync back into the URL.
 - On the share page `runPython` runs through the share token, `{{udf}}` sources are pre-warmed, and `fused.env` is still `"workbench"`.
-- On the share page every param in the URL, including the ones the page sets, is also sent with each UDF run. A `fused-map` layer therefore runs its UDF again whenever the page sets a param (the map shows `Running`), although its filters and `fused.query` need no run.
+- On the share page every param in the URL, including the ones the page sets and a map's `selectParam` value with all its ids, is also sent with each UDF run. A `fused-map` layer therefore runs its UDF again whenever a param changes (the map shows `Running`), although its filters and `fused.query` need no run. A box over most of San Francisco produced a 29,472-character run URL.
 
 ## Debug and verify with the CLI
 
