@@ -111,7 +111,7 @@
   }
 
   let gen = 0;
-  async function draw(p) {
+  async function draw(p, tries = 0) {
     const my = ++gen;
     if (document.activeElement !== byId("pmin")) byId("pmin").value = num(p.p_min) ?? "";
     if (document.activeElement !== byId("pmax")) byId("pmax").value = num(p.p_max) ?? "";
@@ -130,8 +130,8 @@
         + ". Shift+drag on the map to select an area, Escape to clear it.";
     } catch (e) {
       if (my !== gen) return;
-      if (e.type === "not_ready") {
-        setTimeout(() => my === gen && draw(fused.params.getAll()), 500);
+      if ((e.type === "not_ready" || e.type === "not_allowed") && tries < 20) {
+        setTimeout(() => my === gen && draw(fused.params.getAll(), tries + 1), 500);
         return;
       }
       status.textContent = e.type + ": " + e.message;
@@ -153,7 +153,8 @@
       svg += '<rect x="' + (r.bin * step + 1) + '" y="' + (h - 16 - bh) + '" width="' + (step - 2) + '" height="' + bh + '" fill="' + fill + '"><title>' + label(r.bin) + ": " + r.n + "</title></rect>";
     }
     for (const b of [0, 5, 10, 15, LAST_BIN]) {
-      svg += '<text x="' + (b * step) + '" y="' + (h - 3) + '" fill="#8a8a8a" font-size="10">' + label(b) + "</text>";
+      const end = b === LAST_BIN;
+      svg += '<text x="' + (end ? w : b * step) + '" y="' + (h - 3) + '" text-anchor="' + (end ? "end" : "start") + '" fill="#8a8a8a" font-size="10">' + label(b) + "</text>";
     }
     hist.innerHTML = svg + '<rect id="brush" y="0" height="' + (h - 16) + '" width="0" fill="white" fill-opacity="0.15"></rect>';
   }
