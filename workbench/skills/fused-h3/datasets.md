@@ -1,6 +1,6 @@
 # Published hex datasets: ERA5 and GridMET
 
-Fused publishes two weather datasets already partitioned to H3 resolution 7, on Source Cooperative's public bucket. Read the daily ones with `fused.h3.query`, any of them through the Fused API's `/retrieve` routes, or as Parquet directly. No ingestion and no credentials needed.
+Fused publishes two weather datasets already partitioned to H3 resolution 7, on Source Cooperative's public bucket. Read the daily ones with `fused.h3.query` inside a UDF, any of them through the Fused API's `/retrieve` routes, or as Parquet directly. No ingestion and no credentials needed.
 
 | Dataset | Path | Layout | Columns |
 |---|---|---|---|
@@ -41,15 +41,19 @@ The bbox cover is approximate at res 7. Use the REST routes for a point or small
 
 ## `fused.h3.query`
 
-ERA5 daily and GridMET daily are public H3 locations (time column `date`), so `fused.h3.query` reads them with no indexing step and no sign-in, and has no row cap. Pass the root **without a trailing slash**; with one, the query 404s. ERA5 hourly is not indexed: use its `/retrieve` routes or read its Parquet.
+ERA5 daily and GridMET daily are public H3 locations (time column `date`), so `fused.h3.query` reads them with no indexing step and has no row cap. It only runs inside a UDF on a Fused instance; from a notebook, `fused.run` a UDF that calls it. Pass the root **without a trailing slash**; with one, the query 404s. ERA5 hourly is not indexed: use its `/retrieve` routes or read its Parquet.
 
 ```python
-df = fused.h3.query(
-    "s3://us-west-2.opendata.source.coop/fused/era5-hex/era5_daily",
-    lat=40.0, lng=-105.27,
-    time_min="2020-07-01", time_max="2020-07-31",
-    columns=["hex", "date", "t2m_max", "tp"],
-)
+@fused.udf
+def udf(lat: float = 40.0, lng: float = -105.27):
+    return fused.h3.query(
+        "s3://us-west-2.opendata.source.coop/fused/era5-hex/era5_daily",
+        lat=lat, lng=lng,
+        time_min="2020-07-01", time_max="2020-07-31",
+        columns=["hex", "date", "t2m_max", "tp"],
+    )
+
+df = fused.run(udf)
 ```
 
 ## Direct Parquet read
