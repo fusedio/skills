@@ -70,7 +70,7 @@ Formats:
 - `stats`: per-row-group min and max for `columns` (required) plus each group's H3 range, a small response for a coarse overview.
 - `index`: an opaque read plan for the Fused client libraries. Not a stable format: use `fused.h3.query` instead of parsing it.
 
-From Python, `fused.h3.query` (see `SKILL.md`) wraps this.
+Inside a UDF, `fused.h3.query` (see `SKILL.md`) wraps this. It only runs on a Fused instance; from a notebook or script, call this endpoint.
 
 ## Pitfalls
 
