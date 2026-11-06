@@ -774,7 +774,7 @@ Interactive map with tile, UDF and SQL layers.
             "type": "string"
           },
           "type": {
-            "description": "Layer type. Omit it to detect from the data: an image \u2192 raster (tiles from a tile UDF, else one image placed at the bounds the run returned or was sent), an H3 cell column \u2192 h3, start/end lat-lng pairs \u2192 arc, one lat-lng pair \u2192 scatterplot, a geometry column \u2192 geojson. The detected type and columns are written into this config once known. All types render through deck.gl. geojson: polygons/lines/points from inline data, sql or udf rows (deck-geojson is an alias of geojson; prefer geojson). h3: hexagons from h3Column. scatterplot: point circles. heatmap: point density. arc: source\u2192target arcs. raster: tiles from tileUrl or a udf with tile: true, else a single image from a udf. mvt: tiles from tileUrl, or from udf with tile: true. fused-hex: H3 tiles queried from a Fused server's ERA5, gridMET or /h3/query endpoints (see source); it is never detected, so set it explicitly.",
+            "description": "Layer type. Omit it to detect from the data: an image \u2192 raster (tiles from a tile UDF, else one image placed at the bounds the run returned or was sent), an H3 cell column \u2192 h3, start/end lat-lng pairs \u2192 arc, one lat-lng pair \u2192 scatterplot, a geometry column \u2192 geojson. The detected type and columns are written into this config once known. All types render through deck.gl. geojson: polygons/lines/points from inline data, sql or udf rows (deck-geojson is an alias of geojson; prefer geojson). h3: hexagons from h3Column. scatterplot: point circles. heatmap: point density. arc: source\u2192target arcs. raster: tiles from tileUrl or a udf with tile: true, else a single image from a udf. mvt: tiles from tileUrl, or from udf with tile: true. fused-hex: H3 tiles queried from a Fused server's ERA5, gridMET or /h3/query endpoints (see source); it is never detected, so set it explicitly. For your own data: partition it with fused.h3.partition, register it with fused.h3.index, then set source {path, overview: {}} and h3Column. Row tiles load from the layer's zoom floor (default zoom 7) and a zoomed-out overview of the whole dataset draws below it.",
             "type": "string",
             "enum": [
               "mvt",
@@ -817,7 +817,7 @@ Interactive map with tile, UDF and SQL layers.
             "type": "boolean"
           },
           "bounds": {
-            "description": "Lock a udf tile layer (tile: true) drawn as geojson or deck-geojson to these bounds [minLng, minLat, maxLng, maxLat]: the UDF runs once with bounds passed as a parameter (a JSON string \"[w, s, e, n]\", like the legacy single-viewport run) and the result renders as one static layer, with no per-tile runs and no refetch on pan or zoom. A sql on the layer runs on that one result while locked, and per tile otherwise. Ignored by other layers: other types (h3, scatterplot, arc, heatmap, raster, mvt) keep their tiles.",
+            "description": "Lock a udf tile layer (tile: true) drawn as geojson or deck-geojson to these bounds [minLng, minLat, maxLng, maxLat]: the UDF runs once with bounds passed as a parameter (a JSON string \"[w, s, e, n]\", like the legacy single-viewport run) and the result renders as one static layer, with no per-tile runs and no refetch on pan or zoom. A sql on the layer runs on that one result while locked, and over the tiles in view otherwise. Ignored by other layers: other types (h3, scatterplot, arc, heatmap, raster, mvt) keep their tiles.",
             "minItems": 4,
             "maxItems": 4,
             "type": "array",
@@ -830,10 +830,10 @@ Interactive map with tile, UDF and SQL layers.
             "type": "string"
           },
           "data": {
-            "description": "Inline GeoJSON FeatureCollection (geojson type)"
+            "description": "Inline GeoJSON FeatureCollection, or one {{name}} placeholder naming a canvas SQL source: an h3-query or sql-runner widget's name (offered by Add layer and wired by an edge automatically), or another map's layer id (draw the edge from that map yourself). The source's rows are read from DuckDB as they are (no UDF runs; its loading and errors show on the layer; it re-queries when the widget fetches again), and the edge from that node to this one grants access, as for a UDF. Add sql to query them ({{source}} or {{name}} reads the rows). Row layers only (geojson, h3, scatterplot, heatmap, arc, or type omitted to detect from the rows): not with tile, udf or tileUrl, nor on raster, mvt or fused-hex. Example: \"{{h3_rows}}\" with h3Column \"hex\"."
           },
           "udf": {
-            "description": "UDF placeholder, e.g. {{my_udf}}, {{my_udf?param=value}} or {{my_udf?param=$param_name}}. The UDF is run directly (no share token needed) and re-run when it or a referenced $param_name changes: the whole result as rows for geojson/deck layers, or per tile when tile is true. An input in the same widget (slider, number-input, with a defaultValue) can drive it; only the UDF \u2192 widget edge is needed. Combine with sql to query the result (per tile when tile is true). Mutually exclusive with tileUrl.",
+            "description": "UDF placeholder, e.g. {{my_udf}}, {{my_udf?param=value}} or {{my_udf?param=$param_name}}. The UDF is run directly (no share token needed) and re-run when it or a referenced $param_name changes: the whole result as rows for geojson/deck layers, or per tile when tile is true (a sql then queries the tiles in view). An input in the same widget (slider, number-input, with a defaultValue) can drive it; only the UDF \u2192 widget edge is needed. Combine with sql to query the result (the tiles in view when tile is true). Mutually exclusive with tileUrl.",
             "type": "string"
           },
           "tile": {
@@ -841,7 +841,7 @@ Interactive map with tile, UDF and SQL layers.
             "type": "boolean"
           },
           "sql": {
-            "description": "DuckDB SQL query with {{udf_name}} placeholders. Rows are converted to GeoJSON for rendering. On a tiled layer (udf with tile: true, or fused-hex) the query runs on each tile as it loads, over that tile's rows as {{source}}, which takes no ?params (a udf layer may also write its own {{udf_name}}, bare or with exactly its own ?params): WHERE, computed columns and GROUP BY work per tile, before a fused-hex reduce; only a single SELECT runs per tile (no UNION or several statements), and its result must keep the cell column (h3, fused-hex) or the geometry columns (vector layers); LIMIT, ORDER BY, USING SAMPLE and other UDFs are not available. raster, mvt and tileUrl layers take no sql.",
+            "description": "DuckDB SQL query with {{name}} placeholders: a UDF result, or a canvas SQL source (an h3-query or sql-runner widget's name, another map's layer id) read from DuckDB with no UDF run. Rows are converted to GeoJSON for rendering. On a tiled layer (udf with tile: true, or fused-hex) the query runs once over the rows of every tile loaded in the current view, reading them as {{source}}, which takes no ?params (a udf layer may also write its own {{udf_name}}, bare or with exactly its own ?params), and runs again as the view moves (pan, zoom), the query changes or a $param changes; no tile is refetched. WHERE, computed columns, GROUP BY, aggregates, LIMIT, ORDER BY and USING SAMPLE apply to the whole view (before a fused-hex reduce); only a single SELECT (a WITH is fine) over {{source}} runs (no UNION, several statements, other UDFs or joins), and its result must keep the cell column (h3, fused-hex) or the geometry columns (vector layers). raster, mvt and tileUrl layers take no sql.",
             "type": "string"
           },
           "filters": {
@@ -861,12 +861,30 @@ Interactive map with tile, UDF and SQL layers.
                       "const": "range"
                     },
                     "min": {
-                      "description": "Inclusive lower bound",
-                      "type": "number"
+                      "description": "Inclusive lower bound, or a `$param` holding one",
+                      "anyOf": [
+                        {
+                          "type": "number"
+                        },
+                        {
+                          "type": "string",
+                          "pattern": "^\\$[a-zA-Z_][a-zA-Z0-9_]*$",
+                          "description": "A canvas parameter reference such as `$day_min`; the filter reads its value live and is inactive while the parameter has none"
+                        }
+                      ]
                     },
                     "max": {
-                      "description": "Inclusive upper bound",
-                      "type": "number"
+                      "description": "Inclusive upper bound, or a `$param` holding one",
+                      "anyOf": [
+                        {
+                          "type": "number"
+                        },
+                        {
+                          "type": "string",
+                          "pattern": "^\\$[a-zA-Z_][a-zA-Z0-9_]*$",
+                          "description": "A canvas parameter reference such as `$day_min`; the filter reads its value live and is inactive while the parameter has none"
+                        }
+                      ]
                     }
                   },
                   "required": [
@@ -886,21 +904,30 @@ Interactive map with tile, UDF and SQL layers.
                       "const": "categories"
                     },
                     "values": {
-                      "type": "array",
-                      "items": {
-                        "anyOf": [
-                          {
-                            "type": "string"
-                          },
-                          {
-                            "type": "number"
-                          },
-                          {
-                            "type": "boolean"
+                      "anyOf": [
+                        {
+                          "type": "array",
+                          "items": {
+                            "anyOf": [
+                              {
+                                "type": "string"
+                              },
+                              {
+                                "type": "number"
+                              },
+                              {
+                                "type": "boolean"
+                              }
+                            ]
                           }
-                        ]
-                      },
-                      "description": "Values to keep; empty keeps every feature (no filtering)"
+                        },
+                        {
+                          "type": "string",
+                          "pattern": "^\\$[a-zA-Z_][a-zA-Z0-9_]*$",
+                          "description": "A canvas parameter reference such as `$day_min`; the filter reads its value live and is inactive while the parameter has none"
+                        }
+                      ],
+                      "description": "Values to keep (empty keeps every feature), or a `$param` holding the list"
                     }
                   },
                   "required": [
@@ -945,7 +972,7 @@ Interactive map with tile, UDF and SQL layers.
             "type": "string"
           },
           "tooltip": {
-            "description": "Show tooltip on hover. true = all properties, string[] = specific properties.",
+            "description": "Show tooltip on hover. true = all properties, string[] = specific properties. Off for data rows when unset. A fused-hex overview cell always shows its hover (cell, rows, rows in window and, at chunk level, min to max of each data column) unless this is false.",
             "anyOf": [
               {
                 "type": "boolean"
@@ -975,7 +1002,7 @@ Interactive map with tile, UDF and SQL layers.
             ]
           },
           "source": {
-            "description": "fused-hex only: the server endpoint and query each XYZ tile's bbox is sent to.",
+            "description": "fused-hex only: the server endpoint and query each XYZ tile's bbox is sent to. For your own data, set path to an indexed folder and overview to {}; the layer then also needs h3Column. Example: {path: 's3://bucket/indexed/', overview: {}} with h3Column 'hex' and style.fillColor {type: 'continuous', attr: 'temp'}.",
             "type": "object",
             "properties": {
               "endpoint": {
@@ -983,7 +1010,7 @@ Interactive map with tile, UDF and SQL layers.
                 "type": "string"
               },
               "path": {
-                "description": "Indexed dataset location, e.g. s3://bucket/indexed/data/. Sets the endpoint to /h3/query when none is given. Needs the layer's h3Column (the location's indexed space column). Not used by the retrieve endpoints, which serve a fixed dataset.",
+                "description": "Indexed dataset location, e.g. s3://bucket/indexed/data/. Sets the endpoint to /h3/query when none is given. Needs the layer's h3Column (the location's indexed space column, 'hex' for what fused.h3.partition writes). The folder must be hex-sorted H3 parquet that fused.h3.partition wrote and fused.h3.index registered for your team (run partition, then index; pass chunk_res_offset to partition for the chunk-level overview). Not used by the retrieve endpoints, which serve a fixed dataset.",
                 "type": "string"
               },
               "dateMin": {
@@ -1045,7 +1072,7 @@ Interactive map with tile, UDF and SQL layers.
                 "type": "object",
                 "properties": {
                   "minZoom": {
-                    "description": "The overview needs a zoom floor above this (default 3). It draws at every zoom below the floor.",
+                    "description": "The overview needs the layer's zoom floor above this (default 3). It draws at every zoom below the floor, where row tiles start.",
                     "type": "integer",
                     "minimum": 0,
                     "maximum": 9007199254740991
@@ -1068,12 +1095,13 @@ Interactive map with tile, UDF and SQL layers.
                       }
                     }
                   },
+                  "chunkMinZoom": {},
                   "mode": {},
                   "statistic": {},
                   "attr": {},
                   "resolution": {}
                 },
-                "description": "Zoomed-out view below the layer's zoom floor: an outline of the cells of the files the query reads. Available for the ERA5 retrieve endpoints and /h3/query."
+                "description": "Zoomed-out view below the layer's zoom floor, drawn from one request, so `overview: {}` is all it takes. Each cell is a file's H3 cell (file level) or, when the location was partitioned chunk-aligned (fused.h3.partition with chunk_res_offset) and has at most 100,000 distinct chunk cells, one row-group chunk (chunk level). The server picks the level; ERA5 and gridMET are always file level. Default at both levels: cells fill light by row count with grey outlines, not coloured by the layer's colour; style.overview.fillColor \"inherit\" colours chunk cells by the max of the layer's column (style.overview.stat switches to min). Hovering a cell shows it, its row count and, at the chunk level, the min to max of each data column the layer names (source.variables, the fill and stroke attributes, a tooltip list), coloured or not. Available for the ERA5 and gridMET retrieve endpoints and /h3/query. style.overview overrides the colours."
               }
             }
           },
@@ -1119,25 +1147,25 @@ Interactive map with tile, UDF and SQL layers.
                 "type": "number"
               },
               "overview": {
-                "description": "fused-hex only: how overview cells (source.overview) draw, apart from the row cells. null clears a configured block (a layer switched out of fused-hex).",
+                "description": "fused-hex only, optional: overrides how the overview cells (source.overview) draw; leave it out for the defaults, which need no setting. Defaults, at both levels: light fill by row count with #afafaf outlines at opacity 0.35, not coloured by the layer's colour. Hovering a chunk cell lists the min to max of the layer's data columns whether or not it is coloured. To colour chunk cells by the layer's column set fillColor to \"inherit\". Example: {fillColor: [255, 140, 0], opacity: 0.5, lineWidth: 0}. null clears a configured block (a layer switched out of fused-hex).",
                 "anyOf": [
                   {
                     "type": "object",
                     "properties": {
                       "fillColor": {
-                        "description": "Unset: no fill. A single colour fills the cells; \"inherit\" takes fillColor (a data-driven one draws no overview and shows a warning on the layer card; rows are unaffected); or a data-driven {type:\"continuous\"|\"categorical\", attr, ...} colouring cells by row_count_total (rows in the whole file) or row_count_window (rows in the file sections the current date window reads)."
+                        "description": "Unset or \"auto\": a light fill by row_count_total at both levels, so the overview does not read as data coloured by a column. A single colour fills the cells; null draws no fill; \"inherit\" takes the layer's fillColor (a data-driven one colours chunk cells by each cell's max, or min, see stat, of its attr; at the file level, where cells carry no column values, it falls back to the row-count fill); or a data-driven {type:\"continuous\"|\"categorical\", attr, ...} over the cell properties: row_count_total (rows in the cell's files or chunk), row_count_window (rows the current date window reads) and, at the chunk level, <column>_min and <column>_max for each column the layer's fill colours by."
                       },
                       "opacity": {
-                        "description": "Opacity 0-1 of the overview fill (default 0.35)",
+                        "description": "Opacity 0-1 of the overview fill. Defaults to 0.35; with fillColor \"inherit\" at the chunk level, the layer's own opacity.",
                         "type": "number",
                         "minimum": 0,
                         "maximum": 1
                       },
                       "lineColor": {
-                        "description": "Unset: #afafaf. A single colour outlines the cells; \"inherit\" takes lineColor (a data-driven one draws no overview and shows a warning on the layer card; rows are unaffected); or a data-driven {type:\"continuous\"|\"categorical\", attr, ...} colouring cells by row_count_total (rows in the whole file) or row_count_window (rows in the file sections the current date window reads)."
+                        "description": "Unset or \"auto\": #afafaf at both levels. A single colour outlines the cells; \"inherit\" takes the layer's lineColor (a data-driven one falls back to #afafaf); or a data-driven {type:\"continuous\"|\"categorical\", attr, ...} over the same cell properties as fillColor."
                       },
                       "lineWidth": {
-                        "description": "Overview cell stroke width in pixels (default 1, 0 = no stroke)",
+                        "description": "Overview cell stroke width in pixels. Defaults to 1 at both levels; 0 draws no outline.",
                         "type": "number",
                         "minimum": 0
                       },
@@ -1146,6 +1174,14 @@ Interactive map with tile, UDF and SQL layers.
                         "type": "number",
                         "minimum": 0,
                         "maximum": 1
+                      },
+                      "stat": {
+                        "description": "Chunk level only: which of each cell's statistics of the layer's colour column colours it, \"max\" (default) or \"min\".",
+                        "type": "string",
+                        "enum": [
+                          "max",
+                          "min"
+                        ]
                       }
                     }
                   },
@@ -1215,6 +1251,14 @@ Interactive map with tile, UDF and SQL layers.
       "description": "Canvas parameter that receives the properties of the last clicked feature",
       "type": "string"
     },
+    "selectParam": {
+      "description": "Canvas parameter that receives the current selection: shift+drag draws a box (the map dims outside it), shift+click toggles one feature, Escape or a plain click on the map clears. Value: { layer, key, ids, count, bbox, mode, truncated }. Session state: not saved with the canvas. bbox is the [west, south, east, north] envelope of the drawn box (null for click selections) and is the selection for a box: filter rows by it. ids are the `selectKey` values of every feature drawn in the box, with no cap; truncated is always false.",
+      "type": "string"
+    },
+    "selectKey": {
+      "description": "Feature property published as each selected feature's id in selectParam. Defaults to the cell column on hex layers, else `id`.",
+      "type": "string"
+    },
     "stateParam": {
       "description": "Canvas parameter that mirrors the map's runtime state (camera, layer type, style, filters, SQL overrides) so other widgets can read it. It is saved with the canvas and restored on reload. On your own canvas layer edits are written into this config as you make them, so the parameter mostly carries the camera.",
       "type": "string"
@@ -1224,9 +1268,10 @@ Interactive map with tile, UDF and SQL layers.
       "type": "string"
     }
   },
-  "description": "Interactive map: a Mapbox basemap with every data layer (mvt, raster, geojson, h3, heatmap, arc, scatterplot, deck-geojson, fused-hex) rendered through deck.gl. Layers load data from a UDF directly (`udf`), from a tile endpoint (`tileUrl`) or from a Fused server's hex query endpoints (`fused-hex` with `source`). A DuckDB query (`sql`) reads UDF results on its own, or queries the rows of a `udf` or `fused-hex` layer (per tile when the layer is tiled). A sidebar lets viewers restyle, filter and re-query layers at runtime.\n\n## Example \u2014 UDF result (GeoDataFrame)\n\n```json\n{\n  \"type\": \"fused-map\",\n  \"props\": {\n    \"layers\": [{\n      \"id\": \"buildings\",\n      \"type\": \"geojson\",\n      \"udf\": \"{{my_udf}}\",\n      \"tooltip\": true,\n      \"style\": { \"fillColor\": { \"type\": \"continuous\", \"attr\": \"height\", \"palette\": \"Sunset\" } }\n    }]\n  }\n}\n```\n\n## Example \u2014 UDF as H3 tiles\n\n```json\n{\n  \"type\": \"fused-map\",\n  \"props\": {\n    \"layers\": [{\n      \"id\": \"hexes\",\n      \"type\": \"h3\",\n      \"udf\": \"{{my_h3_udf}}\",\n      \"tile\": true,\n      \"style\": { \"fillColor\": { \"type\": \"continuous\", \"attr\": \"count\", \"domain\": [0, 500] } }\n    }]\n  }\n}\n```\n\n## Example \u2014 MVT tile layer\n\n```json\n{\n  \"type\": \"fused-map\",\n  \"props\": {\n    \"layers\": [{\n      \"id\": \"counties\",\n      \"type\": \"mvt\",\n      \"tileUrl\": \"https://tiles.fused.io/public/my_tileset/{z}/{x}/{y}\",\n      \"style\": { \"fillColor\": [100, 150, 200], \"opacity\": 0.6 }\n    }]\n  }\n}\n```\n\n## Example \u2014 SQL with lat/lng points and a filter\n\n```json\n{\n  \"type\": \"fused-map\",\n  \"props\": {\n    \"layers\": [{\n      \"id\": \"sites\",\n      \"type\": \"geojson\",\n      \"sql\": \"SELECT name, lat, lng, score FROM {{my_udf}}\",\n      \"filters\": [{ \"attr\": \"score\", \"type\": \"range\", \"min\": 0.5 }],\n      \"style\": { \"fillColor\": [255, 80, 0], \"pointRadius\": 8 }\n    }]\n  }\n}\n```\n\n## Example \u2014 raster tile layer\n\n```json\n{\n  \"type\": \"fused-map\",\n  \"props\": {\n    \"layers\": [{\n      \"id\": \"seismic\",\n      \"type\": \"raster\",\n      \"tileUrl\": \"https://udf.ai/<token>/run/tiles/{z}/{x}/{y}?format=png\",\n      \"style\": { \"opacity\": 0.8 }\n    }]\n  }\n}\n```\n\n## Example \u2014 ERA5 / gridMET / indexed H3 data (fused-hex)\n\n```json\n{\n  \"type\": \"fused-map\",\n  \"props\": {\n    \"layers\": [{\n      \"id\": \"era5-t2m\",\n      \"type\": \"fused-hex\",\n      \"source\": {\n        \"endpoint\": \"/retrieve/era5/daily/bbox\",\n        \"dateMin\": \"2024-07-15\",\n        \"dateMax\": \"2024-07-15\",\n        \"variables\": [\"t2m_mean\"]\n      },\n      \"tooltip\": [\"hex\", \"date\", \"t2m_mean\"],\n      \"style\": { \"fillColor\": { \"type\": \"continuous\", \"attr\": \"t2m_mean\", \"domain\": [270, 310] } }\n    }]\n  }\n}\n```\n\nRaster layers with a `tileUrl` fetch PNG tiles from a publicly reachable XYZ endpoint; only `opacity` and `visible` apply. `udf` with `tile: true` instead runs the UDF per tile through the workbench (or the canvas share token on a shared page), so no share token is needed and edits to the UDF re-render the layer.\n\n## Choosing a source\n\n- `udf` without `tile`: one whole run. Rows become features (geojson, h3, heatmap, arc, scatterplot); an image result becomes one `raster` picture at the bounds the run returned or was sent. Not valid for `mvt` \u2014 that needs `tile: true` with `udf`, or a `tileUrl`.\n- `udf` with `tile: true`: the UDF runs per XYZ tile; use for large or tile-shaped UDFs (`raster` \u2192 PNG, `h3` \u2192 hexagons, `geojson` \u2192 vector features). Tile layers never auto-fit.\n- `sql`: a DuckDB query over `{{udf}}` results; rows become features via geometryColumn / latColumn+lngColumn / h3Column. On a tiled layer (`udf` with `tile: true`, or `fused-hex`) it runs on each tile as it loads, reading the tile's rows as `{{source}}`, which takes no `?params` (a udf layer may also write its own `{{udf}}`, bare or with exactly its own `?params`): WHERE, computed columns and GROUP BY work per tile; only a single SELECT runs per tile (no UNION or several statements), and its result must keep the cell column (h3, `fused-hex`) or the geometry columns (vector layers); LIMIT, ORDER BY, USING SAMPLE and other UDFs are not available. `raster`, `mvt` and `tileUrl` layers take no `sql`.\n- `source` (`fused-hex` only): a Fused server's ERA5, gridMET or `/h3/query` endpoint, queried per XYZ tile; no `udf` (a `sql` runs per tile over `{{source}}`).\n- Whole-run results larger than the viewer's \"Max amount of data to auto-load\" setting (default 50 MB) are not loaded until the viewer confirms, and UDFs marked for manual runs show a Run button instead of running on load. Prefer `tile: true`, a narrowing `sql`, or both for big datasets.\n\n## Layer types\n\n- `geojson`: polygons, lines and points from any source. `deck-geojson` is an alias of `geojson` and renders identically \u2014 prefer `geojson`.\n- `h3`: hexagons from `h3Column` (auto-detected from common names like hex, h3 when omitted), styled with `coverage`, `extruded`, `elevationAttr`.\n- `scatterplot`: point circles; `pointRadius` in pixels (default 5), `lineColor`/`lineWidth` for the outline.\n- `heatmap`: density of points; weight comes from a continuous `fillColor.attr` (1 per point when fillColor is static), `pointRadius` is the kernel radius in pixels (default 30). Not pickable, no tooltip.\n- `arc`: one arc per row. Give the endpoints with `startLatColumn`/`startLngColumn` and `endLatColumn`/`endLngColumn` (auto-detected from common names when omitted), or a `source`/`target` property holding [lng, lat], or a LineString whose first and second vertices are the ends. `fillColor` colours the source end, `lineColor` the target end, `lineWidth` the arc width.\n- `mvt` / `raster`: tiled from `tileUrl`, or from `udf` with `tile: true`.\n- `fused-hex`: H3 tiles queried from a Fused server; each XYZ tile's bbox is sent to `source.endpoint` (a full URL, or a path on the current server; /h3/query when only `source.path` is set): `/retrieve/era5/daily/bbox`, `/retrieve/era5/hourly/bbox` and `/retrieve/gridmet/bbox` serve fixed resolution 7 datasets and need `dateMin`/`dateMax`; `/h3/query` reads any indexed `source.path` and needs the layer's `h3Column` set to the location's indexed space column (set `source.timeColumn` too so latest/first can order rows). Each hex's rows over the window are reduced to one (`reduce`: latest, first, mean, min, max, sum). Tiles load from zoom 7 for a single day; unless `minZoom` is set the floor rises with the window (about one zoom level per 4x more time steps) so a tile stays within the server's row limit, and nothing draws below it. A tile the server still rejects as too large shows an error: zoom in or narrow the window. Row cells cover their hexagon whole unless `style.coverage` is set (default 1, where other hex layers default to 0.9). It reads `source` instead of `udf`; `sql` runs per tile over `{{source}}`, before `reduce`. It is never auto-detected, never auto-fits and takes no `bounds`. Set `source.overview` (`{}` is enough) to outline, from zoom 3 up to the floor, the H3 cells of the files the query reads (no rows are read): one request lists them, with no tiles and no values, so the outlines show where data exists, not what it holds. ERA5 retrieve endpoints and /h3/query only (for /h3/query the world extent lists the whole location); it is an error on gridMET. `overview.minZoom` (default 3) must sit below the floor for the overview to draw, and `overview.extent` limits the area it looks up and also confines the row tiles: none are requested outside it, and cells are drawn only inside it, overview and rows alike, by cell centre (default: the whole world). Overview cells are styled apart from the rows by `style.overview` (fused-hex only): `lineColor` and `fillColor` (default: #afafaf stroke, no fill) each take a single colour, `\"inherit\"` (the layer's own stroke/fill; when that is data-driven, no overview is drawn and a warning shows on the layer card, rows unaffected), or a data-driven `{type: \"continuous\"|\"categorical\", attr, ...}` colouring cells by `row_count_total` (rows in the whole file) or `row_count_window` (rows in the file sections the current date window reads) -- the only two overview attributes, since a files overview carries no other values. Also `lineWidth` (default 1, 0 = no stroke), `opacity` (the fill's, default 0.35) and `coverage` (default 1).\n\n## Colours\n\n`style.fillColor` and `style.lineColor` accept an [r, g, b] or [r, g, b, a] array, a CSS colour string, or a data-driven object:\n\n- Continuous: `{ \"type\": \"continuous\", \"attr\": \"<numeric property>\", \"domain\": [min, max], \"palette\": \"Sunset\", \"steps\": 7, \"reverse\": false, \"nullColor\": \"#b8b8b8\" }`. `domain` defaults to the data's min/max, `palette` to \"Sunset\". Sequential palettes (CARTOColors): Sunset, SunsetDark, Teal, TealGrn, Emrld, BluGrn, BluYl, Mint, DarkMint, Purp, PurpOr, Magenta, Burg, BurgYl, RedOr, OrYel, Peach, PinkYl, BrwnYl.\n- Categorical: `{ \"type\": \"categorical\", \"attr\": \"<property>\", \"colors\": { \"<value>\": \"#hex\" }, \"palette\": \"Bold\", \"nullColor\": \"rgba(128,128,128,0.5)\" }`. Omit `colors` to auto-assign from the palette (default \"Bold\"). Qualitative palettes: Bold, Vivid, Safe, Prism.\n\nA legend is drawn only for data-driven colours (see `legend` and `showLegend`)."
+  "description": "Interactive map: a Mapbox basemap with every data layer (mvt, raster, geojson, h3, heatmap, arc, scatterplot, deck-geojson, fused-hex) rendered through deck.gl. Layers load data from a UDF directly (`udf`), from a tile endpoint (`tileUrl`) or from a Fused server's hex query endpoints (`fused-hex` with `source`). A DuckDB query (`sql`) reads UDF results on its own, or queries the rows of a `udf` or `fused-hex` layer (once over the tiles in view when the layer is tiled). A sidebar lets viewers restyle, filter and re-query layers at runtime.\n\n## Example \u2014 UDF result (GeoDataFrame)\n\n```json\n{\n  \"type\": \"fused-map\",\n  \"props\": {\n    \"layers\": [{\n      \"id\": \"buildings\",\n      \"type\": \"geojson\",\n      \"udf\": \"{{my_udf}}\",\n      \"tooltip\": true,\n      \"style\": { \"fillColor\": { \"type\": \"continuous\", \"attr\": \"height\", \"palette\": \"Sunset\" } }\n    }]\n  }\n}\n```\n\n## Example \u2014 UDF as H3 tiles\n\n```json\n{\n  \"type\": \"fused-map\",\n  \"props\": {\n    \"layers\": [{\n      \"id\": \"hexes\",\n      \"type\": \"h3\",\n      \"udf\": \"{{my_h3_udf}}\",\n      \"tile\": true,\n      \"style\": { \"fillColor\": { \"type\": \"continuous\", \"attr\": \"count\", \"domain\": [0, 500] } }\n    }]\n  }\n}\n```\n\n## Example \u2014 MVT tile layer\n\n```json\n{\n  \"type\": \"fused-map\",\n  \"props\": {\n    \"layers\": [{\n      \"id\": \"counties\",\n      \"type\": \"mvt\",\n      \"tileUrl\": \"https://tiles.fused.io/public/my_tileset/{z}/{x}/{y}\",\n      \"style\": { \"fillColor\": [100, 150, 200], \"opacity\": 0.6 }\n    }]\n  }\n}\n```\n\n## Example \u2014 rows from a canvas SQL source (h3-query, sql-runner)\n\n```json\n{\n  \"type\": \"fused-map\",\n  \"props\": {\n    \"layers\": [{\n      \"id\": \"hex\",\n      \"type\": \"h3\",\n      \"h3Column\": \"hex\",\n      \"data\": \"{{h3_rows}}\",\n      \"style\": { \"fillColor\": { \"type\": \"continuous\", \"attr\": \"t2m_max\" } }\n    }]\n  }\n}\n```\n\n`data: \"{{name}}\"` draws the rows a canvas SQL source published (an h3-query or sql-runner widget's `name`, or another map's layer id) straight from DuckDB: no UDF runs, and the edge from that node to this one grants access, as for a UDF. Add `sql` to query them (`{{source}}` or `{{name}}` reads the rows). Row layers only (geojson, h3, scatterplot, heatmap, arc, or type omitted to detect), never tiles.\n\n## Example \u2014 SQL with lat/lng points and a filter\n\n```json\n{\n  \"type\": \"fused-map\",\n  \"props\": {\n    \"layers\": [{\n      \"id\": \"sites\",\n      \"type\": \"geojson\",\n      \"sql\": \"SELECT name, lat, lng, score FROM {{my_udf}}\",\n      \"filters\": [{ \"attr\": \"score\", \"type\": \"range\", \"min\": 0.5 }],\n      \"style\": { \"fillColor\": [255, 80, 0], \"pointRadius\": 8 }\n    }]\n  }\n}\n```\n\n## Example \u2014 raster tile layer\n\n```json\n{\n  \"type\": \"fused-map\",\n  \"props\": {\n    \"layers\": [{\n      \"id\": \"seismic\",\n      \"type\": \"raster\",\n      \"tileUrl\": \"https://udf.ai/<token>/run/tiles/{z}/{x}/{y}?format=png\",\n      \"style\": { \"opacity\": 0.8 }\n    }]\n  }\n}\n```\n\n## Example \u2014 ERA5 / gridMET / indexed H3 data (fused-hex)\n\n```json\n{\n  \"type\": \"fused-map\",\n  \"props\": {\n    \"layers\": [{\n      \"id\": \"era5-t2m\",\n      \"type\": \"fused-hex\",\n      \"source\": {\n        \"endpoint\": \"/retrieve/era5/daily/bbox\",\n        \"dateMin\": \"2024-07-15\",\n        \"dateMax\": \"2024-07-15\",\n        \"variables\": [\"t2m_mean\"]\n      },\n      \"tooltip\": [\"hex\", \"date\", \"t2m_mean\"],\n      \"style\": { \"fillColor\": { \"type\": \"continuous\", \"attr\": \"t2m_mean\", \"domain\": [270, 310] } }\n    }]\n  }\n}\n```\n\nRaster layers with a `tileUrl` fetch PNG tiles from a publicly reachable XYZ endpoint; only `opacity` and `visible` apply. `udf` with `tile: true` instead runs the UDF per tile through the workbench (or the canvas share token on a shared page), so no share token is needed and edits to the UDF re-render the layer.\n\n## Choosing a source\n\n- `udf` without `tile`: one whole run. Rows become features (geojson, h3, heatmap, arc, scatterplot); an image result becomes one `raster` picture at the bounds the run returned or was sent. Not valid for `mvt` \u2014 that needs `tile: true` with `udf`, or a `tileUrl`.\n- `udf` with `tile: true`: the UDF runs per XYZ tile; use for large or tile-shaped UDFs (`raster` \u2192 PNG, `h3` \u2192 hexagons, `geojson` \u2192 vector features). Tile layers never auto-fit.\n- `sql`: a DuckDB query over `{{udf}}` results; rows become features via geometryColumn / latColumn+lngColumn / h3Column. On a tiled layer (`udf` with `tile: true`, or `fused-hex`) it runs once over the rows of every tile loaded in the current view, reading them as `{{source}}`, which takes no `?params` (a udf layer may also write its own `{{udf}}`, bare or with exactly its own `?params`), and runs again as the view moves (pan, zoom), the query changes or a `$param` changes; no tile is refetched. WHERE, computed columns, GROUP BY, aggregates, LIMIT, ORDER BY and USING SAMPLE apply to the whole view; only a single SELECT (a WITH is fine) over `{{source}}` runs (no UNION, several statements, other UDFs or joins), and its result must keep the cell column (h3, `fused-hex`) or the geometry columns (vector layers). `raster`, `mvt` and `tileUrl` layers take no `sql`.\n- `source` (`fused-hex` only): a Fused server's ERA5, gridMET or `/h3/query` endpoint, queried per XYZ tile; no `udf` (a `sql` runs once over the tiles in view as `{{source}}`).\n- Whole-run results larger than the viewer's \"Max amount of data to auto-load\" setting (default 50 MB) are not loaded until the viewer confirms, and UDFs marked for manual runs show a Run button instead of running on load. Prefer `tile: true`, a narrowing `sql`, or both for big datasets.\n\n## Layer types\n\n- `geojson`: polygons, lines and points from any source. `deck-geojson` is an alias of `geojson` and renders identically \u2014 prefer `geojson`.\n- `h3`: hexagons from `h3Column` (auto-detected from common names like hex, h3 when omitted), styled with `coverage`, `extruded`, `elevationAttr`.\n- `scatterplot`: point circles; `pointRadius` in pixels (default 5), `lineColor`/`lineWidth` for the outline.\n- `heatmap`: density of points; weight comes from a continuous `fillColor.attr` (1 per point when fillColor is static), `pointRadius` is the kernel radius in pixels (default 30). Not pickable, no tooltip.\n- `arc`: one arc per row. Give the endpoints with `startLatColumn`/`startLngColumn` and `endLatColumn`/`endLngColumn` (auto-detected from common names when omitted), or a `source`/`target` property holding [lng, lat], or a LineString whose first and second vertices are the ends. `fillColor` colours the source end, `lineColor` the target end, `lineWidth` the arc width.\n- `mvt` / `raster`: tiled from `tileUrl`, or from `udf` with `tile: true`.\n- `fused-hex`: H3 tiles queried from a Fused server; each XYZ tile's bbox is sent to `source.endpoint` (a full URL, or a path on the current server; /h3/query when only `source.path` is set): `/retrieve/era5/daily/bbox`, `/retrieve/era5/hourly/bbox` and `/retrieve/gridmet/bbox` serve fixed resolution 7 datasets and need `dateMin`/`dateMax`; `/h3/query` reads any indexed `source.path` and needs the layer's `h3Column` set to the location's indexed space column (set `source.timeColumn` too so latest/first can order rows). Each hex's rows over the window are reduced to one (`reduce`: latest, first, mean, min, max, sum). Tiles load from zoom 7 for a single day; unless `minZoom` is set the floor rises with the window (about one zoom level per 4x more time steps) so a tile stays within the server's row limit, and nothing draws below it. A tile the server still rejects as too large shows an error: zoom in or narrow the window. Row cells cover their hexagon whole unless `style.coverage` is set (default 1, where other hex layers default to 0.9). It reads `source` instead of `udf`; `sql` runs once over every tile in view as `{{source}}`, before `reduce`. It is never auto-detected, never auto-fits and takes no `bounds`. Set `source.overview` (`{}` is enough) to outline, from zoom 3 up to the floor, the H3 cells of the files the query reads (no rows are read): one request lists them, with no tiles and no values, so the outlines show where data exists, not what it holds. ERA5 retrieve endpoints and /h3/query only (for /h3/query the world extent lists the whole location); it is an error on gridMET. `overview.minZoom` (default 3) must sit below the floor for the overview to draw, and `overview.extent` limits the area it looks up and also confines the row tiles: none are requested outside it, and cells are drawn only inside it, overview and rows alike, by cell centre (default: the whole world). Overview cells are styled apart from the rows by `style.overview` (fused-hex only): `lineColor` and `fillColor` (default: #afafaf stroke, no fill) each take a single colour, `\"inherit\"` (the layer's own stroke/fill; when that is data-driven, no overview is drawn and a warning shows on the layer card, rows unaffected), or a data-driven `{type: \"continuous\"|\"categorical\", attr, ...}` colouring cells by `row_count_total` (rows in the whole file) or `row_count_window` (rows in the file sections the current date window reads) -- the only two overview attributes, since a files overview carries no other values. Also `lineWidth` (default 1, 0 = no stroke), `opacity` (the fill's, default 0.35) and `coverage` (default 1).\n\n## Colours\n\n`style.fillColor` and `style.lineColor` accept an [r, g, b] or [r, g, b, a] array, a CSS colour string, or a data-driven object:\n\n- Continuous: `{ \"type\": \"continuous\", \"attr\": \"<numeric property>\", \"domain\": [min, max], \"palette\": \"Sunset\", \"steps\": 7, \"reverse\": false, \"nullColor\": \"#b8b8b8\" }`. `domain` defaults to the data's min/max, `palette` to \"Sunset\". Sequential palettes (CARTOColors): Sunset, SunsetDark, Teal, TealGrn, Emrld, BluGrn, BluYl, Mint, DarkMint, Purp, PurpOr, Magenta, Burg, BurgYl, RedOr, OrYel, Peach, PinkYl, BrwnYl.\n- Categorical: `{ \"type\": \"categorical\", \"attr\": \"<property>\", \"colors\": { \"<value>\": \"#hex\" }, \"palette\": \"Bold\", \"nullColor\": \"rgba(128,128,128,0.5)\" }`. Omit `colors` to auto-assign from the palette (default \"Bold\"). Qualitative palettes: Bold, Vivid, Safe, Prism.\n\nA legend is drawn only for data-driven colours (see `legend` and `showLegend`)."
 }
 ~~~
+
 ## gallery-input
 
 Image-card gallery input with horizontal, vertical, or grid layout and SQL or static options.
@@ -1342,6 +1387,206 @@ Image-card gallery input with horizontal, vertical, or grid layout and SQL or st
 }
 ~~~
 
+## h3-query
+
+Named SQL source from an H3 dataset query.
+
+~~~json
+{
+  "type": "object",
+  "properties": {
+    "name": {
+      "type": "string",
+      "pattern": "^[a-zA-Z_][a-zA-Z0-9_]*$",
+      "description": "Logical source name exposed to SQL widgets via {{name}}."
+    },
+    "endpoint": {
+      "description": "Query endpoint speaking the /h3/query parameters: a full URL or a path relative to the current server root. Defaults to /h3/query. The viewer's token is sent only to the client's own server. Accepts a $param reference.",
+      "type": "string"
+    },
+    "path": {
+      "type": "string",
+      "description": "Indexed H3 dataset location (as listed by GET /h3/datasets). Accepts a $param reference."
+    },
+    "cell": {
+      "description": "Spatial selector: an H3 cell id as a hex string; rows filed under it or its descendants.",
+      "type": "string"
+    },
+    "lat": {
+      "description": "Spatial selector: point latitude (with lng).",
+      "anyOf": [
+        {
+          "type": "number"
+        },
+        {
+          "type": "string"
+        }
+      ]
+    },
+    "lng": {
+      "description": "Spatial selector: point longitude (with lat).",
+      "anyOf": [
+        {
+          "type": "number"
+        },
+        {
+          "type": "string"
+        }
+      ]
+    },
+    "minLng": {
+      "description": "Spatial selector: bounding box west edge.",
+      "anyOf": [
+        {
+          "type": "number"
+        },
+        {
+          "type": "string"
+        }
+      ]
+    },
+    "minLat": {
+      "description": "Spatial selector: bounding box south edge.",
+      "anyOf": [
+        {
+          "type": "number"
+        },
+        {
+          "type": "string"
+        }
+      ]
+    },
+    "maxLng": {
+      "description": "Spatial selector: bounding box east edge.",
+      "anyOf": [
+        {
+          "type": "number"
+        },
+        {
+          "type": "string"
+        }
+      ]
+    },
+    "maxLat": {
+      "description": "Spatial selector: bounding box north edge.",
+      "anyOf": [
+        {
+          "type": "number"
+        },
+        {
+          "type": "string"
+        }
+      ]
+    },
+    "hexMin": {
+      "description": "Spatial selector: raw H3 cell-id range start (hex string).",
+      "type": "string"
+    },
+    "hexMax": {
+      "description": "Spatial selector: raw H3 cell-id range end (hex string).",
+      "type": "string"
+    },
+    "timeMin": {
+      "description": "Inclusive ISO datetime; start of the time window.",
+      "type": "string"
+    },
+    "timeMax": {
+      "description": "Inclusive ISO datetime; end of the time window.",
+      "type": "string"
+    },
+    "dateMin": {
+      "description": "Alias of timeMin, as fused-hex sources name it.",
+      "type": "string"
+    },
+    "dateMax": {
+      "description": "Alias of timeMax, as fused-hex sources name it.",
+      "type": "string"
+    },
+    "columns": {
+      "description": "Columns to return; omitted means every column. An array, a comma-separated string, or a $param reference.",
+      "anyOf": [
+        {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        {
+          "type": "string"
+        }
+      ]
+    },
+    "variables": {
+      "description": "Alias of columns, as fused-hex sources name it.",
+      "anyOf": [
+        {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        {
+          "type": "string"
+        }
+      ]
+    },
+    "partition": {
+      "description": "Partition filter, keyed by partition column: {\"scenario\": [\"ssp245\", \"ssp585\"], \"date\": \"2050-01\"}.",
+      "anyOf": [
+        {
+          "type": "object",
+          "propertyNames": {
+            "type": "string"
+          },
+          "additionalProperties": {}
+        },
+        {
+          "type": "string"
+        }
+      ]
+    },
+    "partitionRange": {
+      "description": "Partition range filter, keyed by partition column: {\"date\": [\"2050-01\", \"2050-06\"]}; null for an open end.",
+      "anyOf": [
+        {
+          "type": "object",
+          "propertyNames": {
+            "type": "string"
+          },
+          "additionalProperties": {}
+        },
+        {
+          "type": "string"
+        }
+      ]
+    },
+    "maxRowGroups": {
+      "description": "Most row groups the server reads per page (server default 1024, max 4096).",
+      "anyOf": [
+        {
+          "type": "number"
+        },
+        {
+          "type": "string"
+        }
+      ]
+    },
+    "maxPages": {
+      "default": 16,
+      "description": "Most pages the widget follows before giving up. Defaults to 16; every page is held in browser memory.",
+      "type": "integer",
+      "exclusiveMinimum": 0,
+      "maximum": 9007199254740991
+    }
+  },
+  "required": [
+    "name",
+    "path"
+  ],
+  "description": "Runs one GET /h3/query against an indexed H3 dataset, lands the Parquet result in DuckDB and exposes it as a named SQL source. Any SQL widget in reach of this node (the same node, or one connected by an edge) references the result via {{name}}; children are rendered as given. Every string or number prop accepts a $param reference (\"$lat\") or inline text (\"$year-01-01\"); the query waits until every referenced parameter has a value and re-runs when one changes. At most one spatial selector: cell, lat+lng, the four bounding box edges, or hexMin+hexMax; none reads the whole dataset.\n\n## Example\n\n```json\n{\n  \"type\": \"h3-query\",\n  \"props\": {\n    \"name\": \"era5_cells\",\n    \"path\": \"s3://fused-asset/data/era5/daily/\",\n    \"minLng\": -122.6, \"minLat\": 37.6, \"maxLng\": -122.2, \"maxLat\": 37.9,\n    \"timeMin\": \"$date_min\", \"timeMax\": \"$date_max\",\n    \"columns\": [\"hex\", \"date\", \"t2m\"]\n  },\n  \"children\": [\n    { \"type\": \"sql-table\", \"props\": { \"sql\": \"SELECT hex, AVG(t2m) AS t2m FROM {{era5_cells}} GROUP BY 1\" } }\n  ]\n}\n```"
+}
+~~~
+
 ## heatmap-chart
 
 Heatmap chart driven by DuckDB SQL query.
@@ -1421,7 +1666,7 @@ Sandboxed HTML renderer with $param and {{udf}} substitution and window.fused AP
       "type": "string"
     }
   },
-  "description": "Sandboxed HTML with $param_name and {{udf_name}} substitution. Exposes window.fused: fused.env (\"workbench\"); fused.params.get(name) / .getAll() / .set(name, value) / .set({...}) / .set(name, null) to clear / .onChange(cb), backed by canvas params so connected nodes and $param placeholders react; and await fused.runPython(udfName, params) to run a connected canvas UDF and get its JSON result.\n\n## Example\n\n```json\n{\n  \"type\": \"html\",\n  \"props\": {\n    \"value\": \"<h2>Hello, $user_name!</h2><p>Selected city: <b>$city</b></p>\"\n  }\n}\n```"
+  "description": "Sandboxed HTML with $param_name and {{udf_name}} substitution. Exposes window.fused: fused.env (\"workbench\"); fused.params.get(name) / .getAll() / .set(name, value) / .set({...}) / .set(name, null) to clear / .onChange(cb), backed by canvas params so connected nodes and $param placeholders react; await fused.runPython(udfName, params) to run a connected canvas UDF and get its JSON result; and await fused.query(sql, { params, maxRows }) to run one DuckDB SELECT over {{name}} sources (a connected fused-map's layer id, a sql-runner's or h3-query's name, or a connected UDF) and get the rows.\n\n## Example\n\n```json\n{\n  \"type\": \"html\",\n  \"props\": {\n    \"value\": \"<h2>Hello, $user_name!</h2><p>Selected city: <b>$city</b></p>\"\n  }\n}\n```"
 }
 ~~~
 
@@ -2324,7 +2569,7 @@ A slider that can optionally sync with canvas parameters. If param is provided, 
 
 ## sql-runner
 
-Named SQL source for descendant components.
+Named SQL source for other SQL widgets.
 
 ~~~json
 {
@@ -2332,12 +2577,12 @@ Named SQL source for descendant components.
   "properties": {
     "sql": {
       "type": "string",
-      "description": "DuckDB SQL query with {{source_name}} and $param_name placeholders. The result becomes available to descendant SQL widgets as {{name}}."
+      "description": "DuckDB SQL query with {{source_name}} and $param_name placeholders. The result becomes available to SQL widgets as {{name}}."
     },
     "name": {
       "type": "string",
       "pattern": "^[a-zA-Z_][a-zA-Z0-9_]*$",
-      "description": "Logical source name exposed to descendant SQL widgets via {{name}}."
+      "description": "Logical source name exposed to SQL widgets via {{name}}."
     },
     "maxRows": {
       "default": 10000,
@@ -2351,7 +2596,7 @@ Named SQL source for descendant components.
     "sql",
     "name"
   ],
-  "description": "Runs a DuckDB query and exposes its result as a named SQL source to descendant components. Children reference the result via {{name}}.\n\n## Example\n\n```json\n{\n  \"type\": \"sql-runner\",\n  \"props\": {\n    \"name\": \"filtered_data\",\n    \"sql\": \"SELECT * FROM {{my_udf}} WHERE price < $max_price\",\n    \"maxRows\": 10000\n  },\n  \"children\": [\n    { \"type\": \"bar-chart\", \"props\": { \"sql\": \"SELECT category AS label, COUNT(*) AS value FROM {{filtered_data}} GROUP BY 1\" } }\n  ]\n}\n```"
+  "description": "Runs a DuckDB query and exposes its result as a named SQL source. Any SQL widget in reach of this node (the same node, or one connected by an edge) references the result via {{name}}; children are rendered as given.\n\n## Example\n\n```json\n{\n  \"type\": \"sql-runner\",\n  \"props\": {\n    \"name\": \"filtered_data\",\n    \"sql\": \"SELECT * FROM {{my_udf}} WHERE price < $max_price\",\n    \"maxRows\": 10000\n  },\n  \"children\": [\n    { \"type\": \"bar-chart\", \"props\": { \"sql\": \"SELECT category AS label, COUNT(*) AS value FROM {{filtered_data}} GROUP BY 1\" } }\n  ]\n}\n```"
 }
 ~~~
 

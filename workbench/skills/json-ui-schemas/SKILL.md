@@ -73,13 +73,13 @@ Every widget in a JSON UI file follows this envelope:
 
 Input widgets set canvas params (edge: widget → UDF). Output widgets show a UDF result (edge: UDF → widget).
 
-- **Containers:** `div`, `form`, `sql-runner` (children: yes)
+- **Containers:** `div`, `form`, `sql-runner`, `h3-query` (children: yes)
 - **Input:** `text-input`, `text-area`, `number-input`, `datetime-input`, `camera-input`, `color-input`, `dropdown`, `slider`, `button`, `code-editor`, `gallery-input`, `file-upload`, `map-bounds`, `map-h3`
 - **Output, display:** `text`, `image`, `video`, `metric`, `iframe`, `html`, `pdf-gallery-viewer`
 - **Output, charts:** `bar-chart`, `line-chart`, `stacked-bar-chart`, `stacked-area-chart`, `scatter-chart`, `donut-chart`, `heatmap-chart`
 - **Output, tables:** `sql-table`
 - **Output, maps:** `fused-map` (mature, use it by default), `kepler-map`, `map` (legacy)
-  - To draw an indexed H3 dataset, use a `fused-map` layer of type `fused-hex`: see the `fused-h3` skill's `map.md`.
+  - To draw an indexed H3 dataset, use a `fused-map` layer of type `fused-hex` (tiles, pan-aware), or an `h3-query` widget's result as a layer (`data: "{{name}}"`, one fixed query): see the `fused-h3` skill's `map.md`.
 - **Meta / advanced:** `widget-builder`, `transformer`, `ai-chat`
 
 ## `html` and `iframe` widgets vs an HTML template node
@@ -123,6 +123,45 @@ A `sql-runner` names one SQL result. Its SQL can read several UDFs, and runners 
 - Readers reference `{{data}}` (or whatever `name` you set), **not** `{{my_udf}}`.
 - The canvas edge (`["my_udf", "widget_node"]`) must also exist in `canvas.toml` for the UDF to be reachable at runtime.
 - **The source UDF must have `visible = true` in `canvas.toml`.** Hidden nodes (`visible = false`) do not execute on canvas load and have no cached result. Referencing them in `sql-runner` will fail with: `UDF 'my_udf' has no cached result. Run the UDF first.`
+
+## `h3-query`: an indexed H3 dataset query as a named SQL source
+
+One `GET /h3/query` (or any endpoint speaking its parameters), its Parquet result landed in the browser's DuckDB and published as `{{name}}`, exactly like a `sql-runner` result. Readers: its children, and any SQL widget or `fused-map` on a node with an edge from this node.
+
+```json
+{
+  "type": "h3-query",
+  "props": {
+    "name": "h3_rows",
+    "path": "s3://bucket/hex/stations/",
+    "minLng": -122.6, "minLat": 37.6, "maxLng": -122.2, "maxLat": 37.9,
+    "timeMin": "2024-07-01", "timeMax": "2024-07-01",
+    "columns": ["temp"]
+  },
+  "children": [
+    { "type": "sql-table", "props": { "sql": "SELECT * FROM {{h3_rows}} LIMIT 100" } }
+  ]
+}
+```
+
+- `name` is what readers reference (`{{h3_rows}}`), not the node name. `path` is required (the indexed folder; `endpoint` optional, default `/h3/query`).
+- At most one spatial selector: `cell`, `lat`+`lng`, the four bbox edges, or `hexMin`+`hexMax`; none reads the whole dataset. Every string or number prop accepts `$param`, and the query re-runs when one changes.
+- The whole result stays in browser memory (`maxPages`, default 16, caps it). For large or pan-aware data use a `fused-map` `fused-hex` layer instead.
+- No UDF runs; no `visible = true` requirement; `fused workbench canvas validate` may flag `{{name}}` as unknown (see `sql-runner`).
+
+## `fused-map`: a layer from a canvas SQL source (`data: "{{name}}"`)
+
+A layer can draw the rows a canvas SQL source already holds (an `h3-query` or `sql-runner` widget's `name`) instead of running a UDF:
+
+```json
+{ "id": "hex", "type": "h3", "h3Column": "hex", "data": "{{h3_rows}}",
+  "style": { "fillColor": { "type": "continuous", "attr": "temp" } } }
+```
+
+- Edge: from the node holding the `h3-query` / `sql-runner` to the map's node (`["h3_query_node", "map_node"]` in `canvas.toml`). The workbench draws it automatically when it sees the `data` reference, as for `{{udf}}`.
+- `data` is otherwise inline GeoJSON; `udf` still means "run this UDF". `sql` may be added on top (`{{source}}` or `{{h3_rows}}` reads the rows). Row layers only (`geojson`, `h3`, `scatterplot`, `heatmap`, `arc`, or `type` omitted to detect from the rows); not with `tile`, `udf` or `tileUrl`, nor on `raster`, `mvt`, `fused-hex`.
+- The data is the widget's fixed query: no refetch on pan or zoom. Column names must match what the layer reads (`h3Column`, colour `attr`s).
+- A layer with no `data`, `sql`, `udf` or `tileUrl` is listed with an error and never drawn.
 
 ## Inputs driving a `fused-map` tile layer
 
@@ -213,7 +252,7 @@ Validate the spec with `fused workbench --env <env> json-ui validate <file>` for
 - Reach: the reading widget is in the map's node, or on a node with an edge from the map's node, or on a node with an edge from the layer's UDF.
 - A layer id equal to a UDF name shadows that UDF for every SQL widget and `fused.query` in reach. The sidebar's Add layer names a new layer after its UDF, so rename the layer when you also read the UDF itself.
 - Rows: for a `udf` layer without `tile`, the UDF's whole result, with neither the layer's `filters` nor its `sql` applied. For a tiled layer (`tile: true`, `fused-hex`), the rows of the tiles loaded now; they change as the view moves.
-- The source exists only while its map is on the page. A chart opened alone at `/share/<token>/<chart_node>` shows `UDF 'listings' is not connected via an edge`.
+- The source exists only while its map is on the page. A chart opened alone at `/share/<token>/<chart_node>` shows `'listings' is not connected via an edge`.
 - Until the layer has rows, SQL widgets show loading and `fused.query` rejects `not_ready`. A layer whose UDF failed stays in that state.
 - `fused workbench canvas validate` flags `{{layer_id}}` as an unknown node, as it does a `sql-runner` name; same workaround.
 
