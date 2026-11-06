@@ -114,7 +114,7 @@ Injected by the host at render time. Never define `window.fused` yourself; never
 
 `fused.query("SELECT … FROM {{name}} …", { params, maxRows, key, signal })`
 
-Check that the deployment supports it before building on it: `typeof fused.query === "function"` in the page. If it is not a function, tell the user that this deployment does not support `fused.query` and stop.
+Check that the deployment supports it before building on it: `typeof fused.query === "function"` in the page. If it is not a function, tell the user that this deployment does not support `fused.query` and stop. It is never a function in a fused-render view (see [Not fused-render](#not-fused-render)); fused-render's embedded workbench is the workbench.
 
 - **Sources.** Each `{{name}}` in the SQL resolves to, in this order:
   1. a `fused-map` layer whose `id` is `name`, or a `sql-runner` whose `name` is `name`, when it is in reach: inside this page (a `<fused-widget>` map), or on a node with an edge into this node, or drawn from a UDF with an edge into this node;
@@ -255,8 +255,27 @@ A JSON-UI widget can be placed inside the page. Write its spec as the text of a 
 - **Sidebar edits write into the block.** A `fused-map` inside the element is editable from its sidebar on your own canvas (Add layer, basemap, layer styles, filters): each edit is written into that `<fused-widget>` block of the `.html` file, one undo step in the code editor, exactly as it would be for a `.json` widget node. The rest of the page is untouched. On a share page the edits are runtime overrides, as for any widget.
 - **Only authored elements render.** The workbench renders the specs it finds in the node's source file. An element the page creates at runtime from other text (for example by echoing a param) renders nothing. Elements inside a template inlined through `{{other_html_node}}` are not rendered either; put the widget in the outer page.
 - **Write the spec raw.** The text between the tags is parsed as is: write `<`, `>` and `&` directly, not as HTML entities.
-- **Talk to the widget through params and SQL.** The page cannot call methods on the widget. Send it values with `fused.params.set` (read by a `$param` in the spec, or by a map filter bound to `$param`), read what it sets (`param`, a map's `selectParam`) with `fused.params.get` / `onChange`, and read a `fused-map`'s layer rows with `fused.query` (`{{layer_id}}`). See [Cross-filtering](#cross-filtering-a-map-with-custom-charts).
-- **Painted above the page.** The widget uses the workbench theme and sits above the page's own content: page modals, tooltips and sticky headers cannot cover it. Hide or remove the element while a page modal is open.
+- **Talk to the widget through params and SQL.** The page cannot call methods on the widget. Send it values with `fused.params.set` (read by a `$param` in the spec, or by a map filter bound to `$param`), read what it sets (`param`, a map's `selectParam`) with `fused.params.get` / `onChange`, write a map's `selectParam` to clear or draw its box (see `json-ui-schemas`), and read a `fused-map`'s layer rows with `fused.query` (`{{layer_id}}`). See [Cross-filtering](#cross-filtering-a-map-with-custom-charts).
+- **Map pixels and lng/lat.** Give the map a `viewParam` (`json-ui-schemas` has its value) and convert with these, `x`/`y` in CSS pixels from the map canvas's top-left corner:
+  ```js
+  const R = Math.PI / 180;
+  const worldX = (lng) => (lng + 180) / 360;
+  const worldY = (lat) => 0.5 - Math.log(Math.tan(Math.PI / 4 + (lat * R) / 2)) / (2 * Math.PI);
+  function project(lng, lat, view) {
+    const size = 512 * 2 ** view.zoom;
+    const x = (worldX(lng) - worldX(view.center[0])) * size + view.width / 2;
+    const y = (worldY(lat) - worldY(view.center[1])) * size + view.height / 2;
+    return [x, y];
+  }
+  function unproject(x, y, view) {
+    const size = 512 * 2 ** view.zoom;
+    const wx = worldX(view.center[0]) + (x - view.width / 2) / size;
+    const wy = worldY(view.center[1]) + (y - view.height / 2) / size;
+    return [wx * 360 - 180, (2 * Math.atan(Math.exp((0.5 - wy) * 2 * Math.PI)) - Math.PI / 2) / R];
+  }
+  ```
+  `view` is the param's value, `fused.params.get("<viewParam>")`. Exact only at `bearing` 0 and `pitch` 0. On an 800x600 map, 1° of bearing moves the corners about 9 px and 5° about 44 px; 10° of pitch moves them 25 to 34 px (top corners worst).
+- **Painted above the page.** The widget uses the workbench theme and sits above the page's own content: page modals, tooltips, sticky headers and overlays drawn over a map cannot cover it. Hide or remove the element while a page modal is open.
 - Works the same on the canvas, on the share page (`/share/<token>/<html_node>`, where `$param` in the spec hydrates from the URL like any node param) and inside fused-render's embedded workbench.
 
 ## Cross-filtering a map with custom charts
@@ -635,7 +654,7 @@ It shows every row of the layer and does not follow the filters. A `{{layer_id}}
 | A box counts fewer rows than are inside it | Filtering a box by `ids`: they are the features the map picked, and overlapping points are missed | Filter `mode: "box"` by `bbox`; use `ids` only when `bbox` is `null` |
 | An old result overwrites a newer one after quick clicks | Calls with different SQL do not cancel each other | Generation counter, or one `opts.key` per chart |
 | `canvas validate` says `{{ref}} references unknown node 'listings'` | Validate checks `{{name}}` against node names only | `[validate] skip = ["widget_refs"]`, then check the names by hand |
-| `json-ui validate` prints `"valid": false` for `"min": "$p_min"` | The deployment predates `$param` filters | Validate with `--env` set to the deployment you push to. If that one rejects it, the feature is not deployed there. The command exits 0 either way: read `"valid"` |
+| `json-ui validate` prints `"valid": false` for `"min": "$p_min"` | The server that answered runs a build without `$param` filters | Validate with `--env` set to the deployment you push to, and run it again: servers of one deployment can run different builds, so the answer can change between runs (see `json-ui-schemas`, section on `fused-map` filters). The command exits 0 either way: read `"valid"` |
 | On a share page the map shows `Running` after every filter change | Expected on share pages, see [Sharing](#sharing) | Nothing to change in the page; keep the UDF cheap |
 
 ## Iframe environment
@@ -699,6 +718,7 @@ The fused-render desktop runtime also exposes `window.fused`, but with a differe
 | Rejection extras | `.type`, `.message` (+ `.stdout`, `.traceback`, `.lineno` on `udf_error`, #8474 on) | `.type`, `.message`, `.traceback`, `.stdout` |
 | Uncaught `runPython` rejection | silent | red traceback overlay |
 | Files / AI / capture / jobs | not available | available |
+| `fused.query`, `<fused-widget>` | available on builds that have them | not available |
 
 Branch on `fused.env === "workbench"` when one page must run in both.
 

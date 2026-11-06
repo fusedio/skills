@@ -159,9 +159,9 @@ To let viewers change a tile UDF's arguments, put the inputs and the map in one 
    "sql": "SELECT * FROM {{source}} WHERE t2m_mean > 300"}
   ```
 
-## `fused-map`: filters bound to params, box select, layers as SQL sources
+## `fused-map`: filters bound to params, box select, params the map writes, layers as SQL sources
 
-Validate the spec with `fused workbench --env <env> json-ui validate <file>` for the deployment you push to, and read `"valid"` in the output (the command exits 0 either way). If it rejects a `"$param"` filter bound or `selectParam`, that deployment does not support these features: tell the user and do not use them. For a complete map plus custom charts that filter each other, see the `html-template-nodes` skill, section "Cross-filtering a map with custom charts".
+Validate the spec with `fused workbench --env <env> json-ui validate <file>` for the deployment you push to, and read `"valid"` in the output (the command exits 0 either way). A rejected `"$param"` filter bound or `selectParam` means the server that answered runs a build without these features. The servers of one deployment can run different builds, so the same command can answer `true` on one run and `false` on the next: run it a few times before telling the user the deployment does not support them. The rejection affects validation only, not how the map renders. Unknown props pass validation, so it does not tell you whether `hoverParam` or `viewParam` exist on a build. For a complete map plus custom charts that filter each other, see the `html-template-nodes` skill, section "Cross-filtering a map with custom charts".
 
 ```json
 {
@@ -206,6 +206,16 @@ Validate the spec with `fused workbench --env <env> json-ui validate <file>` for
 
 - Filter a box by `bbox`, not by `ids`: `ids` holds only the features the map picked and misses overlapping points.
 - The selection is session state: it is not saved with the canvas. On a share page it does go into the URL and from there into every UDF run (see `html-template-nodes`, Sharing).
+- A page or widget can write the param too. `null`, `{ mode: "none" }` or `{ ids: [], bbox: null }` clears the outline and dimming. `{ bbox: [west, south, east, north] }` (four finite numbers, west < east, south < north, no antimeridian crossing) draws and dims to that box; the map does not pick ids for it or add `mode`, so the param holds what the page wrote. Anything else, ids without a `bbox` included, changes nothing on the map. On the canvas the map hears only the page it is embedded in and nodes with an edge into it, and only while it is mounted.
+
+**Params the map writes: `param`, `clickParam`, `hoverParam`, `viewParam`.**
+
+- `param` receives the view's `[west, south, east, north]` once the map is ready, with or without `autoSend`, overwriting a value already on the canvas. A zero-area box (map hidden) is never sent, and a map that cannot load (no WebGL, bad token) never sets it.
+  - Without `autoSend` it is sent again when the map frames itself (auto-fit to data, fly-to, Reset view) or is resized, after `autoSendDebounceMs`, but not when the viewer pans or zooms.
+  - With `autoSend` it also follows the viewer: on each `moveend` after `autoSendDebounceMs` (default 600), or on every move when that is `0`.
+- `clickParam` receives the clicked feature's properties, only the layer's `tooltip` fields when it lists them. 64-bit integers arrive as numbers (strings past 2^53) and dates as ISO strings.
+- `hoverParam` receives the same object for the feature under the cursor: at most once per animation frame, only when it changes, and not while the map is dragged. When the cursor leaves every feature the param is removed (`fused.params.get` returns `undefined`). After a wheel zoom or a data reload it keeps the last value until the pointer moves. Session state: not saved with the canvas.
+- `viewParam` receives the live camera: `{ center: [lng, lat], zoom, bearing, pitch, width, height, bounds: [west, south, east, north] }`. `width` and `height` are the map canvas in CSS pixels, `zoom` is Web Mercator with 512 px tiles, `bearing` and `pitch` are degrees. Sent once the map is ready and has a size, then on every camera move or resize, at most once per animation frame and only when it changed; sent again if the param is cleared. Session state. Read it in a page with `fused.params.get` / `onChange`: a `$name` in a template or a UDF argument of that name re-runs that node every frame. To convert between map pixels and lng/lat, see `html-template-nodes`.
 
 **Layers as SQL sources: `{{layer_id}}`.**
 
@@ -213,6 +223,8 @@ Validate the spec with `fused workbench --env <env> json-ui validate <file>` for
 - Reach: the reading widget is in the map's node, or on a node with an edge from the map's node, or on a node with an edge from the layer's UDF.
 - A layer id equal to a UDF name shadows that UDF for every SQL widget and `fused.query` in reach. The sidebar's Add layer names a new layer after its UDF, so rename the layer when you also read the UDF itself.
 - Rows: for a `udf` layer without `tile`, the UDF's whole result, with neither the layer's `filters` nor its `sql` applied. For a tiled layer (`tile: true`, `fused-hex`), the rows of the tiles loaded now; they change as the view moves.
+- A `fused-hex` layer's rows are its source's rows, one per cell per time step: not reduced by `source.reduce` and not filtered by the layer's `filters`. The cell column (`h3Column`) holds each cell as a lowercase hex string, also when the dataset stores integers. Dates arrive as strings (`YYYY-MM-DD` at midnight UTC, else ISO).
+- Nothing signals when a tiled layer's rows change: no param or event fires.
 - The source exists only while its map is on the page. A chart opened alone at `/share/<token>/<chart_node>` shows `UDF 'listings' is not connected via an edge`.
 - Until the layer has rows, SQL widgets show loading and `fused.query` rejects `not_ready`. A layer whose UDF failed stays in that state.
 - `fused workbench canvas validate` flags `{{layer_id}}` as an unknown node, as it does a `sql-runner` name; same workaround.
