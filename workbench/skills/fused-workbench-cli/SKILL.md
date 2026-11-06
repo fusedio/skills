@@ -58,7 +58,7 @@ On Windows the same rules apply, with a few differences:
 
 ## Global flags
 
-- `--env TEXT` (env: `FUSED_ENV`): an env name or a deployment URL. Switching to the `base_url` in `~/.fused/settings.toml` keeps that file's `[auth]`; switching anywhere else replaces it.
+- `--env TEXT` (env: `FUSED_ENV`)
 - `--format [json|text]` (env: `FUSED_CLI_FORMAT`) — set to `json` for machine-readable output
 
 ## Top-level commands
