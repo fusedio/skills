@@ -88,7 +88,10 @@ class Descriptions(unittest.TestCase):
 
     def test_one_line(self) -> None:
         self.assertAlmostEqual(
-            cl.description_height("One short line", 700), 4 + 8 + 31.5
+            # offsetHeight the workbench measured for one line: 4 + 4 padding,
+            # 31.5 line, 8 paragraph margin = 47.5 → 48 (newcans_324: a folder
+            # of three described children is 13.5 px taller than 3 × 43.5)
+            cl.description_height("One short line", 700), 48.0
         )
 
     def test_explicit_lines(self) -> None:
@@ -234,8 +237,8 @@ class EndToEnd(unittest.TestCase):
         self.assertIsNone(inner.parent)  # ignored by the workbench → top-level
         self.assertEqual((inner.eff_w, inner.eff_h), (780, 615))  # min width, one row
         outer = c.nodes["F"]
-        # one row: a (500) + b (500 + 43.5 desc) → 75 + 543.5 + 40
-        self.assertEqual(outer.eff_h, 75 + 543.5 + 40)
+        # one row: a (500) + b (500 + 48 desc) → 75 + 548 + 40
+        self.assertEqual(outer.eff_h, 75 + 548 + 40)
         self.assertNotIn("inner", outer.computed_children)
 
     def test_fix_makes_check_clean(self) -> None:
@@ -261,6 +264,249 @@ class EndToEnd(unittest.TestCase):
     def test_toml_round_trip(self) -> None:
         doc = cl.tomllib.loads(CANVAS)
         self.assertEqual(cl.tomllib.loads(cl.dump_toml(doc)), doc)
+
+
+# A canvas as the Fused server exports it and fused-render's sync writes it
+# (rtoml's layout): keys in document order, edges on one line, a blank line
+# before every table. Folder heights are what the workbench measured in the
+# browser; the Data folder is 4 px off this script's estimate (1286), as a
+# wrapped line the browser measured differently would be.
+SERVER_CANVAS = """type = "canvas"
+version = 2
+name = "qa"
+
+[canvas]
+comments = []
+edges = [["load_trips", "map_pickups"], ["load_trips", "chart_trip_counts"]]
+
+[[canvas.nodes]]
+udfName = "Data"
+x = 0
+y = 0
+zIndex = 0
+width = 780
+height = 1290
+type = "udf-folder"
+folderName = "Data"
+title = "Data"
+childUdfOrder = ["load_trips", "tsunami_data"]
+
+[[canvas.nodes]]
+udfName = "load_trips"
+x = 40
+y = 75
+zIndex = 1
+width = 700
+height = 500
+title = "load_trips"
+description = "NYC yellow taxi trips (Jan 2023 sample)"
+visible = true
+nodeDescriptionScaleFactor = 1.5
+
+[[canvas.nodes]]
+udfName = "tsunami_data"
+x = 40
+y = 698
+zIndex = 2
+width = 700
+height = 500
+title = "tsunami_data"
+description = "NOAA historical tsunami events (plain table)"
+visible = true
+nodeDescriptionScaleFactor = 1.5
+
+[[canvas.nodes]]
+udfName = "map_pickups"
+x = 855
+y = 0
+zIndex = 3
+width = 700
+height = 500
+title = "map_pickups"
+visible = true
+
+[[canvas.nodes]]
+udfName = "chart_trip_counts"
+x = 1630
+y = 0
+zIndex = 4
+width = 700
+height = 500
+title = "chart_trip_counts"
+visible = true
+
+[canvas.viewport]
+x = 193.476
+y = 74.09435458789119
+zoom = 0.26794336563407317
+
+[canvas.viewportBounds]
+minX = -722.0766676181036
+minY = -276.52990926851646
+maxX = 3995.3381375919967
+maxY = 4123.653678819069
+"""
+
+
+class ServerLayout(unittest.TestCase):
+    def setUp(self) -> None:
+        self.tmp = tempfile.TemporaryDirectory()
+        self.dir = Path(self.tmp.name)
+        (self.dir / "canvas.toml").write_text(SERVER_CANVAS)
+        for n in ("load_trips", "tsunami_data", "map_pickups", "chart_trip_counts"):
+            (self.dir / f"{n}.py").write_text("@fused.udf\ndef udf():\n    pass\n")
+
+    def tearDown(self) -> None:
+        self.tmp.cleanup()
+
+    def test_dump_is_byte_identical_to_the_server_layout(self) -> None:
+        self.assertEqual(cl.dump_toml(cl.tomllib.loads(SERVER_CANVAS)), SERVER_CANVAS)
+
+    def test_multiline_string_round_trips(self) -> None:
+        doc = {"canvas": {"nodes": [{"udfName": "n", "description": "two\nlines \"q\""}]}}
+        self.assertEqual(cl.tomllib.loads(cl.dump_toml(doc)), doc)
+
+    def test_workbench_measured_folder_height_is_kept(self) -> None:
+        c = cl.Canvas.load(self.dir)
+        c.check()
+        self.assertEqual([p for p in c.problems if p["level"] == "error"], [])
+        data = c.nodes["Data"]
+        self.assertTrue(data.height_kept)
+        self.assertEqual(data.eff_h, 1290)           # declared, used for row math
+        self.assertEqual(data.packed_h, 75 + 548 + 75 + 548 + 40)  # the estimate
+        self.assertEqual(c.apply_folder_fix(), [])
+        self.assertEqual(c.apply_restack(), [])
+
+    def test_fix_on_a_server_canvas_is_a_no_op(self) -> None:
+        self.assertEqual(cl.cmd_fix(__import__("argparse").Namespace(
+            dir=str(self.dir), arrange=False, columns=None, keep_gaps=False, dry_run=False, json=False)), 0)
+        self.assertEqual((self.dir / "canvas.toml").read_text(), SERVER_CANVAS)
+
+    def test_a_wrong_folder_height_is_still_an_error(self) -> None:
+        text = SERVER_CANVAS.replace("height = 1290", "height = 1400")
+        (self.dir / "canvas.toml").write_text(text)
+        c = cl.Canvas.load(self.dir)
+        c.check()
+        msgs = [p["msg"] for p in c.problems if p["level"] == "error"]
+        self.assertIn("folder height will be recomputed by the workbench", msgs)
+        self.assertFalse(c.nodes["Data"].height_kept)
+
+
+class WriterEdgeCases(unittest.TestCase):
+    """Values as rtoml writes them (probed against rtoml 0.12 output)."""
+
+    def rt(self, doc):
+        self.assertEqual(cl.tomllib.loads(cl.dump_toml(doc)), doc)
+        return cl.dump_toml(doc)
+
+    def test_strings(self) -> None:
+        cases = {
+            "nl": ("two\nlines", 'nl = """\ntwo\nlines"""\n'),
+            "bs": ("a\\b", "bs = 'a\\b'\n"),
+            "q": ('say "hi"', "q = 'say \"hi\"'\n"),
+            "both": ('a\\b\n"q"', "both = '''\na\\b\n\"q\"'''\n"),
+            "tq": ("x'''y\nz", 'tq = """\nx\'\'\'y\nz"""\n'),
+            "cr": ("a\rb", 'cr = "a\\rb"\n'),
+            "ctl": ("a\x01b", 'ctl = "a\\u0001b"\n'),
+            "delc": ("q\x7f", 'delc = "q\\u007F"\n'),
+            "tab": ("a\tb", 'tab = "a\\tb"\n'),
+            "sq": ("it's", 'sq = "it\'s"\n'),
+            "uni": ("héllo", 'uni = "héllo"\n'),
+        }
+        for key, (value, want) in cases.items():
+            with self.subTest(key=key):
+                self.assertEqual(self.rt({key: value}), want)
+
+    def test_floats_and_keys(self) -> None:
+        cases = {
+            "f1": (1e16, "f1 = 10000000000000000.0\n"),
+            "f2": (1e-7, "f2 = 0.0000001\n"),
+            "f3": (0.30000000000000004, "f3 = 0.30000000000000004\n"),
+            "f5": (-0.0, "f5 = -0.0\n"),
+            "f6": (123456789012345.6, "f6 = 123456789012345.6\n"),
+            "a b": (1, '"a b" = 1\n'),
+            "k.d": (2, '"k.d" = 2\n'),
+            "ké": (3, '"ké" = 3\n'),
+            "emptylist": ([], "emptylist = []\n"),
+        }
+        for key, (value, want) in cases.items():
+            with self.subTest(key=key):
+                self.assertEqual(self.rt({key: value}), want)
+        self.assertEqual(cl.dump_toml({"n": float("nan"), "i": float("inf"), "m": float("-inf")}),
+                         "n = nan\ni = inf\nm = -inf\n")
+
+    def test_tables(self) -> None:
+        self.assertEqual(self.rt({"empty": {}}), "[empty]\n")
+        self.assertEqual(self.rt({"nested": {"a": {"b": 1}}}), "[nested.a]\nb = 1\n")
+        self.assertEqual(
+            self.rt({"n": [{"a": 1, "t": {"b": 2}, "m": [{"c": 3}]}]}),
+            "[[n]]\na = 1\n\n[[n.m]]\nc = 3\n\n[n.t]\nb = 2\n")
+
+
+class KeptHeightEdges(unittest.TestCase):
+    def setUp(self) -> None:
+        self.tmp = tempfile.TemporaryDirectory()
+        self.dir = Path(self.tmp.name)
+        for n in ("load_trips", "tsunami_data", "map_pickups", "chart_trip_counts"):
+            (self.dir / f"{n}.py").write_text("@fused.udf\ndef udf():\n    pass\n")
+
+    def tearDown(self) -> None:
+        self.tmp.cleanup()
+
+    def test_wrong_width_means_nothing_is_kept(self) -> None:
+        (self.dir / "canvas.toml").write_text(SERVER_CANVAS.replace("width = 780", "width = 1600"))
+        c = cl.Canvas.load(self.dir)
+        c.check()
+        self.assertFalse(c.nodes["Data"].height_kept)
+        changed = c.apply_folder_fix()
+        self.assertIn("Data", changed)
+        self.assertIn("tsunami_data", changed)        # re-packed for the new column count
+        self.assertEqual((c.nodes["Data"].width, c.nodes["Data"].height), (1600, c.nodes["Data"].eff_h))
+
+    def test_kept_height_is_reported_as_info(self) -> None:
+        (self.dir / "canvas.toml").write_text(SERVER_CANVAS)
+        c = cl.Canvas.load(self.dir)
+        c.check()
+        infos = [p for p in c.problems if p["level"] == "info" and p["msg"].startswith("folder height kept")]
+        self.assertEqual([(p["declared"], p["estimated"]) for p in infos], [(1290.0, 1286.0)])
+        c.apply_folder_fix()
+        self.assertEqual((c.nodes["Data"].width, c.nodes["Data"].height), (780, 1290.0))
+
+    def test_children_at_the_origin_are_repacked_not_kept(self) -> None:
+        text = SERVER_CANVAS.replace("x = 40\ny = 698\n", "x = 0\ny = 0\n")
+        (self.dir / "canvas.toml").write_text(text)
+        c = cl.Canvas.load(self.dir)
+        c.check()
+        self.assertFalse(c.nodes["Data"].height_kept)
+        changed = c.apply_folder_fix()
+        self.assertIn("tsunami_data", changed)
+        self.assertEqual((c.nodes["tsunami_data"].raw["x"], c.nodes["tsunami_data"].raw["y"]), (40, 698))
+        self.assertEqual(c.nodes["Data"].height, 1286)
+
+    def test_top_level_occupancy_includes_the_panel_gap(self) -> None:
+        # b sits 551 px under a's body; a's panel starts at 504 (4 px gap)
+        # and ends at 552, so on screen they touch by one pixel.
+        (self.dir / "canvas.toml").write_text(
+            '[canvas]\nedges = []\n\n[[canvas.nodes]]\nudfName = "load_trips"\nx = 0\ny = 0\n'
+            'width = 700\nheight = 500\ndescription = "one line"\n\n[[canvas.nodes]]\n'
+            'udfName = "map_pickups"\nx = 0\ny = 551\nwidth = 700\nheight = 500\n')
+        c = cl.Canvas.load(self.dir)
+        c.check()
+        self.assertEqual(c.nodes["load_trips"].occupied_h, 500 + 48 + 4)
+        msgs = [p["msg"] for p in c.problems if p["level"] != "info"]
+        self.assertTrue(any(m.startswith("description panel overlaps") for m in msgs), msgs)
+        c.apply_restack()
+        self.assertEqual(c.nodes["map_pickups"].y, 500 + 48 + 4 + 75)
+
+    def test_no_described_children_means_no_slack(self) -> None:
+        text = SERVER_CANVAS.replace('description = "NYC yellow taxi trips (Jan 2023 sample)"\n', "")
+        text = text.replace('description = "NOAA historical tsunami events (plain table)"\n', "")
+        (self.dir / "canvas.toml").write_text(text)
+        c = cl.Canvas.load(self.dir)
+        c.check()
+        self.assertFalse(c.nodes["Data"].height_kept)
+        self.assertIn("folder height will be recomputed by the workbench",
+                      [p["msg"] for p in c.problems if p["level"] == "error"])
 
 
 if __name__ == "__main__":
