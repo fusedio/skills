@@ -141,8 +141,8 @@ Check that the deployment supports it before building on it: `typeof fused.query
   | `.type` | When |
   |---|---|
   | `not_allowed` | `name` is neither a source in reach nor a UDF with an edge into this node. A misspelled name lands here too, and so does a `{{layer_id}}` queried right after page load, before the map in the page has mounted. Message: `UDF 'name' is not connected to this node. Add an edge from it to this node.` |
-  | `not_ready` | The layer has no rows yet (its UDF is still running) or the UDF is still running. Retry after a short wait. A layer whose UDF failed also stays `not_ready`, with nothing on the map: if it never clears, run the UDF on its own node. |
-  | `query_error` | DuckDB rejected the SQL (syntax, unknown column; `.message` is DuckDB's text), a `sql-runner` view failed, or a UDF source could not be loaded (for example `UDF 'x' has no cached result. Run the UDF first.`). |
+  | `not_ready` | The layer has not had rows yet (its UDF is still running, or a `fused-hex` or `h3` tile layer has no tiles in view yet) or the UDF is still running. Retry after a short wait. Once a layer has had rows, a query while they are rebuilt (a pan, a param change) reads the previous rows instead. A layer whose UDF failed also stays `not_ready`, with nothing on the map: if it never clears, run the UDF on its own node. |
+  | `query_error` | DuckDB rejected the SQL (syntax, unknown column; `.message` is DuckDB's text), a `sql-runner` view failed, a `fused-hex` or `h3` tile layer's tiles in view hold more than 1,000,000 rows (`The tiles in view hold N rows (limit 1,000,000); zoom in`), or a UDF source could not be loaded (for example `UDF 'x' has no cached result. Run the UDF first.`). |
   | `invalid_args` | A `$name` has no value in `params`, `params` is not an object, or the SQL uses `{{udf?k=v}}` (not supported: run the UDF with `fused.runPython`). |
   | `not_found` | There is an edge, but nothing on the canvas publishes or runs under that name. Unknown names usually reject `not_allowed` first. |
   | `aborted` | Your `opts.signal` aborted. |
