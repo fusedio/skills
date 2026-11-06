@@ -256,25 +256,22 @@ A JSON-UI widget can be placed inside the page. Write its spec as the text of a 
 - **Only authored elements render.** The workbench renders the specs it finds in the node's source file. An element the page creates at runtime from other text (for example by echoing a param) renders nothing. Elements inside a template inlined through `{{other_html_node}}` are not rendered either; put the widget in the outer page.
 - **Write the spec raw.** The text between the tags is parsed as is: write `<`, `>` and `&` directly, not as HTML entities.
 - **Talk to the widget through params and SQL.** The page cannot call methods on the widget. Send it values with `fused.params.set` (read by a `$param` in the spec, or by a map filter bound to `$param`), read what it sets (`param`, a map's `selectParam`) with `fused.params.get` / `onChange`, write a map's `selectParam` to clear or draw its box (see `json-ui-schemas`), and read a `fused-map`'s layer rows with `fused.query` (`{{layer_id}}`). See [Cross-filtering](#cross-filtering-a-map-with-custom-charts).
-- **Map pixels and lng/lat.** Give the map a `viewParam` (`json-ui-schemas` has its value) and convert with these, `x`/`y` in CSS pixels from the map canvas's top-left corner:
+- **Map pixels and lng/lat.** Give the map a `stateParam` (`json-ui-schemas` has its value) and convert with these, `x`/`y` in CSS pixels from the map canvas's top-left corner:
   ```js
   const R = Math.PI / 180;
   const worldX = (lng) => (lng + 180) / 360;
   const worldY = (lat) => 0.5 - Math.log(Math.tan(Math.PI / 4 + (lat * R) / 2)) / (2 * Math.PI);
-  function project(lng, lat, view) {
-    const size = 512 * 2 ** view.zoom;
-    const x = (worldX(lng) - worldX(view.center[0])) * size + view.width / 2;
-    const y = (worldY(lat) - worldY(view.center[1])) * size + view.height / 2;
-    return [x, y];
+  function project(lng, lat, v) {
+    const size = 512 * 2 ** v.zoom;
+    return [(worldX(lng) - worldX(v.centerLng)) * size + v.width / 2, (worldY(lat) - worldY(v.centerLat)) * size + v.height / 2];
   }
-  function unproject(x, y, view) {
-    const size = 512 * 2 ** view.zoom;
-    const wx = worldX(view.center[0]) + (x - view.width / 2) / size;
-    const wy = worldY(view.center[1]) + (y - view.height / 2) / size;
+  function unproject(x, y, v) {
+    const size = 512 * 2 ** v.zoom;
+    const wx = worldX(v.centerLng) + (x - v.width / 2) / size, wy = worldY(v.centerLat) + (y - v.height / 2) / size;
     return [wx * 360 - 180, (2 * Math.atan(Math.exp((0.5 - wy) * 2 * Math.PI)) - Math.PI / 2) / R];
   }
   ```
-  `view` is the param's value, `fused.params.get("<viewParam>")`. Exact only at `bearing` 0 and `pitch` 0. On an 800x600 map, 1° of bearing moves the corners about 9 px and 5° about 44 px; 10° of pitch moves them 25 to 34 px (top corners worst).
+  `v` is `fused.params.get("<stateParam>")?.view`, undefined until the viewer first moves the map. It updates only when a gesture ends, so the result is right once the map has settled and lags while it moves; redraw in `fused.params.onChange`. Exact only at `bearing` 0 and `pitch` 0. On an 800x600 map, 1° of bearing moves the corners about 9 px and 5° about 44 px; 10° of pitch moves them 25 to 34 px (top corners worst).
 - **Painted above the page.** The widget uses the workbench theme and sits above the page's own content: page modals, tooltips, sticky headers and overlays drawn over a map cannot cover it. Hide or remove the element while a page modal is open.
 - Works the same on the canvas, on the share page (`/share/<token>/<html_node>`, where `$param` in the spec hydrates from the URL like any node param) and inside fused-render's embedded workbench.
 
