@@ -1,6 +1,6 @@
 ---
 name: fused-h3
-description: Ingest data into H3 hex datasets and query them with the `fused.h3` API. Covers partitioning points, geometries, gridded rasters (ERA5-style) or tables that already carry an H3 column into hex-sorted Parquet as server-side runs, checking a large or messy Parquet folder first with `fused.h3.inspect`, registering the output with `fused.h3.index` (whole tree, some partition folders, or a flat folder in file batches), and reading it back with `fused.h3.query` inside a UDF. Also covers the published ERA5 and GridMET hex datasets. Use when converting data to H3, building, adding to or redoing a hex dataset, following or retrying a partition/index run, querying one by point/bbox/cell/time/partition, or reading ERA5/GridMET weather by location. Also use when showing a hex dataset on a map or visualising it (the `fused-map` `fused-hex` layer, zoomed-out overviews, `chunk_res_offset`), or calling `/h3/query` directly from a widget or HTML page.
+description: Ingest data into H3 hex datasets and query them with the `fused.h3` API. Covers partitioning points, geometries, gridded rasters (ERA5-style) or tables that already carry an H3 column into hex-sorted Parquet as server-side runs, checking a large or messy Parquet folder first with `fused.h3.inspect`, registering the output with `fused.h3.index` (whole tree, some partition folders, a flat folder in file batches, or fanned out over several instances), and reading it back with `fused.h3.query` inside a UDF. Also covers the published ERA5 and GridMET hex datasets. Use when converting data to H3, building, adding to or redoing a hex dataset, following or retrying a partition/index run, querying one by point/bbox/cell/time/partition, or reading ERA5/GridMET weather by location. Also use when showing a hex dataset on a map or visualising it (the `fused-map` `fused-hex` layer, zoomed-out overviews, `chunk_res_offset`), or calling `/h3/query` directly from a widget or HTML page.
 ---
 
 # H3 ingestion with `fused.h3`
@@ -276,11 +276,11 @@ run = fused.h3.index(
     redo=False,               # read files again (scoped with subset, else a full rebuild)
     engine="realtime",        # or "small", "large", ... for a big tree
     visibility=None,          # "team" (default for a new location) or "public" (Fused admins)
-    options=None,             # {"workers": n}: files read at once, default 32
+    options=None,             # {"workers": n, "instances": n}, below
 ) -> TaskRun
 ```
 
-Starts a run that reads every file's row-group stats, and returns its `TaskRun` at once. Follow it with `run.tail()`, or poll `run.status()` / `run.done()` / `run.error()`. A realtime run is limited to a few minutes and fails when it runs out of time. For a large tree, pass a batch `engine` such as `"large"`. Engines never fall back from one to the other.
+Starts a run that reads every file's row-group stats, and returns its `TaskRun` at once (a group `Run` when `instances` is above 1, see below). Follow it with `run.tail()`, or poll `run.status()` / `run.done()` / `run.error()`. A realtime run is limited to a few minutes and fails when it runs out of time. For a large tree, pass a batch `engine` such as `"large"`, or split the tree over several instances (see "Fanning out an index"). Engines never fall back from one to the other.
 
 - A single `date` partition column is used as time automatically. Otherwise pass `time_column`: an in-file column, or a `key=value` folder holding `YYYY`, `YYYY-MM`, `YYYY-MM-DD` or an ISO instant.
 - Re-running is incremental: unchanged folders are skipped, and a stopped or partly failed run resumes.
@@ -289,6 +289,35 @@ Starts a run that reads every file's row-group stats, and returns its `TaskRun` 
 - If some files fail, the rest are indexed and queryable. The run's error names the failed paths, and re-running retries them.
 - Every file must share one H3 resolution. `/mount` paths can't be indexed; partition to `fd://` or `s3://` instead.
 - The index belongs to your team, and only your team can re-index or delete it. `fused.h3.set_visibility(path, "public")` (Fused admins only) makes it readable by everyone; the files must be publicly readable on S3.
+
+### Fanning out an index
+
+`options={"instances": N}` runs the index as N concurrent slices of the folder tree, on any engine (`"realtime"` by default). `instances=1` is the default and changes nothing.
+
+```python
+run = fused.h3.index("s3://bucket/data/", options={"instances": 8})
+run.tail()
+
+# the same on batch instances, one job per slice
+run = fused.h3.index("s3://bucket/data/", engine="small", options={"instances": 8})
+run.tail()
+```
+
+The server lists the tree, skips folders whose fingerprint is unchanged, and balances the remaining leaf folders by bytes. A folder is never split, so you get fewer slices than N when fewer folders need work. `redo=True` and `subset=` apply as usual, and the slices cover only what they select.
+
+With `instances` above 1 the call returns a group run (id starts with `grp:`), like `partition`, with one part per slice:
+
+| Call | Does |
+|---|---|
+| `run.tail()` | Prints each slice's logs, then `slices finalized k/N` as slices finish |
+| `run.failed()` | The failed slices |
+| `run.retry()` | Re-runs only the failed slices, with the same folders |
+
+The location is finalized once, when the last slice finishes, and stays `indexing` until then. A failed slice fails the location only after every slice has ended, and the error names that slice's folders. `run.retry()` then reruns it and the location becomes `ready`. `fused.h3.get_run(run_id)` gets the run back in a new session.
+
+Batch slices queue against the team's job quota and start as capacity frees up. Realtime slices are not queued.
+
+Use it for a large tree with many folders, where one run is slow or hits the realtime time limit. Don't use it when only a few folders changed, since there are then few slices and a single run is as fast. N has no cap and there is no back-pressure: every slice writes to the file-index database, so if it comes under pressure, put a pooler in front of it or lower N.
 
 ### Indexing a flat folder in batches
 
