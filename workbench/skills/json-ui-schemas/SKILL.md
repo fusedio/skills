@@ -136,7 +136,7 @@ One `GET /h3/query` (or any endpoint speaking its parameters), its Parquet resul
     "path": "s3://bucket/hex/stations/",
     "minLng": -122.6, "minLat": 37.6, "maxLng": -122.2, "maxLat": 37.9,
     "timeMin": "2024-07-01", "timeMax": "2024-07-01",
-    "columns": ["temp"]
+    "columns": ["hex", "temp"]
   },
   "children": [
     { "type": "sql-table", "props": { "sql": "SELECT * FROM {{h3_rows}} LIMIT 100" } }
@@ -144,8 +144,13 @@ One `GET /h3/query` (or any endpoint speaking its parameters), its Parquet resul
 }
 ```
 
-- `name` is what readers reference (`{{h3_rows}}`), not the node name. `path` is required (the indexed folder; `endpoint` optional, default `/h3/query`).
-- At most one spatial selector: `cell`, `lat`+`lng`, the four bbox edges, or `hexMin`+`hexMax`; none reads the whole dataset. Every string or number prop accepts `$param`, and the query re-runs when one changes.
+- `name` is what readers reference (`{{h3_rows}}`), not the node name.
+- `path` (required): the indexed dataset, sent as `path=`. `endpoint` (optional): where the query goes, default `/h3/query` on the current server; a full URL elsewhere gets no token.
+- `columns` lists every column returned: include `hex` when a map draws the rows.
+- At most one spatial selector: `cell`, `lat`+`lng`, the four bbox edges, or `hexMin`+`hexMax`; none reads the whole dataset.
+- Every string or number prop accepts `$param` (`"timeMin": "$date"`); the query waits until it is set and re-runs when it changes. Params come from the same node or a node with an edge into it.
+- A map's `param` bounds (`[w, s, e, n]`, one array) cannot fill the four bbox props: the area stays fixed, it does not follow the map.
+- Runnable canvas: `fused-h3` skill, `examples/h3-query/` (date input, `h3-query`, a map drawing `data: "{{h3_rows}}"`).
 - The whole result stays in browser memory (`maxPages`, default 16, caps it). For large or pan-aware data use a `fused-map` `fused-hex` layer instead.
 - No UDF runs; no `visible = true` requirement; `fused workbench canvas validate` may flag `{{name}}` as unknown (see `sql-runner`).
 

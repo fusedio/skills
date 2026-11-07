@@ -1,0 +1,32 @@
+type = "canvas"
+version = 2
+
+[validate]
+skip = ["widget_refs"]
+
+[canvas]
+edges = [["h3_query", "map"]]
+
+[[canvas.nodes]]
+udfName = "h3_query"
+title = "h3-query engine"
+description = "Fetches ERA5 rows from /h3/query as h3_rows"
+nodeDescriptionScaleFactor = 1.5
+visible = true
+x = 0
+y = 0
+zIndex = 1
+width = 500
+height = 400
+
+[[canvas.nodes]]
+udfName = "map"
+title = "Map"
+description = "Draws the rows; no UDF, no refetch on pan"
+nodeDescriptionScaleFactor = 1.5
+visible = true
+x = 575
+y = 0
+zIndex = 2
+width = 900
+height = 620
