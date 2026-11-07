@@ -274,7 +274,7 @@ One HTML node: a `fused-map` in `<fused-widget>`, and a page that charts its lay
   <p id="status"></p>
 </div>
 <script>
-  const sql = (s) => s.replaceAll("@", "$").replace("{layer}", "{".repeat(2) + "stations" + "}".repeat(2));
+  const q = (s, opts) => fused.query(s.replaceAll("@", "$").replaceAll("{layer}", "{".repeat(2) + "stations" + "}".repeat(2)), opts);
   const show = (id, text) => { document.getElementById(id).textContent = text; };
   const HINT = { not_ready: "layer still loading", not_allowed: "no edge, or a wrong layer id", not_found: "no such source",
                  invalid_args: "a SQL param has no value", query_error: "DuckDB rejected the SQL" };
@@ -291,7 +291,7 @@ One HTML node: a `fused-map` in `<fused-widget>`, and a page that charts its lay
         again = false;
         const p = fused.params.getAll(), box = p.selected?.bbox, ids = box ? [] : p.selected?.ids ?? [];
         const params = { r: span(p.lo, p.hi), x: span(box?.[0], box?.[2]), y: span(box?.[1], box?.[3]), ids };
-        bins = await fused.query(sql(HIST + (ids.length ? " AND station IN @ids" : "") + " GROUP BY 1 ORDER BY 1"), { params });
+        bins = await q(HIST + (ids.length ? " AND station IN @ids" : "") + " GROUP BY 1 ORDER BY 1", { params });
       } while (again);
       paint();
       show("status", "");
@@ -299,8 +299,7 @@ One HTML node: a `fused-map` in `<fused-widget>`, and a page that charts its lay
   }
 
   function detail(station) {
-    const q = sql("SELECT date, temp FROM {layer} WHERE station = @s ORDER BY date DESC");
-    fused.query(q, { params: { s: station }, key: "detail", maxRows: 5 })
+    q("SELECT date, temp FROM {layer} WHERE station = @s ORDER BY date DESC", { params: { s: station }, key: "detail", maxRows: 5 })
       .then((rows) => show("detail", station + "\n" + rows.map((r) => r.date + "  " + r.temp).join("\n")), fail);
   }
 
@@ -340,8 +339,8 @@ One HTML node: a `fused-map` in `<fused-widget>`, and a page that charts its lay
 </html>
 ```
 
-- The layer is an indexed point dataset with `station`, `temp`, `lat` and `lng` columns (`fused-hex` over `/h3/query`, see the `fused-h3` skill's `map.md`): swap in your `source.path` and columns. It needs no edge; a `udf` layer needs `["<udf>", "<html_node>"]` in `canvas.toml`.
-- `sql()` writes `$` and `{{stations}}` at runtime, so the page's substitution pass leaves them alone.
+- The layer is an indexed point dataset with `station`, `temp`, `lat` and `lng` columns (`fused-hex` over `/h3/query`, see the `fused-h3` skill's `map.md`): swap in your `source.path` and columns. To chart a canvas UDF's result instead, use `{ "id": "stations", "type": "h3", "h3Column": "hex", "udf": "{{my_udf}}" }` and add the edge `["my_udf", "<html_node>"]` to `canvas.toml`; `{{stations}}` is then the UDF's whole result, so filter it by `bounds` to chart only what is in view.
+- Send every query through `q()`: write params as `@name` and the layer as `{layer}`, and `q()` turns them into `$name` and `{{stations}}` at runtime. Written literally in the page, `$name` and `{{...}}` are substituted before the script runs.
 - The histogram re-runs only when the layer's `version` or a filter changes, never on a timer. `busy` / `again` keep one histogram query in flight and re-run it once with the newest params. The detail query relies on `key`: a newer click supersedes the older call.
 - The histogram leaves its own range out of `WHERE` and only colours it (`hit`), so a brush never empties it. `span()` sends an unset bound as `null` (open), so each range stays a `{ min, max }` object even with both bounds unset.
 
