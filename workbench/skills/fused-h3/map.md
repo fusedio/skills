@@ -1,6 +1,6 @@
 # Showing a hex dataset on a map
 
-A hex dataset that is **indexed** can be drawn with the `fused-map` widget's `fused-hex` layer (tiles, pan-aware), or queried by an `h3-query` widget and drawn from that result (`data: "{{name}}"`), or read directly from the `/h3/query` endpoint by an HTML page that fetches its own data. The `h3-query` widget, `data` layers, map params, filters and `{{layer_id}}` SQL are in the `json-ui-schemas` skill; a runnable `h3-query` plus map canvas, with the query following the map and a chart cross-filtering it, is in `html-template-nodes`, section "Map with a custom chart".
+A hex dataset that is **indexed** can be drawn with the `fused-map` widget's `fused-hex` layer (tiles, pan-aware), or queried by an `h3-query` widget and drawn from that result (`data: "{{name}}"`), or read directly from the `/h3/query` endpoint by an HTML page that fetches its own data (see [`http.md`](http.md)). The `h3-query` widget, `data` layers, map params, filters and `{{layer_id}}` SQL are in the `json-ui-schemas` skill; a runnable `h3-query` plus map canvas, with the query following the map and a chart cross-filtering it, is in `html-template-nodes`, section "Map with a custom chart".
 
 ## End to end
 
@@ -40,37 +40,12 @@ A hex dataset that is **indexed** can be drawn with the `fused-map` widget's `fu
 - `source.limit` and `source.maxRowGroups` cap each tile request. Raise them only for dense data.
 - `fillColor` is data-driven with `{"type": "continuous", "attr", "domain"?, "palette"?, "steps"?, "reverse"?, "nullColor"?}`, or `{"type": "categorical", "attr", "colors"?, "palette"?, "nullColor"?}`. Palette names are listed in `reference.md`/the CLI schema.
 - `sql` on the layer runs before `reduce`; see `json-ui-schemas`.
-- `retrieve` endpoints (`/retrieve/era5/...`, `/retrieve/gridmet/bbox`) serve the published ERA5 and GridMET datasets instead. They need `dateMin` and `dateMax`; see `datasets.md`.
 
 ### Overview when zoomed out
 
 `source.overview: {}` turns on a zoomed-out view below the layer's zoom floor. It is one request, with no tiles: the server returns either **file cells** (one per indexed file) or, for datasets partitioned with `chunk_res_offset`, **chunk cells** coloured by the layer's own `fillColor` attr (each cell's max). Zoomed in past the floor, the layer draws rows.
 
 Optional fields: `overview.minZoom` (the overview draws below the floor, default 3) and `overview.extent` (`[west, south, east, north]`, west < east, no antimeridian crossing; also confines row tiles). Restyle it with `style.overview` (`fillColor`, `opacity`, `lineColor`, `lineWidth`, `coverage`). `style.overview.fillColor: "inherit"` takes the row fill, but a data-driven one draws no overview and warns on the layer card for file cells, which can only be coloured by `row_count_total` or `row_count_window`.
-
-## Calling `/h3/query` directly
-
-For an HTML widget or script that fetches its own data, call `GET <base>/server/v1/h3/query` (for example `https://www.fused.io/server/v1/h3/query`) with a bearer token (public `s3://` locations can be read anonymously).
-
-| Param | Meaning |
-|---|---|
-| `path` | Indexed location (required). |
-| spatial selector | At most one of: `cell` (hex string, every row under that cell), `lat` + `lng`, `min_lng`/`min_lat`/`max_lng`/`max_lat`, or `hex_min` + `hex_max` (inclusive hex-string range). None returns every row. |
-| `time_min`, `time_max` | Inclusive ISO datetimes. |
-| `columns` | Subset of columns, repeated (`columns=a&columns=b`). Omitted returns all. |
-| `partition` | JSON object of column to value or list of values, e.g. `{"scenario": ["ssp245","ssp585"], "date": "2050-01"}`. |
-| `partition_range` | JSON object of column to inclusive `[min, max]`, `null` for an open end, e.g. `{"date": ["2050-01", "2050-06"]}`. |
-| `format` | `parquet` (default), `index`, `stats` or `files`, below. |
-| `max_row_groups`, `cursor` | Paging. Big results come back a page at a time; follow `X-Fused-Next-Cursor` (parquet) or `next_cursor` (body) until it is gone. |
-
-Formats:
-
-- `parquet`: matching rows as a Parquet file. Decode it in the browser with a Parquet reader (hyparquet, parquet-wasm).
-- `files`: JSON `{files, h3_resolution, chunk_resolution, row_counts}`. `files` are the lowercase hex cells the matching files are named by. `chunk_resolution` is null unless the dataset was partitioned with `chunk_res_offset`. `row_counts` maps each file to `{total, window}`. No file is opened, so it is fast: use it to outline coverage.
-- `stats`: per-row-group min and max for `columns` (required) plus each group's H3 range, a small response for a coarse overview.
-- `index`: an opaque read plan for the Fused client libraries. Not a stable format: use `fused.h3.query` instead of parsing it.
-
-Inside a UDF, `fused.h3.query` (see `SKILL.md`) wraps this. It only runs on a Fused instance; from a notebook or script, call this endpoint.
 
 ## Pitfalls
 
