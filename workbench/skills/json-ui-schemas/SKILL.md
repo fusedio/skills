@@ -126,7 +126,7 @@ A `sql-runner` names one SQL result. Its SQL can read several UDFs, and runners 
 
 ## `h3-query`: an indexed H3 dataset query as a named SQL source
 
-One `GET /h3/query` (or any endpoint speaking its parameters), its Parquet result landed in the browser's DuckDB and published as `{{name}}`, exactly like a `sql-runner` result. Readers: its children, and any SQL widget or `fused-map` on a node with an edge from this node.
+One `GET /h3/query` (or any endpoint speaking its parameters), its Parquet result landed in the browser's DuckDB and published as `{{name}}`, exactly like a `sql-runner` result. Readers: any SQL widget or `fused-map` in the same node (child or sibling), or on a node with an edge from this node.
 
 ```json
 {
@@ -148,7 +148,7 @@ One `GET /h3/query` (or any endpoint speaking its parameters), its Parquet resul
 - `path` (required): the indexed dataset, sent as `path=`. `endpoint` (optional): where the query goes, default `/h3/query` on the current server; a full URL elsewhere gets no token.
 - `columns` lists every column returned: include `hex` when a map draws the rows.
 - At most one spatial selector: `cell`, `lat`+`lng`, the four bbox edges, or `hexMin`+`hexMax`; none reads the whole dataset.
-- Every string or number prop accepts `$param` (`"timeMin": "$date"`); the query waits until it is set and re-runs when it changes. Params come from the same node or a node with an edge into it.
+- Every string or number prop accepts `$param` (`"timeMin": "$date"`); the query waits until it is set and re-runs when it changes. Params come from the same node or a node with an edge into it. `"columns": "$cols"` takes an array or a comma-separated string, so a dropdown value like `"hex,t2m_max"` picks the variable.
 - A map's `param` bounds (`[w, s, e, n]`, one array) cannot fill the four bbox props: the area stays fixed, it does not follow the map.
 - Runnable canvas: `fused-h3` skill, `examples/h3-query/` (date input, `h3-query`, a map drawing `data: "{{h3_rows}}"`).
 - The whole result stays in browser memory (`maxPages`, default 16, caps it). For large or pan-aware data use a `fused-map` `fused-hex` layer instead.
