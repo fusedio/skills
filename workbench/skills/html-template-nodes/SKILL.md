@@ -349,7 +349,6 @@ Each of these passes every obvious check (UDF runs, edge is right, fetch is fast
 
 ## Pitfalls checklist
 
-- `ReferenceError: fused is not defined` while `window.fusedCanvas` exists → that workbench build predates the `window.fused` bridge (production was in this state on 2026-09-29; unstable had the bridge). Nothing in this skill applies until it is redeployed; do not hand-roll a `fusedCanvas` fallback.
 - `$x` in markup **and** `fused.params` on `x` → reload loop / lost state.
 - `${name}` or `$$` in markup expecting substitution or escaping — only bare `$name` works in the page.
 - `$identifier` in JavaScript colliding with a canvas param name.
