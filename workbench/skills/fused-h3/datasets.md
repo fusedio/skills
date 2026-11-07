@@ -82,8 +82,15 @@ To produce the same kind of dataset for another gridded source, see `fused.h3.so
 
 ## NYC 311 (indexed on www.fused.io)
 
-`s3://fused-asset/data/nyc311/`: NYC 311 service requests, 2010-01 to 2025-12, one row per request at H3 resolution 11, partitioned by `month=`. Indexed and public on `https://www.fused.io`; keep the trailing slash in `path` (without it `/h3/query` answers 404).
+`s3://fused-asset/data/nyc311/` (keep the trailing slash): NYC 311 requests at H3 resolution 11, time column `created_date`, public on `https://www.fused.io`.
 
-- Time column `created_date`. Columns: `hex` (uint64), `unique_key`, `created_date`, `complaint_type`, `agency`, `borough`, `latitude`, `longitude`.
-- Read it with `GET https://www.fused.io/server/v1/h3/query?path=s3://fused-asset/data/nyc311/&min_lng=...&time_min=...&columns=hex&columns=complaint_type`, an `h3-query` widget, or a `fused-hex` layer with `source.path`.
-- A runnable map using it: `html-template-nodes/examples/crossfilter/`.
+```python
+import pandas as pd
+url = ("https://www.fused.io/server/v1/h3/query?path=s3://fused-asset/data/nyc311/"
+       "&min_lng=-73.99&min_lat=40.75&max_lng=-73.98&max_lat=40.76"
+       "&time_min=2024-07-01&time_max=2024-07-01T23:59:59"
+       "&columns=hex&columns=created_date&columns=complaint_type")
+df = pd.read_parquet(url)
+```
+
+Parameters and response: [H3 query API reference](https://docs.fused.io/rest-api/h3/).
