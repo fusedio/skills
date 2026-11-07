@@ -264,7 +264,6 @@ onParams(fused.params.getAll());
 
 - The map writes `bounds` as one `[w, s, e, n]` array and the `h3-query` bbox props each take one number, so the page splits it into `w`/`s`/`e`/`n`. Both widgets run in this node, so the `h3-query` sees the page's params with no edge. Each new bbox aborts the query in flight and fetches again; `autoSendDebounceMs` spaces the fetches, `minZoom` caps the area, `maxPages` caps the rows.
 - To use a UDF instead, replace the h3-query with a `udf` layer (`{ "type": "h3", "udf": "{{my_udf}}", "h3Column": "hex" }`) and an edge from the UDF node.
-- `endpoint` sends the query to fused.io, where `s3://fused-asset/data/nyc311/` is indexed and public. Leave it out for a dataset indexed on the server you run on.
 - Send every query through `q()`: write params as `@name` and the layer as `{layer}`; `q()` turns them into `$name` and `{{calls}}` at runtime. Written literally, `$name` and `{{...}}` are substituted before the script runs.
 - Re-query only when the layer's `version` or a filter changes, never on a timer. A pan refetches, which bumps `version`. `refresh()` keeps one query in flight (`busy` / `again`); `detail()` passes `key`, so a newer click supersedes the older call.
 - The histogram leaves its own range out of `WHERE` and only colours it (`hit`), so a brush never empties it. Send an unset bound as `null` so each range stays a `{ min, max }` object.
