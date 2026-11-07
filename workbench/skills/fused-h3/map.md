@@ -1,6 +1,6 @@
 # Showing a hex dataset on a map
 
-A hex dataset that is **indexed** can be drawn with the `fused-map` widget's `fused-hex` layer (tiles, pan-aware), or queried once by an `h3-query` widget and drawn from that result (`data: "{{name}}"`, fixed area), or read directly from the `/h3/query` endpoint by an HTML page that fetches its own data. The `h3-query` widget, `data` layers, map params, filters and `{{layer_id}}` SQL are in the `json-ui-schemas` skill; a page charting a `fused-hex` layer is in `html-template-nodes`, section "Map with a custom chart".
+A hex dataset that is **indexed** can be drawn with the `fused-map` widget's `fused-hex` layer (tiles, pan-aware), or queried once by an `h3-query` widget and drawn from that result (`data: "{{name}}"`, fixed area), or read directly from the `/h3/query` endpoint by an HTML page that fetches its own data. The `h3-query` widget, `data` layers, map params, filters and `{{layer_id}}` SQL are in the `json-ui-schemas` skill; a page charting a `fused-hex` layer is in `html-template-nodes`, section "Map with a custom chart". A runnable `h3-query` plus map canvas is in [`examples/h3-query/`](examples/h3-query/).
 
 ## End to end
 
