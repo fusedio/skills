@@ -1,4 +1,4 @@
-# Published hex datasets: ERA5 and GridMET
+# Published hex datasets: ERA5, GridMET and NYC 311
 
 Fused publishes two weather datasets already partitioned to H3 resolution 7, on Source Cooperative's public bucket. Read the daily ones with `fused.h3.query` inside a UDF, any of them through the Fused API's `/retrieve` routes, or as Parquet directly. No ingestion and no credentials needed.
 
@@ -79,3 +79,11 @@ Files are sorted by `hex` with row-group statistics, so the filter skips most of
 ## Building your own
 
 To produce the same kind of dataset for another gridded source, see `fused.h3.sources.era5` and `fill="nearest"` in the main skill.
+
+## NYC 311 (indexed on www.fused.io)
+
+`s3://fused-asset/data/nyc311/`: NYC 311 service requests, 2010-01 to 2025-12, one row per request at H3 resolution 11, partitioned by `month=`. Indexed and public on `https://www.fused.io`; keep the trailing slash in `path` (without it `/h3/query` answers 404).
+
+- Time column `created_date`. Columns: `hex` (uint64), `unique_key`, `created_date`, `complaint_type`, `agency`, `borough`, `latitude`, `longitude`.
+- Read it with `GET https://www.fused.io/server/v1/h3/query?path=s3://fused-asset/data/nyc311/&min_lng=...&time_min=...&columns=hex&columns=complaint_type`, an `h3-query` widget, or a `fused-hex` layer with `source.path`.
+- A runnable map using it: `html-template-nodes/examples/crossfilter/`.

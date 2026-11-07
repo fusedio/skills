@@ -50,7 +50,7 @@ Optional fields: `overview.minZoom` (the overview draws below the floor, default
 
 ## Calling `/h3/query` directly
 
-For an HTML widget or script that fetches its own data, call `GET <base>/server/v1/h3/query` (for example `https://www.fused.io/server/v1/h3/query`, or `https://unstable.fused.io/...` on unstable) with a bearer token (public `s3://` locations can be read anonymously).
+For an HTML widget or script that fetches its own data, call `GET <base>/server/v1/h3/query` (for example `https://www.fused.io/server/v1/h3/query`) with a bearer token (public `s3://` locations can be read anonymously).
 
 | Param | Meaning |
 |---|---|
