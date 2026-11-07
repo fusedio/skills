@@ -58,7 +58,7 @@ On Windows the same rules apply, with a few differences:
 
 ## Global flags
 
-- `--env TEXT` (env: `FUSED_ENV`)
+- `--env TEXT` (env: `FUSED_ENV`). When the target is the `base_url` that `~/.fused/settings.toml` sets explicitly, that file's `[auth]` is kept; any other target uses the default Fused sign-in.
 - `--format [json|text]` (env: `FUSED_CLI_FORMAT`) — set to `json` for machine-readable output
 
 ## Top-level commands

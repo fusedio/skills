@@ -150,6 +150,15 @@ Check that the deployment supports it before building on it: `typeof fused.query
   An empty or non-string `sql` rejects with a plain `Error` that has no `.type`.
 - Every call is written to the node's runtime log: `fused.query started: <first 120 characters of the sql>`, then `completed: N rows in Ms`, `failed (<type>, Ms): <message>` or `aborted after Ms`.
 - The query runs in the viewer's browser. Querying a layer does not run its UDF again.
+- A layer's rows change as the map pans or its params change. Instead of polling, give the map a `sourceParam` (`"sourceParam": "sources"`) and re-query when the layer's `version` changes (`!==`, not `>`). `version` is 0 while the layer has no rows.
+
+  ```js
+  let seen = 0;
+  fused.params.onChange((p) => {
+    const v = p.sources?.listings?.version;
+    if (v && v !== seen) { seen = v; draw(p); }
+  });
+  ```
 
 ## Edges
 
