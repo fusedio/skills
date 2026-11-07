@@ -5,7 +5,7 @@
 <style>
   body { margin: 0; padding: 12px; box-sizing: border-box; height: 100vh; display: grid; grid-template-columns: 1fr 300px; gap: 12px; font: 13px system-ui, sans-serif; background: #111; color: #eee; }
   #hist { display: block; width: 100%; height: 160px; cursor: crosshair; }
-  pre { margin: 0; }
+  pre { margin: 0; white-space: pre-wrap; }
 </style>
 </head>
 <body>
@@ -13,19 +13,34 @@
   { "type": "fused-map",
     "props": {
       "style": "height:100%",
-      "centerLng": -122.43, "centerLat": 37.77, "zoom": 12,
-      "param": "bounds", "autoSend": true, "autoSendDebounceMs": 300,
+      "centerLng": -73.985, "centerLat": 40.755, "zoom": 14, "minZoom": 12,
+      "param": "bounds", "autoSend": true, "autoSendDebounceMs": 400,
       "clickParam": "clicked", "hoverParam": "hover",
-      "selectParam": "selected", "selectKey": "hex",
+      "selectParam": "selected", "selectKey": "unique_key",
       "stateParam": "map_state", "sourceParam": "sources",
       "layers": [{
-        "id": "cells", "type": "h3", "h3Column": "hex", "udf": "{{sf_cells}}",
-        "tooltip": ["hex", "temp", "kind"],
-        "filters": [{ "attr": "temp", "type": "range", "min": "$lo", "max": "$hi" }],
-        "style": { "fillColor": { "type": "continuous", "attr": "temp" } }
+        "id": "calls", "type": "h3", "h3Column": "hex", "data": "{{nyc311}}",
+        "sql": "SELECT hex, unique_key, created_date, hour(created_date) AS hour, complaint_type, latitude, longitude FROM {{source}}",
+        "tooltip": ["complaint_type", "created_date"],
+        "filters": [{ "attr": "hour", "type": "range", "min": "$lo", "max": "$hi" }],
+        "style": { "fillColor": { "type": "continuous", "attr": "hour", "palette": "Sunset" }, "opacity": 0.7 }
       }] } }
 </fused-widget>
 <div>
+  <fused-widget style="display:block;height:90px">
+    { "type": "h3-query",
+      "props": {
+        "name": "nyc311",
+        "endpoint": "https://www.fused.io/server/v1/h3/query",
+        "path": "s3://fused-asset/data/nyc311/",
+        "minLng": "$w", "minLat": "$s", "maxLng": "$e", "maxLat": "$n",
+        "timeMin": "2024-07-01", "timeMax": "2024-07-07T23:59:59",
+        "columns": ["hex", "unique_key", "created_date", "complaint_type", "latitude", "longitude"]
+      },
+      "children": [
+        { "type": "sql-table", "props": { "sql": "SELECT COUNT(*) AS calls_in_view FROM {{nyc311}}" } }
+      ] }
+  </fused-widget>
   <svg id="hist"></svg>
   <p><button id="select-view">Select view</button> <button id="clear">Clear</button></p>
   <p id="hover"></p>
@@ -34,14 +49,14 @@
   <p id="status"></p>
 </div>
 <script>
-  const q = (s, opts) => fused.query(s.replaceAll("@", "$").replaceAll("{layer}", "{".repeat(2) + "cells" + "}".repeat(2)), opts);
+  const q = (s, opts) => fused.query(s.replaceAll("@", "$").replaceAll("{layer}", "{".repeat(2) + "calls" + "}".repeat(2)), opts);
   const show = (id, text) => { document.getElementById(id).textContent = text; };
   const HINT = { not_ready: "layer still loading", not_allowed: "no edge, or a wrong layer id", not_found: "no such source",
                  invalid_args: "a SQL param has no value", query_error: "DuckDB rejected the SQL" };
   const fail = (e) => { if (e.type !== "aborted") show("status", (HINT[e.type] || "error") + ": " + e.message); };
   const span = (min, max) => ({ min: min ?? null, max: max ?? null });
 
-  const HIST = "SELECT floor(temp) AS k, COUNT(*) AS n, COUNT(*) FILTER (WHERE temp BETWEEN @r) AS hit FROM {layer} WHERE lng BETWEEN @x AND lat BETWEEN @y";
+  const HIST = "SELECT hour(created_date) AS k, COUNT(*) AS n, COUNT(*) FILTER (WHERE hour(created_date) BETWEEN @r) AS hit FROM {layer} WHERE longitude BETWEEN @x AND latitude BETWEEN @y";
   let bins = [], busy = false, again = false;
   async function refresh() {
     if (busy) { again = true; return; }
@@ -49,19 +64,18 @@
     try {
       do {
         again = false;
-        const p = fused.params.getAll(), ids = p.selected?.bbox ? [] : p.selected?.ids ?? [];
-        const box = p.selected?.bbox ?? (ids.length ? null : p.bounds);
+        const p = fused.params.getAll(), box = p.selected?.bbox, ids = box ? [] : p.selected?.ids ?? [];
         const params = { r: span(p.lo, p.hi), x: span(box?.[0], box?.[2]), y: span(box?.[1], box?.[3]), ids };
-        bins = await q(HIST + (ids.length ? " AND hex IN @ids" : "") + " GROUP BY 1 ORDER BY 1", { params });
+        bins = await q(HIST + (ids.length ? " AND unique_key IN @ids" : "") + " GROUP BY 1 ORDER BY 1", { params });
       } while (again);
       paint();
       show("status", "");
     } catch (e) { fail(e); } finally { busy = false; }
   }
 
-  function detail(cell) {
-    q("SELECT hex, temp FROM {layer} WHERE kind = @k ORDER BY temp DESC", { params: { k: cell.kind }, key: "detail", maxRows: 5 })
-      .then((rows) => show("detail", cell.hex + " " + cell.temp + "\nhottest " + cell.kind + ":\n" + rows.map((r) => r.hex + "  " + r.temp).join("\n")), fail);
+  function detail(call) {
+    q("SELECT strftime(created_date, '%a %H:%M') AS at FROM {layer} WHERE complaint_type = @k ORDER BY created_date DESC", { params: { k: call.complaint_type }, key: "detail", maxRows: 5 })
+      .then((rows) => show("detail", call.complaint_type + " " + call.created_date + "\nlatest in view:\n" + rows.map((r) => r.at).join("\n")), fail);
   }
 
   const svg = document.getElementById("hist");
@@ -78,7 +92,7 @@
     const a = Math.min(x0, xOf(e)), b = Math.max(x0, xOf(e)), started = x0 !== null;
     x0 = null;
     if (!started || !bins.length) return;
-    fused.params.set(b - a < 3 ? { lo: null, hi: null } : { lo: kAt(a), hi: kAt(b) + 1 });
+    fused.params.set(b - a < 3 ? { lo: null, hi: null } : { lo: kAt(a), hi: kAt(b) });
   };
 
   document.getElementById("select-view").onclick = () => fused.params.set("selected", { bbox: fused.params.get("bounds") });
@@ -86,12 +100,14 @@
 
   let seen = {};
   function onParams(p) {
-    show("hover", p.hover ? p.hover.kind + ": " + p.hover.temp : "");
+    const b = p.bounds?.map((v) => +v.toFixed(4));
+    if (b && JSON.stringify(b) !== JSON.stringify([p.w, p.s, p.e, p.n])) fused.params.set({ w: b[0], s: b[1], e: b[2], n: b[3] });
+    show("hover", p.hover ? p.hover.complaint_type + " at " + p.hover.created_date : "");
     show("zoom", p.map_state?.view ? "zoom " + p.map_state.view.zoom.toFixed(1) : "");
-    const version = p.sources?.cells?.version, filters = JSON.stringify([p.lo, p.hi, p.selected?.bbox ?? p.selected?.ids, p.bounds]);
+    const version = p.sources?.calls?.version, filters = JSON.stringify([p.lo, p.hi, p.selected?.bbox ?? p.selected?.ids]);
     if (version && (version !== seen.version || filters !== seen.filters)) refresh();
-    if (p.clicked && p.clicked.hex !== seen.hex) detail(p.clicked);
-    seen = { version, filters, hex: p.clicked?.hex };
+    if (p.clicked && p.clicked.unique_key !== seen.key) detail(p.clicked);
+    seen = { version, filters, key: p.clicked?.unique_key };
   }
   fused.params.onChange(onParams);
   onParams(fused.params.getAll());

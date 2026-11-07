@@ -233,34 +233,40 @@ A JSON-UI widget can be placed inside the page. Write its spec as the text of a 
 
 ## Map with a custom chart
 
-Runnable canvas: [`examples/crossfilter/`](examples/crossfilter/); push it with `fused workbench canvas push examples/crossfilter --canvas <name>`. A synthetic H3 UDF (`sf_cells.py`), an HTML node with a `fused-map` and a brushable histogram (`crossfilter.html`) that uses every param the map writes (`json-ui-schemas` says what each holds), and a bar chart (`kind_chart.json`) reading the page's map layer `{{cells}}` through an edge. The core:
+Runnable canvas: [`examples/crossfilter/`](examples/crossfilter/); push it with `fused workbench canvas push examples/crossfilter --canvas <name>`. No UDF: an HTML node (`crossfilter.html`) holds an `h3-query` that fetches NYC 311 calls in the map's view, a `fused-map` drawing them with `data: "{{nyc311}}"`, and a brushable hour-of-day histogram that uses every param the map writes (`json-ui-schemas` says what each holds). A bar chart (`kind_chart.json`) reads the page's map layer `{{calls}}` through an edge. The core:
 
 ```html
-"param": "bounds", "autoSend": true, "autoSendDebounceMs": 300,
-"clickParam": "clicked", "hoverParam": "hover",
-"selectParam": "selected", "selectKey": "hex",
-"stateParam": "map_state", "sourceParam": "sources",
-"layers": [{
-  "id": "cells", "type": "h3", "h3Column": "hex", "udf": "{{sf_cells}}",
-  "filters": [{ "attr": "temp", "type": "range", "min": "$lo", "max": "$hi" }] }]
+<fused-widget>{ "type": "h3-query", "props": { "name": "nyc311", "path": "s3://fused-asset/data/nyc311/",
+  "minLng": "$w", "minLat": "$s", "maxLng": "$e", "maxLat": "$n", ... } }</fused-widget>
+<fused-widget>{ "type": "fused-map", "props": { "minZoom": 12,
+  "param": "bounds", "autoSend": true, "autoSendDebounceMs": 400,
+  "clickParam": "clicked", "hoverParam": "hover",
+  "selectParam": "selected", "selectKey": "unique_key",
+  "stateParam": "map_state", "sourceParam": "sources",
+  "layers": [{ "id": "calls", "type": "h3", "h3Column": "hex", "data": "{{nyc311}}",
+    "filters": [{ "attr": "hour", "type": "range", "min": "$lo", "max": "$hi" }] }] } }</fused-widget>
 ```
 
 ```js
-const q = (s, opts) => fused.query(s.replaceAll("@", "$").replaceAll("{layer}", "{".repeat(2) + "cells" + "}".repeat(2)), opts);
+const q = (s, opts) => fused.query(s.replaceAll("@", "$").replaceAll("{layer}", "{".repeat(2) + "calls" + "}".repeat(2)), opts);
 let seen = {};
 function onParams(p) {
-  const version = p.sources?.cells?.version, filters = JSON.stringify([p.lo, p.hi, p.selected?.bbox ?? p.selected?.ids, p.bounds]);
+  const b = p.bounds?.map((v) => +v.toFixed(4));
+  if (b && JSON.stringify(b) !== JSON.stringify([p.w, p.s, p.e, p.n])) fused.params.set({ w: b[0], s: b[1], e: b[2], n: b[3] });
+  const version = p.sources?.calls?.version, filters = JSON.stringify([p.lo, p.hi, p.selected?.bbox ?? p.selected?.ids]);
   if (version && (version !== seen.version || filters !== seen.filters)) refresh();
-  if (p.clicked && p.clicked.hex !== seen.hex) detail(p.clicked);
-  seen = { version, filters, hex: p.clicked?.hex };
+  if (p.clicked && p.clicked.unique_key !== seen.key) detail(p.clicked);
+  seen = { version, filters, key: p.clicked?.unique_key };
 }
 fused.params.onChange(onParams);
 onParams(fused.params.getAll());
 ```
 
-- Send every query through `q()`: write params as `@name` and the layer as `{layer}`; `q()` turns them into `$name` and `{{cells}}` at runtime. Written literally, `$name` and `{{...}}` are substituted before the script runs.
-- A `udf` layer's `{{cells}}` is the UDF's whole result: give it `lat`/`lng` columns and filter by `bounds` when nothing is selected, to chart only what is in view.
-- Re-query only when the layer's `version` or a filter changes, never on a timer. `refresh()` keeps one query in flight (`busy` / `again`); `detail()` passes `key`, so a newer click supersedes the older call.
+- The map writes `bounds` as one `[w, s, e, n]` array and the `h3-query` bbox props each take one number, so the page splits it into `w`/`s`/`e`/`n`. Both widgets run in this node, so the `h3-query` sees the page's params with no edge. Each new bbox aborts the query in flight and fetches again; `autoSendDebounceMs` spaces the fetches, `minZoom` caps the area, `maxPages` caps the rows.
+- To use a UDF instead, replace the h3-query with a `udf` layer (`{ "type": "h3", "udf": "{{my_udf}}", "h3Column": "hex" }`) and an edge from the UDF node.
+- `endpoint` sends the query to fused.io, where `s3://fused-asset/data/nyc311/` is indexed and public. Leave it out for a dataset indexed on the server you run on.
+- Send every query through `q()`: write params as `@name` and the layer as `{layer}`; `q()` turns them into `$name` and `{{calls}}` at runtime. Written literally, `$name` and `{{...}}` are substituted before the script runs.
+- Re-query only when the layer's `version` or a filter changes, never on a timer. A pan refetches, which bumps `version`. `refresh()` keeps one query in flight (`busy` / `again`); `detail()` passes `key`, so a newer click supersedes the older call.
 - The histogram leaves its own range out of `WHERE` and only colours it (`hit`), so a brush never empties it. Send an unset bound as `null` so each range stays a `{ min, max }` object.
 - A widget reading a map layer id fails `canvas validate` (`widget_refs`), so the example's `canvas.toml` skips that check.
 

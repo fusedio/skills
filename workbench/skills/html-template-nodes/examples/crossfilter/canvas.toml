@@ -7,36 +7,25 @@ skip = ["widget_refs"]
 
 [canvas]
 edges = [
-  ["sf_cells", "crossfilter"],
   ["crossfilter", "kind_chart"],
 ]
 
 [[canvas.nodes]]
-udfName = "sf_cells"
-title = "SF cells"
+udfName = "crossfilter"
+title = "NYC 311 cross-filter"
 visible = true
 x = 0
 y = 0
 zIndex = 1
-width = 600
-height = 500
-
-[[canvas.nodes]]
-udfName = "crossfilter"
-title = "Cross-filter"
-visible = true
-x = 675
-y = 0
-zIndex = 2
 width = 1100
 height = 700
 
 [[canvas.nodes]]
 udfName = "kind_chart"
-title = "Cells per kind"
+title = "Calls per type"
 visible = true
-x = 1850
+x = 1175
 y = 0
-zIndex = 3
+zIndex = 2
 width = 600
 height = 400

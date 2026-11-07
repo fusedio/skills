@@ -79,7 +79,7 @@ Input widgets set canvas params (edge: widget → UDF). Output widgets show a UD
 - **Output, charts:** `bar-chart`, `line-chart`, `stacked-bar-chart`, `stacked-area-chart`, `scatter-chart`, `donut-chart`, `heatmap-chart`
 - **Output, tables:** `sql-table`
 - **Output, maps:** `fused-map` (mature, use it by default), `kepler-map`, `map` (legacy)
-  - To draw an indexed H3 dataset, use a `fused-map` layer of type `fused-hex` (tiles, pan-aware), or an `h3-query` widget's result as a layer (`data: "{{name}}"`, one fixed query): see the `fused-h3` skill's `map.md`.
+  - To draw an indexed H3 dataset, use a `fused-map` layer of type `fused-hex` (tiles, pan-aware), or an `h3-query` widget's result as a layer (`data: "{{name}}"`, refetched only when its params change): see the `fused-h3` skill's `map.md`.
 - **Meta / advanced:** `widget-builder`, `transformer`, `ai-chat`
 
 ## `html` and `iframe` widgets vs an HTML template node
@@ -149,8 +149,7 @@ One `GET /h3/query` (or any endpoint speaking its parameters), its Parquet resul
 - `columns` lists every column returned: include `hex` when a map draws the rows.
 - At most one spatial selector: `cell`, `lat`+`lng`, the four bbox edges, or `hexMin`+`hexMax`; none reads the whole dataset.
 - Every string or number prop accepts `$param` (`"timeMin": "$date"`); the query waits until it is set and re-runs when it changes. Params come from the same node or a node with an edge into it. `"columns": "$cols"` takes an array or a comma-separated string, so a dropdown value like `"hex,t2m_max"` picks the variable.
-- A map's `param` bounds (`[w, s, e, n]`, one array) cannot fill the four bbox props: the area stays fixed, it does not follow the map.
-- Runnable canvas: `fused-h3` skill, `examples/h3-query/` (date input, `h3-query`, a map drawing `data: "{{h3_rows}}"`).
+- To follow a map's view, split its `param` bounds into four params: `html-template-nodes` skill, "Map with a custom chart", which is also the runnable `h3-query` canvas.
 - The whole result stays in browser memory (`maxPages`, default 16, caps it). For large or pan-aware data use a `fused-map` `fused-hex` layer instead.
 - No UDF runs; no `visible = true` requirement; `fused workbench canvas validate` may flag `{{name}}` as unknown (see `sql-runner`).
 
