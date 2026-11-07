@@ -126,7 +126,7 @@ A `sql-runner` names one SQL result. Its SQL can read several UDFs, and runners 
 
 ## `h3-query`: an indexed H3 dataset query as a named SQL source
 
-One `GET /h3/query` (or any endpoint speaking its parameters), its Parquet result landed in the browser's DuckDB and published as `{{name}}`, exactly like a `sql-runner` result. Readers: any SQL widget or `fused-map` in the same node (child or sibling), or on a node with an edge from this node.
+One `GET /h3/query` (or any endpoint speaking its parameters), its Parquet result landed in the browser's DuckDB and published as `{{name}}`, exactly like a `sql-runner` result. It shows nothing itself: put the rows on screen with a SQL widget (`sql-table`, a chart, `metric`) or a `fused-map` layer, and one `h3-query` can feed several. Readers: any SQL widget or `fused-map` in the same node (child or sibling), or on a node with an edge from this node.
 
 ```json
 {
