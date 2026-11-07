@@ -1,0 +1,42 @@
+type = "canvas"
+version = 2
+name = "Cross-filter example"
+
+[validate]
+skip = ["widget_refs"]
+
+[canvas]
+edges = [
+  ["sf_cells", "crossfilter"],
+  ["crossfilter", "kind_chart"],
+]
+
+[[canvas.nodes]]
+udfName = "sf_cells"
+title = "SF cells"
+visible = true
+x = 0
+y = 0
+zIndex = 1
+width = 600
+height = 500
+
+[[canvas.nodes]]
+udfName = "crossfilter"
+title = "Cross-filter"
+visible = true
+x = 675
+y = 0
+zIndex = 2
+width = 1100
+height = 700
+
+[[canvas.nodes]]
+udfName = "kind_chart"
+title = "Cells per kind"
+visible = true
+x = 1850
+y = 0
+zIndex = 3
+width = 600
+height = 400

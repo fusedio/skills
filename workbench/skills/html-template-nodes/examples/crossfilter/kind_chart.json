@@ -1,0 +1,8 @@
+{
+  "type": "bar-chart",
+  "props": {
+    "title": "Cells per kind",
+    "sql": "SELECT kind AS label, COUNT(*) AS value FROM {{cells}} GROUP BY 1 ORDER BY 2 DESC",
+    "rotateLabels": false
+  }
+}

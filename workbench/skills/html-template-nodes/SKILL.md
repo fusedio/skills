@@ -112,7 +112,7 @@ Injected by the host at render time. Never define `window.fused` yourself; never
 
 ### `fused.query`
 
-`fused.query(sql, { params, maxRows, key, signal })` runs one DuckDB statement in the viewer's browser and resolves with an array of row objects. [Map with a custom chart](#map-with-a-custom-chart) shows `params`, `key` and `maxRows` in use.
+`fused.query(sql, { params, maxRows, key, signal })` runs one DuckDB statement in the viewer's browser and resolves with an array of row objects. The example in [Map with a custom chart](#map-with-a-custom-chart) uses `params`, `key` and `maxRows`.
 
 - Check `typeof fused.query === "function"` first. If it is not a function, tell the user this deployment does not support `fused.query` and stop.
 - **Sources.** `{{name}}` is a `fused-map` layer id or a `sql-runner` / `h3-query` name in reach (a map in this page, or a node with an edge into this one), else the cached result of a UDF with an edge into this node. A query never runs a UDF.
@@ -233,116 +233,36 @@ A JSON-UI widget can be placed inside the page. Write its spec as the text of a 
 
 ## Map with a custom chart
 
-One HTML node: a `fused-map` in `<fused-widget>`, and a page that charts its layer with `fused.query`. It uses every param the map writes; `json-ui-schemas` says what each one holds.
+Runnable canvas: [`examples/crossfilter/`](examples/crossfilter/); push it with `fused workbench canvas push examples/crossfilter --canvas <name>`. A synthetic H3 UDF (`sf_cells.py`), an HTML node with a `fused-map` and a brushable histogram (`crossfilter.html`) that uses every param the map writes (`json-ui-schemas` says what each holds), and a bar chart (`kind_chart.json`) reading the page's map layer `{{cells}}` through an edge. The core:
 
 ```html
-<!doctype html>
-<html>
-<head>
-<meta charset="utf-8" />
-<style>
-  body { margin: 0; padding: 12px; box-sizing: border-box; height: 100vh; display: grid; grid-template-columns: 1fr 300px; gap: 12px; font: 13px system-ui, sans-serif; background: #111; color: #eee; }
-  #hist { display: block; width: 100%; height: 160px; cursor: crosshair; }
-  pre { margin: 0; }
-</style>
-</head>
-<body>
-<fused-widget style="display:block;height:100%">
-  { "type": "fused-map",
-    "props": {
-      "style": "height:100%",
-      "centerLng": -122.3, "centerLat": 37.7, "zoom": 10,
-      "param": "bounds", "autoSend": true, "autoSendDebounceMs": 300,
-      "clickParam": "clicked", "hoverParam": "hover",
-      "selectParam": "selected", "selectKey": "station",
-      "stateParam": "map_state", "sourceParam": "sources",
-      "layers": [{
-        "id": "stations", "type": "fused-hex", "h3Column": "hex", "minZoom": 9,
-        "source": { "path": "s3://bucket/hex/stations/", "timeColumn": "date", "dateMin": "2024-07-01", "dateMax": "2024-07-31",
-                    "variables": ["station", "temp", "lat", "lng"] },
-        "tooltip": ["station", "temp"],
-        "filters": [{ "attr": "temp", "type": "range", "min": "$lo", "max": "$hi" }],
-        "style": { "fillColor": { "type": "continuous", "attr": "temp" } }
-      }] } }
-</fused-widget>
-<div>
-  <svg id="hist"></svg>
-  <p><button id="select-view">Select view</button> <button id="clear">Clear selection</button></p>
-  <p id="hover"></p>
-  <p id="zoom"></p>
-  <pre id="detail"></pre>
-  <p id="status"></p>
-</div>
-<script>
-  const q = (s, opts) => fused.query(s.replaceAll("@", "$").replaceAll("{layer}", "{".repeat(2) + "stations" + "}".repeat(2)), opts);
-  const show = (id, text) => { document.getElementById(id).textContent = text; };
-  const HINT = { not_ready: "layer still loading", not_allowed: "no edge, or a wrong layer id", not_found: "no such source",
-                 invalid_args: "a SQL param has no value", query_error: "DuckDB rejected the SQL" };
-  const fail = (e) => { if (e.type !== "aborted") show("status", (HINT[e.type] || "error") + ": " + e.message); };
-  const span = (min, max) => ({ min: min ?? null, max: max ?? null });
-
-  const HIST = "SELECT floor(temp) AS k, COUNT(*) AS n, COUNT(*) FILTER (WHERE temp BETWEEN @r) AS hit FROM {layer} WHERE lng BETWEEN @x AND lat BETWEEN @y";
-  let bins = [], busy = false, again = false;
-  async function refresh() {
-    if (busy) { again = true; return; }
-    busy = true;
-    try {
-      do {
-        again = false;
-        const p = fused.params.getAll(), box = p.selected?.bbox, ids = box ? [] : p.selected?.ids ?? [];
-        const params = { r: span(p.lo, p.hi), x: span(box?.[0], box?.[2]), y: span(box?.[1], box?.[3]), ids };
-        bins = await q(HIST + (ids.length ? " AND station IN @ids" : "") + " GROUP BY 1 ORDER BY 1", { params });
-      } while (again);
-      paint();
-      show("status", "");
-    } catch (e) { fail(e); } finally { busy = false; }
-  }
-
-  function detail(station) {
-    q("SELECT date, temp FROM {layer} WHERE station = @s ORDER BY date DESC", { params: { s: station }, key: "detail", maxRows: 5 })
-      .then((rows) => show("detail", station + "\n" + rows.map((r) => r.date + "  " + r.temp).join("\n")), fail);
-  }
-
-  const svg = document.getElementById("hist");
-  function paint() {
-    const w = svg.clientWidth / Math.max(1, bins.length), h = svg.clientHeight, max = Math.max(1, ...bins.map((b) => b.n));
-    const bar = (i, n, fill) => '<rect x="' + i * w + '" y="' + (h - (h * n) / max) + '" width="' + (w - 1) + '" height="' + (h * n) / max + '" fill="' + fill + '"/>';
-    svg.innerHTML = bins.map((b, i) => bar(i, b.n, "#444") + bar(i, b.hit, "#E8FF59")).join("");
-  }
-  let x0 = null;
-  const xOf = (e) => e.clientX - svg.getBoundingClientRect().left;
-  const kAt = (x) => bins[Math.min(bins.length - 1, Math.max(0, Math.floor((x / svg.clientWidth) * bins.length)))].k;
-  svg.onmousedown = (e) => { x0 = xOf(e); };
-  svg.onmouseup = (e) => {
-    const a = Math.min(x0, xOf(e)), b = Math.max(x0, xOf(e)), started = x0 !== null;
-    x0 = null;
-    if (!started || !bins.length) return;
-    fused.params.set(b - a < 3 ? { lo: null, hi: null } : { lo: kAt(a), hi: kAt(b) + 1 });
-  };
-
-  document.getElementById("select-view").onclick = () => fused.params.set("selected", { bbox: fused.params.get("bounds") });
-  document.getElementById("clear").onclick = () => fused.params.set("selected", null);
-
-  let seen = {};
-  function onParams(p) {
-    show("hover", p.hover ? p.hover.station + ": " + p.hover.temp : "");
-    show("zoom", p.map_state?.view?.zoom < 9 ? "Zoom in past 9 to load cells" : "");
-    const version = p.sources?.stations?.version, filters = JSON.stringify([p.lo, p.hi, p.selected?.bbox ?? p.selected?.ids]);
-    if (version && (version !== seen.version || filters !== seen.filters)) refresh();
-    if (p.clicked && p.clicked.station !== seen.station) detail(p.clicked.station);
-    seen = { version, filters, station: p.clicked?.station };
-  }
-  fused.params.onChange(onParams);
-  onParams(fused.params.getAll());
-</script>
-</body>
-</html>
+"param": "bounds", "autoSend": true, "autoSendDebounceMs": 300,
+"clickParam": "clicked", "hoverParam": "hover",
+"selectParam": "selected", "selectKey": "hex",
+"stateParam": "map_state", "sourceParam": "sources",
+"layers": [{
+  "id": "cells", "type": "h3", "h3Column": "hex", "udf": "{{sf_cells}}",
+  "filters": [{ "attr": "temp", "type": "range", "min": "$lo", "max": "$hi" }] }]
 ```
 
-- The layer is an indexed point dataset with `station`, `temp`, `lat` and `lng` columns (`fused-hex` over `/h3/query`, see the `fused-h3` skill's `map.md`): swap in your `source.path` and columns. To chart a canvas UDF's result instead, use `{ "id": "stations", "type": "h3", "h3Column": "hex", "udf": "{{my_udf}}" }` and add the edge `["my_udf", "<html_node>"]` to `canvas.toml`; `{{stations}}` is then the UDF's whole result, so give the UDF `lat`/`lng` columns and pass `bounds` as the `x`/`y` spans when nothing is selected, to chart only what is in view.
-- Send every query through `q()`: write params as `@name` and the layer as `{layer}`, and `q()` turns them into `$name` and `{{stations}}` at runtime. Written literally in the page, `$name` and `{{...}}` are substituted before the script runs.
-- The histogram re-runs only when the layer's `version` or a filter changes, never on a timer. `busy` / `again` keep one histogram query in flight and re-run it once with the newest params. The detail query relies on `key`: a newer click supersedes the older call.
-- The histogram leaves its own range out of `WHERE` and only colours it (`hit`), so a brush never empties it. `span()` sends an unset bound as `null` (open), so each range stays a `{ min, max }` object even with both bounds unset.
+```js
+const q = (s, opts) => fused.query(s.replaceAll("@", "$").replaceAll("{layer}", "{".repeat(2) + "cells" + "}".repeat(2)), opts);
+let seen = {};
+function onParams(p) {
+  const version = p.sources?.cells?.version, filters = JSON.stringify([p.lo, p.hi, p.selected?.bbox ?? p.selected?.ids, p.bounds]);
+  if (version && (version !== seen.version || filters !== seen.filters)) refresh();
+  if (p.clicked && p.clicked.hex !== seen.hex) detail(p.clicked);
+  seen = { version, filters, hex: p.clicked?.hex };
+}
+fused.params.onChange(onParams);
+onParams(fused.params.getAll());
+```
+
+- Send every query through `q()`: write params as `@name` and the layer as `{layer}`; `q()` turns them into `$name` and `{{cells}}` at runtime. Written literally, `$name` and `{{...}}` are substituted before the script runs.
+- A `udf` layer's `{{cells}}` is the UDF's whole result: give it `lat`/`lng` columns and filter by `bounds` when nothing is selected, to chart only what is in view.
+- Re-query only when the layer's `version` or a filter changes, never on a timer. `refresh()` keeps one query in flight (`busy` / `again`); `detail()` passes `key`, so a newer click supersedes the older call.
+- The histogram leaves its own range out of `WHERE` and only colours it (`hit`), so a brush never empties it. Send an unset bound as `null` so each range stays a `{ min, max }` object.
+- A widget reading a map layer id fails `canvas validate` (`widget_refs`), so the example's `canvas.toml` skips that check.
 
 ## Iframe environment
 

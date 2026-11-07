@@ -1,0 +1,100 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8" />
+<style>
+  body { margin: 0; padding: 12px; box-sizing: border-box; height: 100vh; display: grid; grid-template-columns: 1fr 300px; gap: 12px; font: 13px system-ui, sans-serif; background: #111; color: #eee; }
+  #hist { display: block; width: 100%; height: 160px; cursor: crosshair; }
+  pre { margin: 0; }
+</style>
+</head>
+<body>
+<fused-widget style="display:block;height:100%">
+  { "type": "fused-map",
+    "props": {
+      "style": "height:100%",
+      "centerLng": -122.43, "centerLat": 37.77, "zoom": 12,
+      "param": "bounds", "autoSend": true, "autoSendDebounceMs": 300,
+      "clickParam": "clicked", "hoverParam": "hover",
+      "selectParam": "selected", "selectKey": "hex",
+      "stateParam": "map_state", "sourceParam": "sources",
+      "layers": [{
+        "id": "cells", "type": "h3", "h3Column": "hex", "udf": "{{sf_cells}}",
+        "tooltip": ["hex", "temp", "kind"],
+        "filters": [{ "attr": "temp", "type": "range", "min": "$lo", "max": "$hi" }],
+        "style": { "fillColor": { "type": "continuous", "attr": "temp" } }
+      }] } }
+</fused-widget>
+<div>
+  <svg id="hist"></svg>
+  <p><button id="select-view">Select view</button> <button id="clear">Clear</button></p>
+  <p id="hover"></p>
+  <p id="zoom"></p>
+  <pre id="detail"></pre>
+  <p id="status"></p>
+</div>
+<script>
+  const q = (s, opts) => fused.query(s.replaceAll("@", "$").replaceAll("{layer}", "{".repeat(2) + "cells" + "}".repeat(2)), opts);
+  const show = (id, text) => { document.getElementById(id).textContent = text; };
+  const HINT = { not_ready: "layer still loading", not_allowed: "no edge, or a wrong layer id", not_found: "no such source",
+                 invalid_args: "a SQL param has no value", query_error: "DuckDB rejected the SQL" };
+  const fail = (e) => { if (e.type !== "aborted") show("status", (HINT[e.type] || "error") + ": " + e.message); };
+  const span = (min, max) => ({ min: min ?? null, max: max ?? null });
+
+  const HIST = "SELECT floor(temp) AS k, COUNT(*) AS n, COUNT(*) FILTER (WHERE temp BETWEEN @r) AS hit FROM {layer} WHERE lng BETWEEN @x AND lat BETWEEN @y";
+  let bins = [], busy = false, again = false;
+  async function refresh() {
+    if (busy) { again = true; return; }
+    busy = true;
+    try {
+      do {
+        again = false;
+        const p = fused.params.getAll(), ids = p.selected?.bbox ? [] : p.selected?.ids ?? [];
+        const box = p.selected?.bbox ?? (ids.length ? null : p.bounds);
+        const params = { r: span(p.lo, p.hi), x: span(box?.[0], box?.[2]), y: span(box?.[1], box?.[3]), ids };
+        bins = await q(HIST + (ids.length ? " AND hex IN @ids" : "") + " GROUP BY 1 ORDER BY 1", { params });
+      } while (again);
+      paint();
+      show("status", "");
+    } catch (e) { fail(e); } finally { busy = false; }
+  }
+
+  function detail(cell) {
+    q("SELECT hex, temp FROM {layer} WHERE kind = @k ORDER BY temp DESC", { params: { k: cell.kind }, key: "detail", maxRows: 5 })
+      .then((rows) => show("detail", cell.hex + " " + cell.temp + "\nhottest " + cell.kind + ":\n" + rows.map((r) => r.hex + "  " + r.temp).join("\n")), fail);
+  }
+
+  const svg = document.getElementById("hist");
+  function paint() {
+    const w = svg.clientWidth / Math.max(1, bins.length), h = svg.clientHeight, max = Math.max(1, ...bins.map((b) => b.n));
+    const bar = (i, n, fill) => '<rect x="' + i * w + '" y="' + (h - (h * n) / max) + '" width="' + (w - 1) + '" height="' + (h * n) / max + '" fill="' + fill + '"/>';
+    svg.innerHTML = bins.map((b, i) => bar(i, b.n, "#444") + bar(i, b.hit, "#E8FF59")).join("");
+  }
+  let x0 = null;
+  const xOf = (e) => e.clientX - svg.getBoundingClientRect().left;
+  const kAt = (x) => bins[Math.min(bins.length - 1, Math.max(0, Math.floor((x / svg.clientWidth) * bins.length)))].k;
+  svg.onmousedown = (e) => { x0 = xOf(e); };
+  svg.onmouseup = (e) => {
+    const a = Math.min(x0, xOf(e)), b = Math.max(x0, xOf(e)), started = x0 !== null;
+    x0 = null;
+    if (!started || !bins.length) return;
+    fused.params.set(b - a < 3 ? { lo: null, hi: null } : { lo: kAt(a), hi: kAt(b) + 1 });
+  };
+
+  document.getElementById("select-view").onclick = () => fused.params.set("selected", { bbox: fused.params.get("bounds") });
+  document.getElementById("clear").onclick = () => fused.params.set({ selected: null, lo: null, hi: null });
+
+  let seen = {};
+  function onParams(p) {
+    show("hover", p.hover ? p.hover.kind + ": " + p.hover.temp : "");
+    show("zoom", p.map_state?.view ? "zoom " + p.map_state.view.zoom.toFixed(1) : "");
+    const version = p.sources?.cells?.version, filters = JSON.stringify([p.lo, p.hi, p.selected?.bbox ?? p.selected?.ids, p.bounds]);
+    if (version && (version !== seen.version || filters !== seen.filters)) refresh();
+    if (p.clicked && p.clicked.hex !== seen.hex) detail(p.clicked);
+    seen = { version, filters, hex: p.clicked?.hex };
+  }
+  fused.params.onChange(onParams);
+  onParams(fused.params.getAll());
+</script>
+</body>
+</html>
