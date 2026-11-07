@@ -58,7 +58,7 @@ On Windows the same rules apply, with a few differences:
 
 ## Global flags
 
-- `--env TEXT` (env: `FUSED_ENV`)
+- `--env TEXT` (env: `FUSED_ENV`): `prod`, `stg`, `unstable`, `dev`, a dev PR number, or a base URL. Put it right after `workbench`: `fused workbench --env unstable canvas push ./my_canvas --canvas my_canvas`. `fused --env ...` before `workbench` is a different flag and leaves the command on the default environment. When the target is the `base_url` that `~/.fused/settings.toml` sets explicitly, that file's `[auth]` is kept; any other target uses the default Fused sign-in.
 - `--format [json|text]` (env: `FUSED_CLI_FORMAT`) — set to `json` for machine-readable output
 
 ## Top-level commands
@@ -95,7 +95,7 @@ Most canvas subcommands take a `CANVAS_REF` (name or ID) plus:
 | `list [CANVAS_REF]` | `--team`, `--id` — lists all, or shows one |
 | `pull CANVAS_REF` | `-o/--output DIR`, `--team`, `--id`, `-f/--force`, `-n/--dry-run`, `--show-diff` — same as `export` then extracts; prompts per file on conflict unless `--force`. Pass `--show-diff` (recommended when invoked by an AI assistant) to print a unified diff for every file write or removal so you can summarize the change set back to the user. The changes will be applied with `--show-diff`. |
 | `push SOURCE_DIR` | `--canvas TEXT` (defaults to dir name), `--id`, `--no-validate` (skip the pre-push `validate`), `--no-ignore` (include gitignored / `.fusedignore` files). Replaces remote UDF list — UDFs missing locally are removed. If no canvas with that name exists, a new one is created. **Canvas names must match `[a-zA-Z0-9_]` — no spaces or hyphens.** |
-| `validate CANVAS_DIR` | `--skip CHECK` (repeatable). Checks, without running UDFs: `node_files`, `edge_refs`, `orphaned_files` (warning), `widget_json_parse`, `widget_refs` (`{{name}}` inside `.json` widgets), `widget_params`. Exit 1 on errors. Runs automatically inside `push`. **Does not inspect `.html` files** — check HTML `{{udf}}` / `fused.runPython` names by hand (see the `html-template-nodes` skill). **Does not check folder `childUdfOrder` refs** either. |
+| `validate CANVAS_DIR` | `--skip CHECK` (repeatable). Checks, without running UDFs: `node_files`, `edge_refs`, `orphaned_files` (warning), `widget_json_parse`, `widget_refs` (`{{name}}` inside `.json` widgets), `widget_params`. Exit 1 on errors. Skips files that `.fusedignore` / `.gitignore` exclude, as `push` does (so an ignored `CLAUDE.md` is not orphaned, and a node whose source file is ignored fails `node_files`). Runs automatically inside `push`, which validates ignored files too under `--no-ignore`. **Does not inspect `.html` files** — check HTML `{{udf}}` / `fused.runPython` names by hand (see the `html-template-nodes` skill). **Does not check folder `childUdfOrder` refs** either. |
 | `rename CANVAS_REF NEW_NAME` | `--id` |
 | `share CANVAS_REF` | `--client-id TEXT`, `--new-token`, `--id`. Prints `https://<host>/canvas/<token>`. Each JSON-UI widget or HTML template node in the canvas is then also reachable standalone at `https://<host>/share/<token>/<udfName>` (query params hydrate canvas params). Re-running reuses the token; `--new-token` rotates it and breaks existing links. **Does not change the access scope**: a freshly pushed canvas stays `team`, so anonymous visitors (and headless `run-shared-widget`) get `"This canvas is not shared publicly."` until the scope is set to public in the Workbench share dialog. |
 | `unshare CANVAS_REF` | `--id` |

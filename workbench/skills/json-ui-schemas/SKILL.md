@@ -79,12 +79,12 @@ Input widgets set canvas params (edge: widget → UDF). Output widgets show a UD
 - **Output, charts:** `bar-chart`, `line-chart`, `stacked-bar-chart`, `stacked-area-chart`, `scatter-chart`, `donut-chart`, `heatmap-chart`
 - **Output, tables:** `sql-table`
 - **Output, maps:** `fused-map` (mature, use it by default), `kepler-map`, `map` (legacy)
-  - To draw an indexed H3 dataset, use a `fused-map` layer of type `fused-hex` (tiles, pan-aware), or an `h3-query` widget's result as a layer (`data: "{{name}}"`, one fixed query): see the `fused-h3` skill's `map.md`.
+  - To draw an indexed H3 dataset, use a `fused-map` layer of type `fused-hex` (tiles, pan-aware), or an `h3-query` widget's result as a layer (`data: "{{name}}"`, refetched only when its params change): see the `fused-h3` skill's `map.md`.
 - **Meta / advanced:** `widget-builder`, `transformer`, `ai-chat`
 
 ## `html` and `iframe` widgets vs an HTML template node
 
-- **`html` widget** (`{"type":"html","props":{"value":"<h2>$city</h2>"}}`): a sandboxed iframe inside a JSON-UI layout. It gets `$param` / `{{udf}}` substitution and the same `window.fused` bridge as HTML template nodes (`fused.env`, `fused.params.get/getAll/set/onChange`, `await fused.runPython(udfName, params)`, and `await fused.query(sql, { params, maxRows })`, which runs DuckDB SQL over `{{name}}` sources such as a `fused-map` layer id). Full contract, substitution grammar and pitfalls: the `html-template-nodes` skill. Use the widget for a small custom snippet next to other widgets; use a standalone HTML template node (`.html` file) for a full custom page.
+- **`html` widget** (`{"type":"html","props":{"value":"<h2>$city</h2>"}}`): a sandboxed iframe inside a JSON-UI layout. It gets `$param` / `{{udf}}` substitution and the same `window.fused` bridge as HTML template nodes (`fused.params`, `fused.runPython`, `fused.query`). Full contract, substitution grammar and pitfalls: the `html-template-nodes` skill. Use the widget for a small custom snippet next to other widgets; use a standalone HTML template node (`.html` file) for a full custom page.
 - **`iframe` widget**: embeds a URL or an HTML-returning UDF (`src: "{{my_udf}}"`); no scripting against the canvas. Use it to show a UDF-generated page (folium, plotly `to_html`, …) or an external site.
 - **`<fused-widget>` inside an HTML node**: the reverse direction, a JSON-UI widget inside a custom page. The element's text is a widget spec from this skill (`{"type":…,"props":{…}}`); the workbench renders it over the element's box with the HTML node's edges and identity. Details in the `html-template-nodes` skill, section "Embedding widgets".
 - Edges apply to all three: the source UDF needs an edge into the widget's node.
@@ -116,7 +116,7 @@ A `sql-runner` names one SQL result. Its SQL can read several UDFs, and runners 
 }
 ```
 
-- `sql-runner` publishes its result as `{{name}}` to every SQL widget in reach, not only its children: a sibling in the same widget file, a widget on a node with an edge from the runner's node, and `fused.query` in an HTML node with that edge. A widget on a node without that edge does not see it and logs `UDF 'data' is not connected via an edge`. Keep runner names unique across connected nodes: when two are in reach, the first one published wins.
+- `sql-runner` publishes its result as `{{name}}` to every SQL widget in reach, not only its children: a sibling in the same widget file, a widget on a node with an edge from the runner's node, and `fused.query` in an HTML node with that edge. A widget on a node without that edge does not see it and logs `'data' is not connected via an edge`. Keep runner names unique across connected nodes: when two are in reach, the first one published wins.
 - It caps rows at `maxRows`, 10,000 by default: set it when the UDF returns more (see Known gotchas).
 - `fused workbench canvas validate` wrongly flags `{{name}}` as an unknown node.
   `[validate] skip = ["widget_refs"]` in `canvas.toml` works around it, but turns off the whole check: review other `{{name}}` refs by hand.
@@ -126,7 +126,7 @@ A `sql-runner` names one SQL result. Its SQL can read several UDFs, and runners 
 
 ## `h3-query`: an indexed H3 dataset query as a named SQL source
 
-One `GET /h3/query` (or any endpoint speaking its parameters), its Parquet result landed in the browser's DuckDB and published as `{{name}}`, exactly like a `sql-runner` result. Readers: its children, and any SQL widget or `fused-map` on a node with an edge from this node.
+One `GET /h3/query` (or any endpoint speaking its parameters), its Parquet result landed in the browser's DuckDB and published as `{{name}}`, exactly like a `sql-runner` result. Readers: any SQL widget or `fused-map` in the same node (child or sibling), or on a node with an edge from this node.
 
 ```json
 {
@@ -136,7 +136,7 @@ One `GET /h3/query` (or any endpoint speaking its parameters), its Parquet resul
     "path": "s3://bucket/hex/stations/",
     "minLng": -122.6, "minLat": 37.6, "maxLng": -122.2, "maxLat": 37.9,
     "timeMin": "2024-07-01", "timeMax": "2024-07-01",
-    "columns": ["temp"]
+    "columns": ["hex", "temp"]
   },
   "children": [
     { "type": "sql-table", "props": { "sql": "SELECT * FROM {{h3_rows}} LIMIT 100" } }
@@ -144,24 +144,28 @@ One `GET /h3/query` (or any endpoint speaking its parameters), its Parquet resul
 }
 ```
 
-- `name` is what readers reference (`{{h3_rows}}`), not the node name. `path` is required (the indexed folder; `endpoint` optional, default `/h3/query`).
-- At most one spatial selector: `cell`, `lat`+`lng`, the four bbox edges, or `hexMin`+`hexMax`; none reads the whole dataset. Every string or number prop accepts `$param`, and the query re-runs when one changes.
+- `name` is what readers reference (`{{h3_rows}}`), not the node name.
+- `path` (required): the indexed dataset, sent as `path=`. `endpoint` (optional): where the query goes, default `/h3/query` on the current server; a full URL elsewhere gets no token.
+- `columns` lists every column returned: include `hex` when a map draws the rows.
+- At most one spatial selector: `cell`, `lat`+`lng`, the four bbox edges, or `hexMin`+`hexMax`; none reads the whole dataset.
+- Every string or number prop accepts `$param` (`"timeMin": "$date"`); the query waits until it is set and re-runs when it changes. Params come from the same node or a node with an edge into it. `"columns": "$cols"` takes an array or a comma-separated string, so a dropdown value like `"hex,t2m_max"` picks the variable.
+- To follow a map's view, split its `param` bounds into four params: `html-template-nodes` skill, "Map with a custom chart", which is also the runnable `h3-query` canvas.
 - The whole result stays in browser memory (`maxPages`, default 16, caps it). For large or pan-aware data use a `fused-map` `fused-hex` layer instead.
 - No UDF runs; no `visible = true` requirement; `fused workbench canvas validate` may flag `{{name}}` as unknown (see `sql-runner`).
 
 ## `fused-map`: a layer from a canvas SQL source (`data: "{{name}}"`)
 
-A layer can draw the rows a canvas SQL source already holds (an `h3-query` or `sql-runner` widget's `name`) instead of running a UDF:
+A layer can draw the rows a canvas SQL source already holds instead of running a UDF:
 
 ```json
 { "id": "hex", "type": "h3", "h3Column": "hex", "data": "{{h3_rows}}",
   "style": { "fillColor": { "type": "continuous", "attr": "temp" } } }
 ```
 
-- Edge: from the node holding the `h3-query` / `sql-runner` to the map's node (`["h3_query_node", "map_node"]` in `canvas.toml`). The workbench draws it automatically when it sees the `data` reference, as for `{{udf}}`.
-- `data` is otherwise inline GeoJSON; `udf` still means "run this UDF". `sql` may be added on top (`{{source}}` or `{{h3_rows}}` reads the rows). Row layers only (`geojson`, `h3`, `scatterplot`, `heatmap`, `arc`, or `type` omitted to detect from the rows); not with `tile`, `udf` or `tileUrl`, nor on `raster`, `mvt`, `fused-hex`.
-- The data is the widget's fixed query: no refetch on pan or zoom. Column names must match what the layer reads (`h3Column`, colour `attr`s).
-- A layer with no `data`, `sql`, `udf` or `tileUrl` is listed with an error and never drawn.
+- `{{name}}` is an `h3-query` or `sql-runner` widget's `name`, or another map's layer id. The layer draws its rows as they are and draws again when the source is published again; panning does not refetch.
+- Edge: from the publishing node to the map's node. The workbench adds it for an `h3-query` or `sql-runner` name; add it yourself for another map's layer id.
+- `data` is otherwise inline GeoJSON. `sql` may be added on top (`{{source}}` or `{{h3_rows}}` reads the rows). Row layers only (`geojson`, `h3`, `scatterplot`, `heatmap`, `arc`, or `type` omitted); not with `tile`, `udf` or `tileUrl`, nor on `raster`, `mvt`, `fused-hex`.
+- A layer other than `fused-hex` with no `data`, `sql`, `udf` or `tileUrl` is an error and never drawn.
 
 ## Inputs driving a `fused-map` tile layer
 
@@ -191,76 +195,38 @@ To let viewers change a tile UDF's arguments, put the inputs and the map in one 
 - Give every input a `defaultValue`, so `$param` has a value on the first load.
 - The input's `param` name and the UDF argument name can be different (`band_index=$band`).
 - No `sql-runner` is needed: a `fused-map` layer's `udf` runs the UDF directly.
-- A tiled layer takes a `sql` too (`udf` with `tile: true`, or `fused-hex`): it runs on each tile as it loads, reading the tile's rows as `{{source}}` (a udf layer may also write its own `{{udf}}`). Use it for `WHERE`, computed columns and `GROUP BY` the cell column; the result must keep the cell column (`h3`, `fused-hex`) or the geometry (vector layers). `LIMIT`, `ORDER BY`, `USING SAMPLE` and other UDFs are not available per tile. `raster`, `mvt` and `tileUrl` layers take no `sql`.
+- A tiled layer takes a `sql` too (`udf` with `tile: true`, or `fused-hex`): one `SELECT` (a `WITH` is fine) over the rows of every tile in view, read as `{{source}}`. It runs again on pan, zoom or a `$param` change, without refetching tiles. The result must keep the cell column (`h3`, `fused-hex`) or the geometry (vector layers). `raster`, `mvt` and `tileUrl` layers take no `sql`.
 
   ```json
   {"id": "hot", "type": "fused-hex", "source": {"endpoint": "/retrieve/era5/daily/bbox", "dateMin": "2024-07-01", "dateMax": "2024-07-31", "variables": ["t2m_mean"]},
    "sql": "SELECT * FROM {{source}} WHERE t2m_mean > 300"}
   ```
 
-## `fused-map`: filters bound to params, box select, layers as SQL sources
+## `fused-map`: params it writes, filters bound to params, layers as SQL sources
 
-Validate the spec with `fused workbench --env <env> json-ui validate <file>` for the deployment you push to, and read `"valid"` in the output (the command exits 0 either way). If it rejects a `"$param"` filter bound or `selectParam`, that deployment does not support these features: tell the user and do not use them. For a complete map plus custom charts that filter each other, see the `html-template-nodes` skill, section "Cross-filtering a map with custom charts".
+Pages and widgets read these params with `fused.params` or `$param`; a page writes only `selectParam` back. All of them are used together in the `html-template-nodes` skill, section "Map with a custom chart". "Saved" means kept with the canvas and restored on reload.
 
-```json
-{
-  "type": "fused-map",
-  "props": {
-    "selectParam": "selected",
-    "selectKey": "id",
-    "layers": [{
-      "id": "listings", "type": "scatterplot", "udf": "{{airbnb_listings}}",
-      "latColumn": "lat", "lngColumn": "lng",
-      "filters": [
-        { "attr": "price", "type": "range", "min": "$p_min", "max": "$p_max" },
-        { "attr": "room_type", "type": "categories", "values": "$room_types" }
-      ]
-    }]
-  }
-}
-```
+- `param`: the view's `[west, south, east, north]`. Sent once when the map is ready, then on pans with `autoSend` (after `autoSendDebounceMs`, default 600). Saved.
+- `clickParam`: the clicked feature's properties, only the layer's `tooltip` fields when it lists them. Saved.
+- `hoverParam`: the same for the feature under the cursor, at most once per frame; removed when the cursor leaves every feature. Not saved.
+- `selectParam`: `{ layer, key, ids, count, bbox, mode, truncated }`. Shift+drag draws a box (`mode: "box"`; filter by `bbox`), shift+click toggles a feature (`"click"`, `bbox: null`; filter by `ids`), Escape or a plain click clears (`"none"`). `ids` are `selectKey` values (default: the cell column on hex layers, else `id`). Not saved. The page the map is in, or a node with an edge to or from it, can write it: `null` clears the box and the dimming, `{ bbox: [west, south, east, north] }` draws that box.
+- `stateParam`: layer overrides and the camera, `view: { centerLng, centerLat, zoom, bearing, pitch, width, height }` (`zoom` in 512 px Web Mercator tiles, `width` / `height` in CSS px): enough to project lng/lat to map pixels. `view` is written when a gesture ends and is absent until the first one. Saved.
+- `sourceParam`: `{ [layerId]: { version, loading, rows, error } }`. Re-query a layer when its `version` changes (`!==`, not `>`); `version` is 0 until the layer has rows. Not saved.
 
-**Filters bound to params.**
-
-- A range filter's `min` / `max` and a categories filter's `values` take a `"$param"` string in place of a literal. The map reads the param live and filters in the browser.
-- While the param is unset, that bound (or that categories filter) is off. A categories filter with an empty list keeps every feature.
-- Range bound values are numbers. A param holding `{min, max}` fills each bound that names it from the matching key; write `"min": "$price", "max": "$price"` to bind both to one param. A categories param holds an array.
-- Editing a bound filter in the map's sidebar writes the new value to the param, not into the spec, so everything reading the param follows. Removing a bound filter in the sidebar clears its params.
-- A feature whose `attr` is missing or null fails an active filter (SQL `BETWEEN` and `IN` drop nulls too).
-
-**Box select: `selectParam` and `selectKey`.**
-
-- `selectParam` names a param the map writes. Shift+drag draws a box and dims the map outside it. Shift+click toggles one feature. Escape or a plain click on the map clears.
-- `selectKey` is the property whose values go into `ids`. Default: the cell column (`h3Column`, else `hex`) on hex layers or rows that have one, else `id`. Set it when your id column has another name; without a matching property `ids` stays `[]`.
-- The value:
-
-  | Field | Box (shift+drag) | Shift+click | After clearing |
-  |---|---|---|---|
-  | `mode` | `"box"` | `"click"` | `"none"` |
-  | `bbox` | `[west, south, east, north]` | `null` | `null` |
-  | `ids` | `selectKey` values of the features the map picked in the box | the clicked features' values | `[]` |
-  | `count` | number of picked features | number of clicked features | `0` |
-  | `layer`, `key` | layer id, `selectKey` (`null` when the box picked nothing) | same | `null` |
-  | `truncated` | `false` | `false` | `false` |
-
-- Filter a box by `bbox`, not by `ids`: `ids` holds only the features the map picked and misses overlapping points.
-- The selection is session state: it is not saved with the canvas. On a share page it does go into the URL and from there into every UDF run (see `html-template-nodes`, Sharing).
+**Filters bound to params.** A range filter's `min` / `max` or a categories filter's `values` can be a `"$param"`: `{"attr": "temp", "type": "range", "min": "$lo", "max": "$hi"}`. The map applies it live in the browser. An unset param turns that bound (or that categories filter) off, a `{min, max}` param fills each bound that names it, and a categories list of `[]` keeps every feature. Editing a bound filter in the sidebar writes the param.
 
 **Layers as SQL sources: `{{layer_id}}`.**
 
-- Each layer of a `fused-map` on the page is a SQL source named by its `id`. Any SQL widget (`bar-chart`, `metric`, `sql-table`, …) and `fused.query` can `SELECT … FROM {{layer_id}}`.
-- Reach: the reading widget is in the map's node, or on a node with an edge from the map's node, or on a node with an edge from the layer's UDF.
-- A layer id equal to a UDF name shadows that UDF for every SQL widget and `fused.query` in reach. The sidebar's Add layer names a new layer after its UDF, so rename the layer when you also read the UDF itself.
-- Rows: for a `udf` layer without `tile`, the UDF's whole result, with neither the layer's `filters` nor its `sql` applied. For a tiled layer (`tile: true`, `fused-hex`), the rows of the tiles loaded now; they change as the view moves.
-- The source exists only while its map is on the page. A chart opened alone at `/share/<token>/<chart_node>` shows `'listings' is not connected via an edge`.
-- Until the layer has rows, SQL widgets show loading and `fused.query` rejects `not_ready`. A layer whose UDF failed stays in that state.
+- Each layer is a SQL source named by its `id`, for SQL widgets and `fused.query` in the map's node or page, on a node with an edge from the map's node, or on one with an edge from the layer's UDF. A layer id equal to a UDF name shadows that UDF.
+- A `udf` layer's source is the UDF's whole result. A cell-tiled layer's (`fused-hex`, or `h3` with `tile: true`) is every row of the tiles in view, one per cell per time step, typed as in the Parquet (a timestamp stays `TIMESTAMP`), with the cell column as a lowercase hex string; it is empty below the layer's `minZoom`. Both are read before the layer's `sql`, `filters` and `source.reduce`. Other tiled layers hold the tiles loaded.
+- Until a layer first has rows, SQL widgets show loading and `fused.query` rejects `not_ready`. After that a rebuild (pan, param change) keeps serving the previous rows. The source exists only while the map is mounted.
 - `fused workbench canvas validate` flags `{{layer_id}}` as an unknown node, as it does a `sql-runner` name; same workaround.
 
 ## Common conventions
 
 - `param` syncs a widget's value with a canvas parameter (or a form field when nested in `form`).
 - `sql` fields accept DuckDB queries with `{{source_name}}` and `$param_name` placeholders. Required output columns vary by widget: check the schema. To reuse one SQL result in several widgets, name it with a `sql-runner` and reference that name.
-- `$param` values render by type in any widget `sql`: a string is quoted, a number is written as is, an unset param becomes `''`. An array becomes `('a', 'b')` for `IN $list` (`IN ($list)` works too); an empty array becomes `(NULL)` and matches no rows. A `{min, max}` object becomes `min AND max` for `BETWEEN $range`; a missing bound becomes `-1e308` / `1e308`, so use it on numeric columns. Inside a quoted SQL string a `$param` is replaced by its raw text. `fused.query` renders `opts.params` the same way, except that a `$name` missing from `params` rejects (see `html-template-nodes`).
+- `$param` values render by type in any widget `sql`: a string is quoted, a number is written as is, an unset param becomes `''`. An array becomes `('a', 'b')` for `IN $list` (`IN ($list)` works too); an empty array becomes `(NULL)` and matches no rows. A `{min, max}` object becomes `min AND max` for `BETWEEN $range`; a missing bound becomes `-1e308` / `1e308`, so use it on numeric columns. Inside a quoted SQL string a `$param` is replaced by its raw text. `fused.query` renders `opts.params` the same way.
 - `style` is always a CSS string (`"padding: 8px; color: red"`), not an object.
 - Charts default `barColor`/`lineColor` to Fused lime yellow (`#E8FF59`).
 

@@ -7,36 +7,25 @@ skip = ["widget_refs"]
 
 [canvas]
 edges = [
-  ["airbnb_listings", "crossfilter"],
-  ["crossfilter", "room_chart"],
+  ["crossfilter", "kind_chart"],
 ]
 
 [[canvas.nodes]]
-udfName = "airbnb_listings"
-title = "Airbnb listings"
+udfName = "crossfilter"
+title = "NYC 311 cross-filter"
 visible = true
 x = 0
 y = 0
 zIndex = 1
-width = 700
-height = 500
+width = 1100
+height = 700
 
 [[canvas.nodes]]
-udfName = "crossfilter"
-title = "Cross-filter"
+udfName = "kind_chart"
+title = "Calls per type"
 visible = true
-x = 775
+x = 1175
 y = 0
 zIndex = 2
-width = 1300
-height = 760
-
-[[canvas.nodes]]
-udfName = "room_chart"
-title = "Room chart"
-visible = true
-x = 2150
-y = 0
-zIndex = 3
 width = 600
 height = 400

@@ -1,6 +1,6 @@
 # Showing a hex dataset on a map
 
-A hex dataset that is **indexed** can be drawn with the `fused-map` widget's `fused-hex` layer (tiles, pan-aware), or queried once by an `h3-query` widget and drawn from that result (`data: "{{name}}"`, fixed area), or read directly from the `/h3/query` endpoint by an HTML page that fetches its own data. For the widgets' other props, see the `json-ui-schemas` skill.
+A hex dataset that is **indexed** can be drawn with the `fused-map` widget's `fused-hex` layer (tiles, pan-aware), or queried by an `h3-query` widget and drawn from that result (`data: "{{name}}"`), or read directly from the `/h3/query` endpoint by an HTML page that fetches its own data. The `h3-query` widget, `data` layers, map params, filters and `{{layer_id}}` SQL are in the `json-ui-schemas` skill; a runnable `h3-query` plus map canvas, with the query following the map and a chart cross-filtering it, is in `html-template-nodes`, section "Map with a custom chart".
 
 ## End to end
 
@@ -39,7 +39,7 @@ A hex dataset that is **indexed** can be drawn with the `fused-map` widget's `fu
 - `source.variables` lists the columns to fetch. Left out, it is the attributes the style, tooltip and filters name.
 - `source.limit` and `source.maxRowGroups` cap each tile request. Raise them only for dense data.
 - `fillColor` is data-driven with `{"type": "continuous", "attr", "domain"?, "palette"?, "steps"?, "reverse"?, "nullColor"?}`, or `{"type": "categorical", "attr", "colors"?, "palette"?, "nullColor"?}`. Palette names are listed in `reference.md`/the CLI schema.
-- `sql` on the layer runs per tile on `{{source}}` and must keep the cell column. See `json-ui-schemas`.
+- `sql` on the layer runs before `reduce`; see `json-ui-schemas`.
 - `retrieve` endpoints (`/retrieve/era5/...`, `/retrieve/gridmet/bbox`) serve the published ERA5 and GridMET datasets instead. They need `dateMin` and `dateMax`; see `datasets.md`.
 
 ### Overview when zoomed out
@@ -50,7 +50,7 @@ Optional fields: `overview.minZoom` (the overview draws below the floor, default
 
 ## Calling `/h3/query` directly
 
-For an HTML widget or script that fetches its own data, call `GET /h3/query` on the Fused server with a bearer token (public `s3://` locations can be read anonymously).
+For an HTML widget or script that fetches its own data, call `GET <base>/server/v1/h3/query` (for example `https://www.fused.io/server/v1/h3/query`, or `https://unstable.fused.io/...` on unstable) with a bearer token (public `s3://` locations can be read anonymously).
 
 | Param | Meaning |
 |---|---|
@@ -79,23 +79,3 @@ Inside a UDF, `fused.h3.query` (see `SKILL.md`) wraps this. It only runs on a Fu
 - **Chunking is all or nothing for a path.** Appending a `chunk_res_offset` partition onto an unchunked output (or the reverse) is refused. Write a new output path and index that.
 - **Wrong column name.** `h3Column` must be the dataset's hex column, `fillColor.attr` and `timeColumn` must be real columns.
 - **Filtering by partition.** The layer's `source` has no partition filter field. Narrow by time with `dateMin`/`dateMax`, or by value with the layer `sql`. Partition filters are available when calling `/h3/query` directly.
-
-## One query, drawn as a layer (`h3-query` + `data`)
-
-When the area is fixed (a dashboard over one city, a `$param`-driven bbox) and the result fits in memory, query once with an `h3-query` widget and draw its rows; other widgets on the page can read the same `{{name}}` with no second request.
-
-```json
-{
-  "type": "h3-query",
-  "props": { "name": "h3_rows", "path": "s3://bucket/hex/stations/", "minLng": -122.6, "minLat": 37.6, "maxLng": -122.2, "maxLat": 37.9, "columns": ["temp"] },
-  "children": [{
-    "type": "fused-map",
-    "props": { "style": "height:100%", "layers": [{ "id": "hex", "type": "h3", "h3Column": "hex", "data": "{{h3_rows}}",
-      "style": { "fillColor": { "type": "continuous", "attr": "temp", "palette": "Viridis" } } }] }
-  }]
-}
-```
-
-- The map may also sit on another node: then it needs an edge from the `h3-query` node (the workbench adds it when it sees `data: "{{h3_rows}}"`).
-- No pan refetch: moving the map does not query again. Use `fused-hex` for that.
-- `h3Column` must be the dataset's hex column (`hex` for anything `fused.h3.partition` wrote).
