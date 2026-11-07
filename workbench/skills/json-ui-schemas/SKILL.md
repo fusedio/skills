@@ -126,7 +126,7 @@ A `sql-runner` names one SQL result. Its SQL can read several UDFs, and runners 
 
 ## `h3-query`: an indexed H3 dataset query as a named SQL source
 
-One `GET /h3/query` (or any endpoint speaking its parameters), its Parquet result landed in the browser's DuckDB and published as `{{name}}`, exactly like a `sql-runner` result. Readers: any SQL widget or `fused-map` in the same node (child or sibling), or on a node with an edge from this node.
+One `GET /h3/query` (or any endpoint speaking its parameters), its Parquet result landed in the browser's DuckDB and published as `{{name}}`, exactly like a `sql-runner` result. It shows nothing itself: put the rows on screen with a SQL widget (`sql-table`, a chart, `metric`) or a `fused-map` layer, and one `h3-query` can feed several. Readers: any SQL widget or `fused-map` in the same node (child or sibling), or on a node with an edge from this node.
 
 ```json
 {
@@ -198,8 +198,8 @@ To let viewers change a tile UDF's arguments, put the inputs and the map in one 
 - A tiled layer takes a `sql` too (`udf` with `tile: true`, or `fused-hex`): one `SELECT` (a `WITH` is fine) over the rows of every tile in view, read as `{{source}}`. It runs again on pan, zoom or a `$param` change, without refetching tiles. The result must keep the cell column (`h3`, `fused-hex`) or the geometry (vector layers). `raster`, `mvt` and `tileUrl` layers take no `sql`.
 
   ```json
-  {"id": "hot", "type": "fused-hex", "source": {"endpoint": "/retrieve/era5/daily/bbox", "dateMin": "2024-07-01", "dateMax": "2024-07-31", "variables": ["t2m_mean"]},
-   "sql": "SELECT * FROM {{source}} WHERE t2m_mean > 300"}
+  {"id": "hot", "type": "fused-hex", "h3Column": "hex", "source": {"path": "s3://bucket/hex/stations/", "timeColumn": "date", "variables": ["temp"]},
+   "sql": "SELECT * FROM {{source}} WHERE temp > 30"}
   ```
 
 ## `fused-map`: params it writes, filters bound to params, layers as SQL sources

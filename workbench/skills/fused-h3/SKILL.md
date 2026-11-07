@@ -1,6 +1,6 @@
 ---
 name: fused-h3
-description: Ingest data into H3 hex datasets and query them with the `fused.h3` API. Covers partitioning points, geometries, gridded rasters (ERA5-style) or tables that already carry an H3 column into hex-sorted Parquet as server-side runs, checking a large or messy Parquet folder first with `fused.h3.inspect`, registering the output with `fused.h3.index` (whole tree, some partition folders, a flat folder in file batches, or fanned out over several instances), and reading it back with `fused.h3.query` inside a UDF. Also covers the published ERA5 and GridMET hex datasets. Use when converting data to H3, building, adding to or redoing a hex dataset, following or retrying a partition/index run, querying one by point/bbox/cell/time/partition, or reading ERA5/GridMET weather by location. Also use when showing a hex dataset on a map or visualising it (the `fused-map` `fused-hex` layer, zoomed-out overviews, `chunk_res_offset`), or calling `/h3/query` directly from a widget or HTML page.
+description: Ingest data into H3 hex datasets and query them with the `fused.h3` API. Covers partitioning points, geometries, gridded rasters (ERA5-style) or tables that already carry an H3 column into hex-sorted Parquet as server-side runs, checking a large or messy Parquet folder first with `fused.h3.inspect`, registering the output with `fused.h3.index` (whole tree, some partition folders, a flat folder in file batches, or fanned out over several instances), and reading it back with `fused.h3.query` inside a UDF or `/h3/query` over HTTP. Use when converting data to H3, building, adding to or redoing a hex dataset, following or retrying a partition/index run, querying one by point/bbox/cell/time/partition, or calling `/h3/query` with curl, a script or an HTML page. Also use when showing a hex dataset on a map or visualising it (the `fused-map` `fused-hex` layer, zoomed-out overviews, `chunk_res_offset`).
 ---
 
 # H3 ingestion with `fused.h3`
@@ -16,9 +16,7 @@ The workflow is always:
 
 `partition` and `index` work from anywhere the `fused` SDK is authenticated: a notebook, a script, or a UDF. Nothing is read or uploaded from the calling machine. They send a description of the work to the Fused server and **return as soon as the run has started**. Call `run.tail()` to follow it to the end. `inspect` is the exception: it reads on your machine with your local credentials.
 
-For the published ERA5 and GridMET hex datasets (read-only, no ingestion needed), see [`datasets.md`](datasets.md).
-
-To show an indexed dataset on a map, or call `/h3/query` from a widget, see [`map.md`](map.md).
+To query an indexed dataset over HTTP (curl, a script, a web page), see [`http.md`](http.md). To show one on a map, see [`map.md`](map.md).
 
 ## Choosing how rows get a hex
 
@@ -105,7 +103,7 @@ run = fused.h3.partition(
 
 **Output layout:** `<output>/<col>=<value>/.../<file_res parent cell>.parquet` plus `<output>/_manifest.json`. Each file holds `hex` (uint64) and every input column, sorted by `hex` then `sort_by`. Point and geometry columns are kept.
 
-**Resolutions:** `0 <= file_res <= h3_res <= 15`. `file_res=1` (842 global parents) is what the ERA5/GridMET datasets use at res 7. For finer `h3_res` or regional data, raise `file_res` so each file holds a manageable number of rows.
+**Resolutions:** `0 <= file_res <= h3_res <= 15`. `file_res=1` (842 global parents) suits global data at res 7. For finer `h3_res` or regional data, raise `file_res` so each file holds a manageable number of rows.
 
 **`chunk_res_offset`:** every row group holds whole cells at `file_res + chunk_res_offset`, about `7**offset` row groups per file (3 gives about 343). Needs `file_res + chunk_res_offset <= h3_res`. It lets a map draw a zoomed-out overview of the values; see [`map.md`](map.md).
 
@@ -353,7 +351,7 @@ df = fused.h3.query(
 )
 ```
 
-- **Only runs inside a UDF on a Fused realtime or batch instance.** Called from a notebook or script it raises `RuntimeError`. Wrap it in a `@fused.udf` and `fused.run` that, or call `/h3/query` over HTTP (see [`map.md`](map.md)).
+- **Only runs inside a UDF on a Fused realtime or batch instance.** Called from a notebook or script it raises `RuntimeError`. Wrap it in a `@fused.udf` and `fused.run` that, or call `/h3/query` over HTTP (see [`http.md`](http.md)).
 - Reads your team's index of `path`, else the public one. The server returns a read plan and the rows are read in the calling process.
 - Give at most one spatial selector; none returns everything. A bbox keeps rows whose cell centre is inside, so the edge is accurate to one cell.
 - Date partitions match by overlap (`"2050-01"` matches every day in that month). A `partition_range` on the time column also narrows the time window.
@@ -368,6 +366,8 @@ df = fused.h3.query(
 
 Other management calls: `fused.h3.indexed_files(path, *, prefix=None)` (iterator of indexed file paths) and `fused.h3.delete_index(path, *, prefix=None)`. These two still take `prefix=` (a folder under `path`, or a list for `delete_index`), not `subset=`. With `prefix`, `delete_index` drops only the index under those folders. The data files are never touched.
 
+Every `fused.h3` function and argument: [API reference](https://docs.fused.io/python-sdk/api-reference/h3).
+
 ## Older APIs
 
 These are still exported but write a different layout (no `_manifest.json`, extra `_sample`/`_overview` files). Build new datasets with `partition`; reach for these only when maintaining a dataset built with them:
@@ -375,5 +375,3 @@ These are still exported but write a different layout (no `_manifest.json`, extr
 - `fused.h3.run_ingest_raster_to_h3(input_path, output_path, metrics="cnt", res=None, ...)`: GeoTIFF → hex with `_sample` and `_overview/` files, run as distributed jobs.
 - `fused.h3.run_partition_to_h3(...)`: re-partitions data that already has a `hex` column, in the same layout.
 - `fused.h3.read_hex_table(dataset_path, hex_ranges_list, ...)` and `persist_hex_table_metadata` / `read_hex_table_with_persisted_metadata`: range reads over those datasets.
-
-docs.fused.io's H3 pages ("Converting to H3", `fused.h3` reference) describe only these older APIs.
