@@ -218,8 +218,8 @@ Pages and widgets read these params with `fused.params` or `$param`; a page writ
 **Layers as SQL sources: `{{layer_id}}`.**
 
 - Each layer is a SQL source named by its `id`, for SQL widgets and `fused.query` in the map's node or page, on a node with an edge from the map's node, or on one with an edge from the layer's UDF. A layer id equal to a UDF name shadows that UDF.
-- A `udf` layer's source is the UDF's whole result. A cell-tiled layer's (`fused-hex`, or `h3` with `tile: true`) is every row of the tiles in view, one per cell per time step, typed as in the Parquet (a timestamp stays `TIMESTAMP`), with the cell column as a lowercase hex string; it is empty below the layer's `minZoom`. Both are read before the layer's `sql`, `filters` and `source.reduce`. Other tiled layers hold the tiles loaded.
-- Until a layer first has rows, SQL widgets show loading and `fused.query` rejects `not_ready`. After that a rebuild (pan, param change) keeps serving the previous rows. The source exists only while the map is mounted.
+- A `udf` layer's source is the UDF's whole result. A cell-tiled layer's (`fused-hex`, or `h3` with `tile: true`) is every row of the tiles in view, one per cell per time step, typed as in the Parquet (a timestamp stays `TIMESTAMP`), with the cell column as a lowercase hex string; it is empty below the layer's `minZoom`. Both are read before the layer's `sql`, `filters` and `source.reduce`. A `data: "{{name}}"` layer's source is that source itself: same rows, column types, loading state and errors, read before the layer's `sql`. Other tiled layers hold the tiles loaded.
+- Until a layer first has rows, SQL widgets show loading and `fused.query` rejects `not_ready`. After that a rebuild (pan, param change) keeps serving the previous rows; a `data` layer follows its source, and an `h3-query` keeps serving its previous rows while it fetches again. The source exists only while the map is mounted.
 - `fused workbench canvas validate` flags `{{layer_id}}` as an unknown node, as it does a `sql-runner` name; same workaround.
 
 ## Common conventions
