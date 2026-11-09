@@ -20,7 +20,7 @@
       "stateParam": "map_state", "sourceParam": "sources",
       "layers": [{
         "id": "calls", "type": "h3", "h3Column": "hex", "data": "{{nyc311}}",
-        "sql": "SELECT hex, unique_key, created_date, hour(created_date) AS hour, complaint_type, latitude, longitude FROM {{source}}",
+        "sql": "SELECT hex, unique_key, created_date, hour(created_date) AS hour, complaint_type FROM {{source}}",
         "tooltip": ["complaint_type", "created_date"],
         "filters": [{ "attr": "hour", "type": "range", "min": "$lo", "max": "$hi" }],
         "style": { "fillColor": { "type": "continuous", "attr": "hour", "palette": "Sunset" }, "opacity": 0.7 }
