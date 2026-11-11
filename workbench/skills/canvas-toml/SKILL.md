@@ -5,17 +5,19 @@ description: Format reference for `canvas.toml` files that define a Fused canvas
 
 # Fused canvas folder + `canvas.toml`
 
+Blocks that start with `<!-- fused-render:only` apply only inside a fused-render canvas clone and are unwrapped there; ignore them elsewhere.
+
 <!-- fused-render:strip -->
 > **CLI version:** commands below are written `fused workbench …` (only the 2.9.2b0+ pre-releases have this namespace; released versions such as 2.9.1 and 2.9.3 don't). If `fused workbench` fails with `No such command 'workbench'`, drop the word `workbench` — e.g. `fused canvas push`. See `fused-workbench-cli`.
 <!-- /fused-render:strip -->
-<!-- fused-render:only
+<!-- fused-render:only (this block applies only inside a fused-render canvas clone; ignore it anywhere else)
 > **CLI version:** commands below are written `fused workbench …` (only the 2.9.2b0+ pre-releases have this namespace; released versions such as 2.9.1 and 2.9.3 don't). If `fused workbench` fails with `No such command 'workbench'`, drop the word `workbench` — e.g. `fused canvas validate .`. See `fused-workbench-cli`.
 -->
 
 <!-- fused-render:strip -->
 A Fused canvas stored in git is a folder containing one `canvas.toml` plus per-UDF source files. Push to the connected repo and Fused picks up the changes automatically.
 <!-- /fused-render:strip -->
-<!-- fused-render:only
+<!-- fused-render:only (this block applies only inside a fused-render canvas clone; ignore it anywhere else)
 A Fused canvas is a folder containing one `canvas.toml` plus per-UDF source files.
 
 > **This folder is a live canvas clone.** fused-render keeps it in sync with the canvas on the server. Never run `fused workbench canvas pull` or `fused workbench canvas push` here (nor `pull --force`, `--no-validate` or `--no-ignore`): they are refused.
@@ -45,7 +47,7 @@ my_canvas/
 -- HTML files: consult the `html-template-nodes` skill. The file is stored verbatim (plain HTML/CSS/JS, no Python wrapper); the workbench renders it in a sandboxed iframe with `window.fused` and `$param` / `{{udf}}` substitution.
 - `_shared.fused` — omit ⇒ private (author only). Empty file ⇒ team. Set `access_scope = "public"` for public. Set `token = "<value>"` to control the URL slug. This file is honoured on the git-repo sync path; **`fused workbench canvas push` does not apply it** (a pushed canvas stays at its current scope, `team` for a new one) — change the scope in the Workbench share dialog instead.
 <!-- /fused-render:strip -->
-<!-- fused-render:only
+<!-- fused-render:only (this block applies only inside a fused-render canvas clone; ignore it anywhere else)
 - `<name>.py` / `.json` / `.md` / `.html` — source for a node; the **stem must match a node's `udfName`**. The node kind is inferred from the extension (`.py` Python UDF, `.json` JSON-UI widget, `.md` text box, `.html` HTML template node) — there is no `type` key for these in `canvas.toml`.
 -- File name stems must be unique in a canvas. The following is OK: `abc.json`, `def.py`. The following will NOT work: `abc.json`, `abc.py`. **The server error for this is misleading** — it says "A UDF with one of those slugs already exists in this collection", which sounds like a cross-canvas naming collision. It's actually caused by the same-stem conflict in your local folder. Fix: delete one of the conflicting files; the folder publishes again on its own.
 -- JSON-UI files: consult the `json-ui-schemas` skill for how to write, validate, and debug them. They contain JSON5.
@@ -280,7 +282,7 @@ The worker UDF must include the item identifier as a column in its output — af
 - UDFs can call each other via `fused.load("<udfName>")`. For multiprocessing, split into a new UDF.
 - Before pushing, run `fused workbench canvas validate ./my_canvas` (push runs it too; `--no-validate` skips). It checks every node has a source file, every edge endpoint is a node, orphaned files, widget JSON parse, `{{ref}}` names inside `.json` widgets, and widget `param` names against connected UDF signatures. Suppress a check with `--skip <check>` or a `[validate] skip = ["orphaned_files"]` table in `canvas.toml`.
 <!-- /fused-render:strip -->
-<!-- fused-render:only
+<!-- fused-render:only (this block applies only inside a fused-render canvas clone; ignore it anywhere else)
 - Ephemeral UI state (selection, sidebar) is **not** stored — only nodes, edges, viewport.
 - When adding a node: create the `.py` / `.json` / `.md` / `.html` file **and** add a matching `[[canvas.nodes]]` entry with the same stem, plus the edges it needs.
 - When removing a node: delete its source file(s) **and** its node entry, plus any `edges` referencing it.
@@ -299,7 +301,7 @@ The correct testing approach:
 
 Running by name resolves the UDF from the server with full canvas context, so `fused.load("other_udf")` inside it can find its sibling.
 <!-- /fused-render:strip -->
-<!-- fused-render:only
+<!-- fused-render:only (this block applies only inside a fused-render canvas clone; ignore it anywhere else)
 Test the UDF by name instead: `fused.load("my_udf")()` or `fused workbench run <canvas> my_udf`. Running by name resolves the UDF from the server with full canvas context, so `fused.load("other_udf")` inside it can find its sibling. The server has your edit once the folder has gone quiet and published itself.
 -->
 
@@ -308,7 +310,7 @@ Test the UDF by name instead: `fused.load("my_udf")()` or `fused workbench run <
 <!-- fused-render:strip -->
 Canvas names (used in `fused workbench canvas push --canvas` and the URL slug) must contain **only letters, numbers, and underscores** — spaces and hyphens are rejected with a 422 error. Use the optional `name` field in `canvas.toml` for a human-readable display name; it is separate from the URL slug.
 <!-- /fused-render:strip -->
-<!-- fused-render:only
+<!-- fused-render:only (this block applies only inside a fused-render canvas clone; ignore it anywhere else)
 This folder is already bound to its canvas, so the canvas name (the URL slug) is fixed. Slugs contain **only letters, numbers, and underscores**. Use the optional `name` field in `canvas.toml` for a human-readable display name; it is separate from the URL slug.
 -->
 

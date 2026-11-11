@@ -8,7 +8,7 @@ description: Use when a Fused canvas.toml contains (or needs) a [[canvas.comment
 <!-- fused-render:strip -->
 > **CLI version:** commands below are written `fused workbench …` (only the 2.9.2b0+ pre-releases have this namespace; released versions such as 2.9.1 and 2.9.3 don't). If `fused workbench` fails with `No such command 'workbench'`, drop the word `workbench` — e.g. `fused canvas push`. See `fused-workbench-cli`.
 <!-- /fused-render:strip -->
-<!-- fused-render:only
+<!-- fused-render:only (this block applies only inside a fused-render canvas clone; ignore it anywhere else)
 > **CLI version:** commands below are written `fused workbench …` (only the 2.9.2b0+ pre-releases have this namespace; released versions such as 2.9.1 and 2.9.3 don't). If `fused workbench` fails with `No such command 'workbench'`, drop the word `workbench` — e.g. `fused canvas validate .`. See `fused-workbench-cli`.
 -->
 
@@ -17,7 +17,7 @@ Pinned comment threads on a Fused canvas serialize as `[[canvas.comments]]` bloc
 Top-level `[[comments]]` blocks are silently dropped by `canvas push`.
 If `[canvas]` has `comments = []`, delete that line first: both in one file fail to parse ("duplicate key").
 <!-- /fused-render:strip -->
-<!-- fused-render:only
+<!-- fused-render:only (this block applies only inside a fused-render canvas clone; ignore it anywhere else)
 Pinned comment threads on a Fused canvas serialize as `[[canvas.comments]]` blocks in `canvas.toml`.
 Top-level `[[comments]]` blocks are silently dropped when the canvas publishes.
 If `[canvas]` has `comments = []`, delete that line first: both in one file fail to parse ("duplicate key").
@@ -32,7 +32,7 @@ Comments with `status = "open"` are your work queue; resolving one is a three-fi
 2. Every `[[canvas.comments]]` block where `status = "open"` is an actionable request.
 3. `anchor_udf = "<udfName>"` tells you WHICH node it's about — the fix belongs in `<udfName>.py` (or `.json`/`.md`/`.html` with that stem). No `anchor_udf` ⇒ canvas-level comment; read `content` for scope.
 <!-- /fused-render:strip -->
-<!-- fused-render:only
+<!-- fused-render:only (this block applies only inside a fused-render canvas clone; ignore it anywhere else)
 1. The canvas is this folder: read its `canvas.toml`.
 2. Every `[[canvas.comments]]` block where `status = "open"` is an actionable request.
 3. `anchor_udf = "<udfName>"` tells you WHICH node it's about — the fix belongs in `<udfName>.py` (or `.json`/`.md`/`.html` with that stem). No `anchor_udf` ⇒ canvas-level comment; read `content` for scope.
@@ -96,7 +96,7 @@ fused workbench canvas validate <dir>        # structure check
 fused workbench canvas push <dir> --canvas <name>
 ```
 <!-- /fused-render:strip -->
-<!-- fused-render:only
+<!-- fused-render:only (this block applies only inside a fused-render canvas clone; ignore it anywhere else)
 ## Verify
 
 ```bash

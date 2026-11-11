@@ -5,10 +5,12 @@ description: Reference for the legacy Fused Python SDK command line interface, n
 
 # Fused CLI (workbench)
 
+Blocks that start with `<!-- fused-render:only` apply only inside a fused-render canvas clone and are unwrapped there; ignore them elsewhere.
+
 <!-- fused-render:strip -->
 > **Namespace note:** The Fused repo was consolidated with OpenFused. The bare `fused` command is now the OpenFused agent toolkit; the legacy proprietary SDK CLI documented here lives under **`fused workbench`** (e.g. `fused workbench canvas push`, `fused workbench run`). The package and install command are unchanged (`uv tool install 'fused[vector]'`). For the new top-level toolkit, see the `agent-core` plugin's `fused-cli` skill.
 <!-- /fused-render:strip -->
-<!-- fused-render:only
+<!-- fused-render:only (this block applies only inside a fused-render canvas clone; ignore it anywhere else)
 > **Namespace note:** The Fused repo was consolidated with OpenFused. The bare `fused` command is now the OpenFused agent toolkit; the legacy proprietary SDK CLI documented here lives under **`fused workbench`** (e.g. `fused workbench canvas validate`, `fused workbench run`). The package and install command are unchanged (`uv tool install 'fused[vector]'`). For the new top-level toolkit, see the `agent-core` plugin's `fused-cli` skill.
 -->
 
@@ -19,7 +21,7 @@ description: Reference for the legacy Fused Python SDK command line interface, n
 <!-- fused-render:strip -->
 The `workbench` namespace only exists in the 2.9.2b0+ pre-releases. Released versions (2.9.1, 2.9.3, and so on) don't have it and use the same commands **without** `workbench`: `fused canvas push`, `fused run`, `fused claude plugin add`, and so on. Everything below is written with `fused workbench …`; run `fused workbench --help` once, and if it fails with `No such command 'workbench'`, drop the word `workbench` from every command in this and the other workbench skills. That is the expected result on a released version, not a broken install: don't reinstall or upgrade fused to get the namespace. Note that `codex` / `copilot` plugin subcommands may be missing too; if so, use the agent's own CLI as described under **Session start**.
 <!-- /fused-render:strip -->
-<!-- fused-render:only
+<!-- fused-render:only (this block applies only inside a fused-render canvas clone; ignore it anywhere else)
 The `workbench` namespace only exists in the 2.9.2b0+ pre-releases. Released versions (2.9.1, 2.9.3, and so on) don't have it and use the same commands **without** `workbench`: `fused canvas validate`, `fused run`, `fused claude plugin add`, and so on. Everything below is written with `fused workbench …`; run `fused workbench --help` once, and if it fails with `No such command 'workbench'`, drop the word `workbench` from every command in this and the other workbench skills. That is the expected result on a released version, not a broken install: don't reinstall or upgrade fused to get the namespace. Note that `codex` / `copilot` plugin subcommands may be missing too; if so, use the agent's own CLI as described under **Session start**.
 -->
 
@@ -72,7 +74,7 @@ On Windows the same rules apply, with a few differences:
 - `--env TEXT` (env: `FUSED_ENV`): `prod`, `stg`, `unstable`, `dev`, a dev PR number, or a base URL. Put it right after `workbench`: `fused workbench --env unstable canvas push ./my_canvas --canvas my_canvas`. `fused --env ...` before `workbench` is a different flag and leaves the command on the default environment. When the target is the `base_url` that `~/.fused/settings.toml` sets explicitly, that file's `[auth]` is kept; any other target uses the default Fused sign-in.
 - `--format [json|text]` (env: `FUSED_CLI_FORMAT`) — set to `json` for machine-readable output
 <!-- /fused-render:strip -->
-<!-- fused-render:only
+<!-- fused-render:only (this block applies only inside a fused-render canvas clone; ignore it anywhere else)
 - `--env TEXT` (env: `FUSED_ENV`): `prod`, `stg`, `unstable`, `dev`, a dev PR number, or a base URL. Put it right after `workbench`: `fused workbench --env unstable run my_canvas my_udf`. `fused --env ...` before `workbench` is a different flag and leaves the command on the default environment. When the target is the `base_url` that `~/.fused/settings.toml` sets explicitly, that file's `[auth]` is kept; any other target uses the default Fused sign-in.
 - `--format [json|text]` (env: `FUSED_CLI_FORMAT`) — set to `json` for machine-readable output
 -->
@@ -118,7 +120,7 @@ Most canvas subcommands take a `CANVAS_REF` (name or ID) plus:
 | `unshare CANVAS_REF` | `--id` |
 | `serve-mcp CANVAS_REF` | `--token` (treat ref as `fc_…` share token), `--team`, `--id`, `--host TEXT` (default `127.0.0.1`), `--port INTEGER` (default `8765`), `--path TEXT` (default `/mcp`), `--claude` (register with Claude Code via `claude` CLI) — serves the shared canvas's OpenAPI as a local MCP server. The canvas must be shared first (`fused workbench canvas share <ref>`) |
 <!-- /fused-render:strip -->
-<!-- fused-render:only
+<!-- fused-render:only (this block applies only inside a fused-render canvas clone; ignore it anywhere else)
 > **This folder is a live canvas clone.** fused-render keeps it in sync with the canvas on the server. Never run `fused workbench canvas pull` or `fused workbench canvas push` here (nor `pull --force`, `--no-validate` or `--no-ignore`): they are refused.
 >
 > - Edit the files. The canvas publishes itself when your turn ends and whenever the folder goes quiet.
@@ -150,7 +152,7 @@ fused workbench canvas push ./fused-canvas --canvas feedback_pipeline
 
 If you're unsure of the remote canvas name, run `fused workbench canvas list` first.
 <!-- /fused-render:strip -->
-<!-- fused-render:only
+<!-- fused-render:only (this block applies only inside a fused-render canvas clone; ignore it anywhere else)
 - To check a change, use the `canvas_screenshot` tool for JSON UI nodes and HTML template nodes, and `fused workbench run` for UDFs. A by-name run uses the published version, which catches up once the folder goes quiet; pass the local `.py` path to run exactly what is on disk.
 -->
 
@@ -167,7 +169,7 @@ Once pulled, the output directory contains:
 - `canvas.toml` — nodes, edges, viewport (see the `canvas-toml` skill for the full format)
 - `*.py` / `*.json` / `*.md` / `*.html` — one source file per node: Python UDF, JSON-UI widget, text box, HTML template node (see `html-template-nodes`)
 <!-- /fused-render:strip -->
-<!-- fused-render:only
+<!-- fused-render:only (this block applies only inside a fused-render canvas clone; ignore it anywhere else)
 In a canvas clone the canvas is already this folder; read the files directly:
 - `canvas.toml` — nodes, edges, viewport (see the `canvas-toml` skill for the full format)
 - `*.py` / `*.json` / `*.md` / `*.html` — one source file per node: Python UDF, JSON-UI widget, text box, HTML template node (see `html-template-nodes`)
@@ -185,7 +187,7 @@ To inspect a single UDF's parameters without pulling the full canvas, use `fused
 | Running `fused workbench run` on each UDF to understand what it does | Executes UDFs remotely — slow and consumes compute | Read the `.py` source files after pulling |
 | `fused workbench canvas list` to see canvas structure | Only shows metadata (name, ID) — not nodes or UDF content | Pull the canvas and read `canvas.toml` |
 <!-- /fused-render:strip -->
-<!-- fused-render:only
+<!-- fused-render:only (this block applies only inside a fused-render canvas clone; ignore it anywhere else)
 | Avoid | Why | Instead |
 | --- | --- | --- |
 | `fused workbench canvas export` to inspect this canvas | Downloads a zip of what this folder already holds | Read the files in this folder |
@@ -248,7 +250,7 @@ Both `/canvas/<token>` and `/share/<token>/<name>` render without login once pub
 <!-- fused-render:strip -->
 **Debugging flow:** edit the widget JSON → `fused workbench json-ui validate <file>` → push → `fused workbench json-ui run-shared-widget <share-token> <widget-name> --screenshot-filename out.png` to confirm it renders. Use `run-inline-widget` when iterating on a widget that hasn't been committed yet. For an HTML template node there is no `validate` step (it is plain HTML): push → `run-shared-widget <token> <html_node> --wait 5 --screenshot-filename out.png`; `run-inline-widget <token> '{"type":"html","props":{"value":"..."}}'` renders an HTML snippet through the JSON-UI `html` widget with the same `window.fused` bridge.
 <!-- /fused-render:strip -->
-<!-- fused-render:only
+<!-- fused-render:only (this block applies only inside a fused-render canvas clone; ignore it anywhere else)
 **Debugging flow:** edit the widget JSON → `fused workbench json-ui validate <file>` → the `canvas_screenshot` tool to confirm it renders. For an HTML template node there is no `validate` step (it is plain HTML): edit → `canvas_screenshot`. There is no push step: the canvas publishes itself.
 -->
 
@@ -380,7 +382,7 @@ Use this to introspect parameters before calling `fused workbench run` with `--<
 - When appropriate, give the user the URL to the created canvas so they can open it in their browser and see the result.
 - **Prefer the CLI for debugging.** Before asking the user to open the canvas UI to check a change, try to reproduce locally: `fused workbench run` for UDFs, `fused workbench json-ui validate` / `run-shared-widget` for widgets, `fused workbench canvas pull --dry-run` to inspect what changed remotely. This catches most issues without a round trip.
 <!-- /fused-render:strip -->
-<!-- fused-render:only
+<!-- fused-render:only (this block applies only inside a fused-render canvas clone; ignore it anywhere else)
 - If the CLI lives in a project venv, prefix with `uv run` so the right environment is used.
 - For machine-readable output in scripts, pass `--format json`.
 - Run `fused workbench <command> --help` to confirm flags before scripting — this reference may lag the CLI.

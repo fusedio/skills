@@ -8,7 +8,7 @@ description: Comprehensive guide for writing Fused User Defined Functions (UDFs)
 <!-- fused-render:strip -->
 > **CLI version:** commands below are written `fused workbench …` (only the 2.9.2b0+ pre-releases have this namespace; released versions such as 2.9.1 and 2.9.3 don't). If `fused workbench` fails with `No such command 'workbench'`, drop the word `workbench` — e.g. `fused canvas push`. See `fused-workbench-cli`.
 <!-- /fused-render:strip -->
-<!-- fused-render:only
+<!-- fused-render:only (this block applies only inside a fused-render canvas clone; ignore it anywhere else)
 > **CLI version:** commands below are written `fused workbench …` (only the 2.9.2b0+ pre-releases have this namespace; released versions such as 2.9.1 and 2.9.3 don't). If `fused workbench` fails with `No such command 'workbench'`, drop the word `workbench` — e.g. `fused canvas validate .`. See `fused-workbench-cli`.
 -->
 
@@ -437,7 +437,7 @@ fused workbench run CANVAS_NAME udf_name --profile
 > fused workbench run my_canvas ./my_canvas/my_udf.py --param=value
 > ```
 <!-- /fused-render:strip -->
-<!-- fused-render:only
+<!-- fused-render:only (this block applies only inside a fused-render canvas clone; ignore it anywhere else)
 > **`fused workbench run` executes the published remote version, not your local files.** In a canvas clone the folder publishes itself whenever it goes quiet and when your turn ends, so a run right after an edit can still return the previous version. Never run `fused workbench canvas push` here, it is refused. To run exactly what is on disk, pass the local `.py` file, but note that `fused.secrets` and `fused.api` integrations are only available in the remote runtime:
 >
 > ```bash
