@@ -7,10 +7,10 @@ description: Ingest data into H3 hex datasets and query them with the `fused.h3`
 
 `fused.h3` turns tabular data into a **hex dataset**: Parquet files sorted by a uint64 `hex` column, one file per coarse parent cell, described by a `_manifest.json`. Once **indexed**, the dataset is queryable by point, bbox, cell, time and partition values without scanning every file.
 
-The workflow is:
+The workflow is always:
 
 1. **Source**: describe the input with `fused.h3.sources.parquet`, `.era5` or `.udf` (or pass a cloud Parquet path). For a big folder of Parquet, run `fused.h3.inspect(path)` first.
-2. **Partition**: `fused.h3.partition(...)` starts a server-side run that writes the hex dataset and returns a `Run`. Skip it when the data is already Parquet with an integer H3 column at one resolution: index that folder directly with `hex_column=` set to the column.
+2. **Partition**: `fused.h3.partition(...)` starts a server-side run that writes the hex dataset and returns a `Run`.
 3. **Index**: `fused.h3.index(path, ...)` starts a server-side run that registers it and returns a `TaskRun`.
 4. **Query**: `fused.h3.query(path, ...)` returns a DataFrame. It only runs inside a UDF on Fused.
 
@@ -363,7 +363,6 @@ df = fused.h3.query(
 | 404 | path was never indexed |
 | 409 | index not ready yet (poll `index_status`), a data file changed since indexing (re-run `index`), or re-indexed mid-query (run it again) |
 | 400 | two selectors, `lat` without `lng`, time bounds on a timeless location, or a `partition`/`partition_range` naming a non-partition column or an ill-typed value |
-| 403 | HTTP only: no token, and `path` is not a public `s3://` dataset |
 | 422 | HTTP only: a name in `columns` is missing from the indexed files. `fused.h3.query` raises `ColumnsMissing` instead. |
 
 `fused.h3.query` raises these as `requests.HTTPError`, whose message does not include the code: read `e.response.status_code`.

@@ -19,10 +19,9 @@ duckdb.sql("SELECT complaint_type, count(*) AS n FROM 'rows.parquet' GROUP BY 1 
 ```
 
 - `path` must be written exactly as it was passed to `fused.h3.index`, trailing slash included or not.
-- The host is your environment's server; `https://www.fused.io/server/v1` is production. Inside a UDF, it is `fused.options.base_url`.
 - Give at most one spatial selector (here a bbox). Time bounds only work on a dataset indexed with a time column.
 - HTTP also takes a polygon selector, which `fused.h3.query` does not: `polygon` (GeoJSON `Polygon` or `MultiPolygon`, as a JSON string) or `polygon_wkt` (WKT). `contain` (`center`, the default, `full` or `overlap`) picks which cells a bbox or polygon keeps, and `k` (0 to 25) adds every cell within `k` steps. A polygon too long for a URL goes in a JSON body to `POST /h3/query`, with the same parameter names.
-- For your team's datasets, add `-H "Authorization: Bearer $TOKEN"` (inside a UDF, the token is `fused.api.access_token()`). Without a token, only a public `s3://` dataset can be read; anything else is a 403.
+- For your team's datasets, add `-H "Authorization: Bearer $TOKEN"`. Without a token, only a public `s3://` dataset can be read.
 - A big result comes back in pages: while the response has an `X-Fused-Next-Cursor` header, repeat the request with `cursor=<that value>`. `max_row_groups` (1 to 4,096, default 1,024) sets the page size.
 - In a browser page, `fetch` the same URL and decode the body with a Parquet reader (hyparquet, parquet-wasm).
 
