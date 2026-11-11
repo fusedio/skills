@@ -411,7 +411,7 @@ fused workbench run CANVAS_NAME udf_name --cache-max-age=0
 fused workbench run CANVAS_NAME udf_name --profile
 ```
 
-**What counts as passing:** any non-error return. An empty `{}` or `None` is fine if the data source isn't populated yet — what matters is no exception. If the UDF has a `date` or `id` parameter, test with a real value that should have data.
+**What counts as passing:** no exception, and the values you expect. The CLI prints a truncated DataFrame (middle rows and columns elided), so to check values return a few scalar columns or `df.to_csv()`. An empty `{}` or `None` is fine if the data source isn't populated yet. If the UDF has a `date` or `id` parameter, test with a real value that should have data.
 
 **Start with a smoke test.** When writing a new UDF — especially one that connects to an external service — verify the connection returns data before building the full logic. This separates "can I connect?" from "does my logic work?", and makes failures much easier to diagnose.
 

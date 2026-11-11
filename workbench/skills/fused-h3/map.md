@@ -4,7 +4,7 @@ A hex dataset that is **indexed** can be drawn with the `fused-map` widget's `fu
 
 ## End to end
 
-1. **Partition** with `fused.h3.partition(...)` (see `SKILL.md`). Add `chunk_res_offset=3` (about 343 row groups per file; `file_res + chunk_res_offset <= h3_res`) when the map should show a zoomed-out overview of the *values*, not just where files are. It aligns every row group to a parent cell, so the server can summarise each cell cheaply. Without it the overview can only outline files. The cost is more row groups, a bigger footer and more requests, so skip it for small datasets.
+1. **Partition** with `fused.h3.partition(...)` (see `SKILL.md`). Add `chunk_res_offset=3` (about 343 row groups per file; `file_res + chunk_res_offset <= h3_res`) when the zoomed-out overview should draw a finer grid than one cell per file. It aligns every row group to a parent cell, so the overview can draw one cell per chunk. Without it the overview draws one cell per file. The cost is more row groups, a bigger footer and more requests, so skip it for small datasets.
 2. **Index** with `fused.h3.index(path, ...)` and wait for `run.tail()`. A dataset that is not indexed is invisible to `/h3/query` and the layer. Re-index after every re-partition.
 3. **Map**: add a `fused-hex` layer to a `fused-map`.
 
@@ -43,9 +43,9 @@ A hex dataset that is **indexed** can be drawn with the `fused-map` widget's `fu
 
 ### Overview when zoomed out
 
-`source.overview: {}` turns on a zoomed-out view below the layer's zoom floor. It is one request, with no tiles: the server returns either **file cells** (one per indexed file) or, for datasets partitioned with `chunk_res_offset`, **chunk cells** coloured by the layer's own `fillColor` attr (each cell's max). Zoomed in past the floor, the layer draws rows.
+`source.overview: {}` turns on a zoomed-out view below the layer's zoom floor. It is one request, with no tiles: the server returns either **file cells** (one per indexed file) or, for datasets partitioned with `chunk_res_offset`, **chunk cells** (one per row-group chunk, when there are at most 100,000). Either way, cells carry only row counts, never column values, and by default fill lightly by row count with grey outlines. Zoomed in past the floor, the layer draws rows.
 
-Optional fields: `overview.minZoom` (the overview draws below the floor, default 3) and `overview.extent` (`[west, south, east, north]`, west < east, no antimeridian crossing; also confines row tiles). Restyle it with `style.overview` (`fillColor`, `opacity`, `lineColor`, `lineWidth`, `coverage`). `style.overview.fillColor: "inherit"` takes the row fill, but a data-driven one draws no overview and warns on the layer card for file cells, which can only be coloured by `row_count_total` or `row_count_window`.
+Optional fields: `overview.minZoom` (the overview draws below the floor, default 3) and `overview.extent` (`[west, south, east, north]`, west < east, no antimeridian crossing; also confines row tiles). Restyle it with `style.overview` (`fillColor`, `opacity`, `lineColor`, `lineWidth`, `coverage`). A data-driven `style.overview.fillColor` can only use `row_count_total` or `row_count_window`; any other attr, or `"inherit"` of a data-driven row fill, falls back to the row-count fill.
 
 ## Pitfalls
 
