@@ -5,7 +5,12 @@ description: Comprehensive guide for writing Fused User Defined Functions (UDFs)
 
 # Writing Fused UDFs
 
+<!-- fused-render:strip -->
 > **CLI version:** commands below are written `fused workbench …` (only the 2.9.2b0+ pre-releases have this namespace; released versions such as 2.9.1 and 2.9.3 don't). If `fused workbench` fails with `No such command 'workbench'`, drop the word `workbench` — e.g. `fused canvas push`. See `fused-workbench-cli`.
+<!-- /fused-render:strip -->
+<!-- fused-render:only
+> **CLI version:** commands below are written `fused workbench …` (only the 2.9.2b0+ pre-releases have this namespace; released versions such as 2.9.1 and 2.9.3 don't). If `fused workbench` fails with `No such command 'workbench'`, drop the word `workbench` — e.g. `fused canvas validate .`. See `fused-workbench-cli`.
+-->
 
 Reference docs.fused.io for the most up-to-date information.
 
@@ -417,6 +422,7 @@ fused workbench run CANVAS_NAME udf_name --profile
 
 - `fused workbench json-ui validate <file>` - Validate widget configs before pushing
 
+<!-- fused-render:strip -->
 > **`fused workbench run` always executes the deployed remote version, not your local files.** If you edit a UDF and immediately run `fused workbench run canvas_name udf_name`, you will get the previously deployed version — the CLI prints `"UDF '...' returned cached result"` which can make this easy to miss. Always push first:
 >
 > ```bash
@@ -430,3 +436,11 @@ fused workbench run CANVAS_NAME udf_name --profile
 > ```bash
 > fused workbench run my_canvas ./my_canvas/my_udf.py --param=value
 > ```
+<!-- /fused-render:strip -->
+<!-- fused-render:only
+> **`fused workbench run` executes the published remote version, not your local files.** In a canvas clone the folder publishes itself whenever it goes quiet and when your turn ends, so a run right after an edit can still return the previous version. Never run `fused workbench canvas push` here, it is refused. To run exactly what is on disk, pass the local `.py` file, but note that `fused.secrets` and `fused.api` integrations are only available in the remote runtime:
+>
+> ```bash
+> fused workbench run my_canvas ./my_udf.py --param=value
+> ```
+-->

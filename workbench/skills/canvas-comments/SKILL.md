@@ -5,19 +5,38 @@ description: Use when a Fused canvas.toml contains (or needs) a [[canvas.comment
 
 # Fused canvas comments ([[canvas.comments]] in canvas.toml)
 
+<!-- fused-render:strip -->
 > **CLI version:** commands below are written `fused workbench …` (only the 2.9.2b0+ pre-releases have this namespace; released versions such as 2.9.1 and 2.9.3 don't). If `fused workbench` fails with `No such command 'workbench'`, drop the word `workbench` — e.g. `fused canvas push`. See `fused-workbench-cli`.
+<!-- /fused-render:strip -->
+<!-- fused-render:only
+> **CLI version:** commands below are written `fused workbench …` (only the 2.9.2b0+ pre-releases have this namespace; released versions such as 2.9.1 and 2.9.3 don't). If `fused workbench` fails with `No such command 'workbench'`, drop the word `workbench` — e.g. `fused canvas validate .`. See `fused-workbench-cli`.
+-->
 
+<!-- fused-render:strip -->
 Pinned comment threads on a Fused canvas serialize as `[[canvas.comments]]` blocks in `canvas.toml`.
 Top-level `[[comments]]` blocks are silently dropped by `canvas push`.
 If `[canvas]` has `comments = []`, delete that line first: both in one file fail to parse ("duplicate key").
+<!-- /fused-render:strip -->
+<!-- fused-render:only
+Pinned comment threads on a Fused canvas serialize as `[[canvas.comments]]` blocks in `canvas.toml`.
+Top-level `[[comments]]` blocks are silently dropped when the canvas publishes.
+If `[canvas]` has `comments = []`, delete that line first: both in one file fail to parse ("duplicate key").
+-->
 
 Comments with `status = "open"` are your work queue; resolving one is a three-field contract plus a reply, so the Workbench UI correctly attributes the work to AI.
 
 ## Read: find the work
 
+<!-- fused-render:strip -->
 1. Get the canvas locally: `fused workbench canvas pull <name> -o <dir>` (or use the folder you have).
 2. Every `[[canvas.comments]]` block where `status = "open"` is an actionable request.
 3. `anchor_udf = "<udfName>"` tells you WHICH node it's about — the fix belongs in `<udfName>.py` (or `.json`/`.md`/`.html` with that stem). No `anchor_udf` ⇒ canvas-level comment; read `content` for scope.
+<!-- /fused-render:strip -->
+<!-- fused-render:only
+1. The canvas is this folder: read its `canvas.toml`.
+2. Every `[[canvas.comments]]` block where `status = "open"` is an actionable request.
+3. `anchor_udf = "<udfName>"` tells you WHICH node it's about — the fix belongs in `<udfName>.py` (or `.json`/`.md`/`.html` with that stem). No `anchor_udf` ⇒ canvas-level comment; read `content` for scope.
+-->
 
 ## Resolve: the full contract (all four steps, not just status)
 
@@ -69,12 +88,23 @@ created_at = 1749600000000        # ms epoch
 
 Never write a TOML `null`/empty value — omit absent fields entirely. Comments sort by `created_at` on export; don't reorder blocks by hand.
 
+<!-- fused-render:strip -->
 ## Verify, then push
 
 ```bash
 fused workbench canvas validate <dir>        # structure check
 fused workbench canvas push <dir> --canvas <name>
 ```
+<!-- /fused-render:strip -->
+<!-- fused-render:only
+## Verify
+
+```bash
+fused workbench canvas validate .        # structure check
+```
+
+The canvas publishes itself when your turn ends; never run `fused workbench canvas push` here, it is refused.
+-->
 
 ## Common mistakes
 
