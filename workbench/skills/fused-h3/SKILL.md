@@ -7,10 +7,10 @@ description: Ingest data into H3 hex datasets and query them with the `fused.h3`
 
 `fused.h3` turns tabular data into a **hex dataset**: Parquet files sorted by a uint64 `hex` column, one file per coarse parent cell, described by a `_manifest.json`. Once **indexed**, the dataset is queryable by point, bbox, cell, time and partition values without scanning every file.
 
-The workflow is always:
+The workflow is:
 
 1. **Source**: describe the input with `fused.h3.sources.parquet`, `.era5` or `.udf` (or pass a cloud Parquet path). For a big folder of Parquet, run `fused.h3.inspect(path)` first.
-2. **Partition**: `fused.h3.partition(...)` starts a server-side run that writes the hex dataset and returns a `Run`.
+2. **Partition**: `fused.h3.partition(...)` starts a server-side run that writes the hex dataset and returns a `Run`. Skip it when the data is already Parquet with an integer H3 column at one resolution: index that folder directly with `hex_column=` set to the column.
 3. **Index**: `fused.h3.index(path, ...)` starts a server-side run that registers it and returns a `TaskRun`.
 4. **Query**: `fused.h3.query(path, ...)` returns a DataFrame. It only runs inside a UDF on Fused.
 
@@ -105,7 +105,7 @@ run = fused.h3.partition(
 
 **Resolutions:** `0 <= file_res <= h3_res <= 15`. `file_res=1` (842 global parents) suits global data at res 7. For finer `h3_res` or regional data, raise `file_res` so each file holds a manageable number of rows.
 
-**`chunk_res_offset`:** every row group holds whole cells at `file_res + chunk_res_offset`, about `7**offset` row groups per file (3 gives about 343). Needs `file_res + chunk_res_offset <= h3_res`. It lets a map draw a zoomed-out overview of the values; see [`map.md`](map.md).
+**`chunk_res_offset`:** every row group holds whole cells at `file_res + chunk_res_offset`, about `7**offset` row groups per file (3 gives about 343). Needs `file_res + chunk_res_offset <= h3_res`. It lets a map's zoomed-out overview draw one cell per chunk instead of one per file; see [`map.md`](map.md).
 
 **`partition_by` values** become folder names: dates as `YYYY-MM-DD`, timestamps as ISO, ints as digits. Values must be non-null, non-empty, not start with `_`, and contain no `/`.
 
@@ -141,7 +141,7 @@ With a single job (no dict in `partition_by`):
 
 A failed run never wipes a good dataset. A job that died midway is cleaned up and redone.
 
-Deprecated, still accepted with a `FutureWarning`: `parts=` (use `partition_by`), `only=` (pass only those values), `force=` / `refresh=` (use `redo=True`), `append=` (a rerun merges anyway), `overwrite=` (new output path), and `row_group_size`, `compression`, `compression_level`, `key_columns`, `memory_budget`, `workers` as arguments (use `options`).
+Deprecated, still accepted with a `FutureWarning`: `parts=` (use `partition_by`), `only=` (pass only those values), `force=` / `refresh=` (use `redo=True`; `force=` raises `ValueError` on a single job), `append=` (a rerun merges anyway), `overwrite=` (new output path), and `row_group_size`, `compression`, `compression_level`, `key_columns`, `memory_budget`, `workers` as arguments (use `options`).
 
 ### Following a run
 
@@ -330,7 +330,7 @@ for digit in "0123456789abcdef":
 
 Progress is recorded per folder, not per file. The batch that leaves every file of a folder indexed records the folder, and only then does a later run skip it. Re-running a batch in a folder that was never fully recorded reads that batch again (for example after a realtime timeout), so pick batches that finish in one run, or use `engine="small"`.
 
-`fused.h3.index_status(path)` returns `None` if the path was never indexed. Otherwise it returns a dict with `status` (`"queued"`, `"indexing"`, `"ready"` or `"failed"`), `indexing`, `job_id`, `files`, `resolution`, `hex_column`, `time_column`, `partition_columns` (name/type/distinct/min/max), `time_min`/`time_max`, `indexed_as_of`, `last_run_mode`, `last_run_finished_at` and `failures`.
+`fused.h3.index_status(path)` returns `None` if the path was never indexed. Otherwise it returns a dict with `path`, `status` (`"queued"`, `"indexing"`, `"ready"` or `"failed"`), `indexing`, `job_id`, `files`, `resolution`, `hex_column`, `time_column`, `partition_columns` (name/type/distinct/min/max), `time_min`/`time_max`, `indexed_as_of`, `last_run_mode`, `last_run_finished_at`, `failures`, `row_groups`, `run`, `visibility`, `owned_by_caller` and `can_publish`.
 
 Deprecated, still accepted with a `FutureWarning`: `prefix=` (use `subset=`), `overwrite=True` / `force=True` (use `redo=True`), `workers=` (use `options`).
 
@@ -353,7 +353,7 @@ df = fused.h3.query(
 
 - **Only runs inside a UDF on a Fused realtime or batch instance.** Called from a notebook or script it raises `RuntimeError`. Wrap it in a `@fused.udf` and `fused.run` that, or call `/h3/query` over HTTP (see [`http.md`](http.md)).
 - Reads your team's index of `path`, else the public one. The server returns a read plan and the rows are read in the calling process.
-- Give at most one spatial selector; none returns everything. A bbox keeps rows whose cell centre is inside, so the edge is accurate to one cell.
+- Give at most one spatial selector; none returns everything. The `polygon` / `polygon_wkt` selectors are HTTP only ([`http.md`](http.md)); `fused.h3.query` has no such argument and raises `TypeError`. A bbox keeps rows whose cell centre is inside, so the edge is accurate to one cell.
 - Date partitions match by overlap (`"2050-01"` matches every day in that month). A `partition_range` on the time column also narrows the time window.
 - Only space, time and partition values are filtered. Filter other columns on the returned DataFrame.
 - There is no row cap, so **the whole result is held in memory**, and a result too big for the instance fails the job. Split the area or time window into narrower queries (fan out with `fused.submit`). Row order is not defined.
@@ -363,6 +363,10 @@ df = fused.h3.query(
 | 404 | path was never indexed |
 | 409 | index not ready yet (poll `index_status`), a data file changed since indexing (re-run `index`), or re-indexed mid-query (run it again) |
 | 400 | two selectors, `lat` without `lng`, time bounds on a timeless location, or a `partition`/`partition_range` naming a non-partition column or an ill-typed value |
+| 403 | HTTP only: no token, and `path` is not a public `s3://` dataset |
+| 422 | HTTP only: a name in `columns` is missing from the indexed files. `fused.h3.query` raises `ColumnsMissing` instead. |
+
+`fused.h3.query` raises these as `requests.HTTPError`, whose message does not include the code: read `e.response.status_code`.
 
 Other management calls: `fused.h3.indexed_files(path, *, prefix=None)` (iterator of indexed file paths) and `fused.h3.delete_index(path, *, prefix=None)`. These two still take `prefix=` (a folder under `path`, or a list for `delete_index`), not `subset=`. With `prefix`, `delete_index` drops only the index under those folders. The data files are never touched.
 
