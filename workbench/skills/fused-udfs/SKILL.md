@@ -29,7 +29,7 @@ def udf(bounds: fused.types.Bounds = None, name: str = "Fused"):
 ```
 
 > **Put imports inside the UDF body.** It keeps each UDF self-contained.
-> Module-level imports and helpers do run, so helpers beside `udf()` work.
+> Module-level imports and helpers do run: put `udf()` first and helpers below it, so the UDF is what shows when the file opens.
 > Import what a helper needs inside the helper too.
 
 ### @fused.udf Parameters
