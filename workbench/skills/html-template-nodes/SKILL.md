@@ -5,7 +5,12 @@ description: Authoring reference for Fused canvas HTML template nodes, the `.htm
 
 # Fused canvas HTML template nodes
 
+<!-- fused-render:strip -->
 > **CLI version:** commands below are written `fused workbench …` (only the 2.9.2b0+ pre-releases have this namespace; released versions such as 2.9.1 and 2.9.3 don't). If `fused workbench` fails with `No such command 'workbench'`, drop the word `workbench` — e.g. `fused canvas push`. See `fused-workbench-cli`.
+<!-- /fused-render:strip -->
+<!-- fused-render:only (this block applies only inside a fused-render canvas clone; ignore it anywhere else)
+> **CLI version:** commands below are written `fused workbench …` (only the 2.9.2b0+ pre-releases have this namespace; released versions such as 2.9.1 and 2.9.3 don't). If `fused workbench` fails with `No such command 'workbench'`, drop the word `workbench` — e.g. `fused canvas validate .`. See `fused-workbench-cli`.
+-->
 
 An HTML template node is a canvas node whose source is a plain `.html` file. The workbench renders it client-side in a sandboxed iframe, injects a `window.fused` bridge, and substitutes `$param` / `{{udf}}` placeholders in the markup. It never executes on the backend: all data comes from the Python UDFs it is wired to.
 
@@ -233,7 +238,12 @@ A JSON-UI widget can be placed inside the page. Write its spec as the text of a 
 
 ## Map with a custom chart
 
+<!-- fused-render:strip -->
 Runnable canvas: [`examples/crossfilter/`](examples/crossfilter/); push it with `fused workbench canvas push examples/crossfilter --canvas <name>`. No UDF: an HTML node (`crossfilter.html`) holds an `h3-query` that fetches NYC 311 calls in the map's view, a `fused-map` drawing them with `data: "{{nyc311}}"`, and a brushable hour-of-day histogram that uses every param the map writes (`json-ui-schemas` says what each holds). A bar chart (`kind_chart.json`) reads the page's map layer `{{calls}}` through an edge. The core:
+<!-- /fused-render:strip -->
+<!-- fused-render:only (this block applies only inside a fused-render canvas clone; ignore it anywhere else)
+Runnable example: [`examples/crossfilter/`](examples/crossfilter/) (read it for the full source). No UDF: an HTML node (`crossfilter.html`) holds an `h3-query` that fetches NYC 311 calls in the map's view, a `fused-map` drawing them with `data: "{{nyc311}}"`, and a brushable hour-of-day histogram that uses every param the map writes (`json-ui-schemas` says what each holds). A bar chart (`kind_chart.json`) reads the page's map layer `{{calls}}` through an edge. The core:
+-->
 
 ```html
 <fused-widget>{ "type": "h3-query", "props": { "name": "nyc311", "path": "s3://fused-asset/data/nyc311/",
@@ -288,6 +298,7 @@ onParams(fused.params.getAll());
 
 Confirm auth first: `fused workbench whoami`.
 
+<!-- fused-render:strip -->
 1. **Validate the folder**: `fused workbench canvas validate ./my_canvas` (also runs automatically on `push`). It checks node/file pairing and edge endpoints. It does **not** check `.html` files: `{{udf}}` refs, `$params` and `fused.runPython` names in HTML are not verified. Check them yourself:
    ```sh
    grep -oE '\{\{ *[A-Za-z_][A-Za-z0-9_-]*|fused\.runPython\( *["'"'"'`][^"'"'"'`]+' my_canvas/*.html | sort -u
@@ -303,6 +314,15 @@ Confirm auth first: `fused workbench whoami`.
    - Selenium must be importable by the `fused` CLI (`ImportError: selenium is required for JSON-UI run` otherwise — install the extras the error names, or run the same URL in your own headless Chrome).
    - Add `?name=value` params by opening the URL from `--print-url-only`. Page `console.log` output is **not** surfaced by the CLI; use the browser devtools on the canvas or the share page.
 4. **Iterate on a snippet without pushing**: `fused workbench json-ui run-inline-widget <token> '{"type":"html","props":{"value":"<h1>$name</h1>"}}'` renders the JSON-UI `html` widget, which uses the same bridge and substitution. It has no node of its own, so (from the source, not exercised) edge gating appears to be open there — a snippet that works inline can still fail `not_allowed` once it is a node without the edge.
+<!-- /fused-render:strip -->
+<!-- fused-render:only (this block applies only inside a fused-render canvas clone; ignore it anywhere else)
+1. **Validate the folder**: `fused workbench canvas validate .`. It checks node/file pairing and edge endpoints. It does **not** check `.html` files: `{{udf}}` refs, `$params` and `fused.runPython` names in HTML are not verified. Check them yourself:
+   ```sh
+   grep -oE '\{\{ *[A-Za-z_][A-Za-z0-9_-]*|fused\.runPython\( *["'"'"'`][^"'"'"'`]+' *.html | sort -u
+   ```
+   Every name must be a `udfName` in `canvas.toml` with an edge into the HTML node, or a `fused-map` layer id or `sql-runner` name in reach. Names a page builds at runtime for `fused.query` are not in the grep: check them against the layer ids by eye.
+2. **Look at it**: the `canvas_screenshot` tool photographs the canvas in fused-render. There is no push step: the canvas publishes itself when your turn ends and whenever the folder goes quiet. Page `console.log` output is not in the screenshot; use the browser devtools on the canvas.
+-->
 
 Do not report success from `validate` alone: it checks structure, not rendering or data. Look at the screenshot or the page.
 
