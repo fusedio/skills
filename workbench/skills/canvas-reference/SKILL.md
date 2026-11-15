@@ -24,7 +24,7 @@ From the clone folder (the one holding `canvas.toml`): `../` (siblings), `../../
 
 Search BEFORE writing a new node, and before writing any code that fetches, converts or aggregates data. Someone has usually solved it already, often with one Fused SDK call you would not guess exists; the only place that call is visible is a canvas that uses it. Do all four steps, in order, every time. "All three scopes" means the scope folders your session was given: if your instructions name only some (some sessions get `team/` and `public/` but not `../`, because `../` holds the user's other live canvases), search those and skip the rest.
 
-**1. List the folder names in all three scopes.** `ls ../ ../../team ../../public`, in full. A folder's name says what the canvas does. Shortlist every folder related to the task, by its subject (the dataset, source or place) and by what is being computed (the output you want). Do this even when you think you know where to look.
+**1. List the folder names in all three scopes.** `ls ../ ../../team ../../public`, in full. (In this and every command below, drop any scope your session was not given.) A folder's name says what the canvas does. Shortlist every folder related to the task, by its subject (the dataset, source or place) and by what is being computed (the output you want). Do this even when you think you know where to look.
 
 **2. Search all three scopes in one pass, never cut short.** Not nearest-first-and-stop. Never truncate a discovery search: no `| head`, no `-m`, no result limit (`head_limit: 0` on the Grep tool). The best match is often not among the first hits, and a truncated list gives no sign that it was cut. When there are too many hits to read, count them per canvas instead:
 
