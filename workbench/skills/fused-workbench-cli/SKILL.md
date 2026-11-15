@@ -79,6 +79,26 @@ On Windows the same rules apply, with a few differences:
 - `--format [json|text]` (env: `FUSED_CLI_FORMAT`) — set to `json` for machine-readable output
 -->
 
+<!-- fused-render:only (this block applies only inside a fused-render canvas clone; ignore it anywhere else)
+### Run in the canvas's environment (required)
+
+A canvas clone belongs to exactly one Fused environment, and every `fused workbench` command you run for it (`run`, `udf-schema`, `canvas validate`, `whoami`, `secrets`, `files`, and the rest) must target that environment. A run against another environment still succeeds and prints a result, but it executed on the wrong deployment, with that deployment's runtime, secrets, files and published UDFs, so it proves nothing about this canvas.
+
+**The environment is the path segment after `canvas/` in the clone's path**: `~/Fused/canvas/<env>/user/<name>`, where `<env>` is `unstable`, `prod` or `custom`. Read it from `pwd` before the first run of a session, and name it when you report a test result ("ran on unstable").
+
+- **`unstable` or `prod` clone:** pass it explicitly on every command, right after `workbench`: `fused workbench --env unstable run <canvas> <udf>`. The app's `fused` wrapper also picks it from the working directory, but only when the command starts inside the clone and goes through that wrapper, so do not rely on it alone.
+- **`custom` clone:** pass no `--env` and leave `FUSED_ENV` unset. The CLI then uses the deployment that `~/.fused/settings.toml` names, which is that clone's target.
+
+What silently sends a run to the wrong environment (usually the `settings.toml` custom deployment), and so is not allowed in a clone:
+
+- **Any `fused` that is not the app's wrapper**: `uv run fused …`, `uv run --with fused …`, `uvx fused …`, `.venv/bin/fused`, `python -m fused`, or an absolute path to another install. Run the bare `fused` on `PATH` (check with `which fused`: it must sit under `$FUSED_RENDER_FUSED_CLI_DIR`).
+- **Python that imports `fused` directly** (`python -c 'import fused; fused.load("my_udf")()'`, a test script, a notebook). The SDK does not read `FUSED_ENV`; only the CLI does. Test with `fused workbench --env <env> run` instead. If a Python script is truly unavoidable, call `fused._env("<env>")` right after `import fused`, before anything else (skip that call for a `custom` clone).
+- **Running from outside the clone folder** (after a `cd` elsewhere, or from a scratch directory) without `--env`: the wrapper then falls back to the app's default environment.
+- **Setting `FUSED_ENV` or `--env` to anything other than the clone's environment**, including copying an `--env` value from an example in these skills.
+
+If a result looks wrong for this canvas (a UDF "not found" that exists on the canvas, a missing secret, stale code), check the environment first.
+-->
+
 ## Top-level commands
 
 | Command        | Purpose |
@@ -125,7 +145,7 @@ Most canvas subcommands take a `CANVAS_REF` (name or ID) plus:
 >
 > - Edit the files. The canvas publishes itself when your turn ends and whenever the folder goes quiet.
 > - Changes made on the server arrive in this folder automatically, and the session hook names the files that changed. Re-read those files before editing them.
-> - Verify with the `canvas_screenshot` tool and `fused workbench canvas validate .`. `fused workbench run` (UDFs) and `fused workbench json-ui validate` (widgets) stay useful.
+> - Verify with the `canvas_screenshot` tool and `fused workbench canvas validate .`. `fused workbench run` (UDFs) and `fused workbench json-ui validate` (widgets) stay useful, run in the clone's own environment (see **Run in the canvas's environment** under Global flags).
 
 | Subcommand | Args / notable options |
 | --- | --- |
@@ -153,7 +173,7 @@ fused workbench canvas push ./fused-canvas --canvas feedback_pipeline
 If you're unsure of the remote canvas name, run `fused workbench canvas list` first.
 <!-- /fused-render:strip -->
 <!-- fused-render:only (this block applies only inside a fused-render canvas clone; ignore it anywhere else)
-- To check a change, use the `canvas_screenshot` tool for JSON UI nodes and HTML template nodes, and `fused workbench run` for UDFs. A by-name run uses the published version, which catches up once the folder goes quiet; pass the local `.py` path to run exactly what is on disk.
+- To check a change, use the `canvas_screenshot` tool for JSON UI nodes and HTML template nodes, and `fused workbench --env <env> run` for UDFs, in the clone's own environment (see **Run in the canvas's environment**). A by-name run uses the published version, which catches up once the folder goes quiet; pass the local `.py` path to run exactly what is on disk.
 -->
 
 ## Reading an existing canvas
@@ -342,6 +362,7 @@ Options:
 - `--stdin` — read UDF source from stdin instead of passing `UDF` (do not pass `UDF` with `--stdin`)
 - `--verbose / --no-verbose` — show UDF stdout/stderr (default on)
 
+<!-- fused-render:strip -->
 > **`fused[vector]` required for local result deserialization.** When running via `uv run`, the result DataFrame is deserialized locally and requires `pandas` to be available in that environment. Without it you get `ModuleNotFoundError: No module named 'pandas'` even if the UDF itself doesn't use pandas. Install `fused[vector]` — it pulls in `geopandas` (and therefore `pandas`), plus `shapely`, which most UDFs need:
 >
 > ```bash
@@ -350,13 +371,21 @@ Options:
 >
 > `--no-project` avoids pulling in the current directory's dependencies, which can conflict with fused's requirements. If you only need plain `pandas` and not the geospatial stack, `--with fused --with pandas` also works.
 
+<!-- /fused-render:strip -->
+<!-- fused-render:only (this block applies only inside a fused-render canvas clone; ignore it anywhere else)
+> **Run it in the canvas's environment.** In a clone the form is `fused workbench --env <env> run <canvas> <udf>`, with `<env>` taken from the clone's path, and no `--env` for a `custom` clone (see **Run in the canvas's environment** above). Use the app's bare `fused`, never `uv run` / `uvx`: those bypass the app's wrapper and run against whatever `~/.fused/settings.toml` names.
+-->
+
 Additionally, `fused workbench run` accepts **arbitrary keyword args matching the UDF's signature**, e.g. `--abc=123` is forwarded as the `abc` parameter to the UDF. These pass-through args are not listed in `--help`.
 
+<!-- fused-render:strip -->
 When running locally via `uv run`, install `fused[vector]` if the UDF returns a DataFrame — the CLI needs pandas to deserialize the result, and the error (`ModuleNotFoundError: No module named 'pandas'`) appears at result-read time, not inside the UDF itself. `fused[vector]` bundles `pandas` (via `geopandas`) along with `shapely`, covering both plain and geospatial DataFrames:
 
 ```bash
 uv run --with 'fused[vector]' fused workbench run my_canvas my_udf --param=value
 ```
+
+<!-- /fused-render:strip -->
 
 ## `fused workbench udf-schema CANVAS UDF`
 
@@ -383,9 +412,9 @@ Use this to introspect parameters before calling `fused workbench run` with `--<
 - **Prefer the CLI for debugging.** Before asking the user to open the canvas UI to check a change, try to reproduce locally: `fused workbench run` for UDFs, `fused workbench json-ui validate` / `run-shared-widget` for widgets, `fused workbench canvas pull --dry-run` to inspect what changed remotely. This catches most issues without a round trip.
 <!-- /fused-render:strip -->
 <!-- fused-render:only (this block applies only inside a fused-render canvas clone; ignore it anywhere else)
-- If the CLI lives in a project venv, prefix with `uv run` so the right environment is used.
+- Every command targets the clone's environment: `fused workbench --env <env> …` for an `unstable` or `prod` clone, no `--env` for a `custom` one, and always the app's bare `fused` (no `uv run` / `uvx`). See **Run in the canvas's environment**.
 - For machine-readable output in scripts, pass `--format json`.
 - Run `fused workbench <command> --help` to confirm flags before scripting — this reference may lag the CLI.
 - When appropriate, give the user the URL to the created canvas so they can open it in their browser and see the result.
-- **Prefer the CLI for debugging.** Before asking the user to open the canvas UI to check a change, try to reproduce locally: `fused workbench run` for UDFs, `fused workbench json-ui validate` for widgets, `fused workbench canvas validate .` for the folder, and the `canvas_screenshot` tool to see the canvas rendered. This catches most issues without a round trip.
+- **Prefer the CLI for debugging.** Before asking the user to open the canvas UI to check a change, try to reproduce locally: `fused workbench --env <env> run` for UDFs, `fused workbench json-ui validate` for widgets, `fused workbench canvas validate .` for the folder, and the `canvas_screenshot` tool to see the canvas rendered. This catches most issues without a round trip.
 -->
