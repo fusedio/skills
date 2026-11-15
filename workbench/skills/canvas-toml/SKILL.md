@@ -302,7 +302,7 @@ The correct testing approach:
 Running by name resolves the UDF from the server with full canvas context, so `fused.load("other_udf")` inside it can find its sibling.
 <!-- /fused-render:strip -->
 <!-- fused-render:only (this block applies only inside a fused-render canvas clone; ignore it anywhere else)
-Test the UDF by name instead: `fused.load("my_udf")()` or `fused workbench run <canvas> my_udf`. Running by name resolves the UDF from the server with full canvas context, so `fused.load("other_udf")` inside it can find its sibling. The server has your edit once the folder has gone quiet and published itself.
+Test the UDF by name instead, in the clone's own environment: `fused workbench --env <env> run <canvas> my_udf`, where `<env>` is the segment after `canvas/` in the clone's path (no `--env` for a `custom` clone; see the `fused-workbench-cli` skill). Do not test with a Python `fused.load("my_udf")()` script here: the SDK ignores the clone's environment and runs against whatever `~/.fused/settings.toml` names. Running by name resolves the UDF from the server with full canvas context, so `fused.load("other_udf")` inside it can find its sibling. The server has your edit once the folder has gone quiet and published itself.
 -->
 
 ## Canvas naming
