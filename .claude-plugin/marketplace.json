@@ -23,7 +23,7 @@
     {
       "name": "workbench",
       "source": "./workbench",
-      "description": "Skills for the legacy Fused workbench SDK CLI (`fused workbench …`): canvas.toml format, JSON UI widget schemas, HTML template nodes (window.fused), UDFs, H3 ingestion (fused.h3), runtime packages, integrations, and the workbench CLI.",
+      "description": "Skills for the legacy Fused workbench SDK CLI (`fused workbench …`): canvas.toml format, JSON UI widget schemas, HTML template nodes (window.fused), UDFs, H3 ingestion (fused.h3), runtime packages, integrations, the workbench CLI, and the reference canvases beside a fused-render canvas clone.",
       "author": {
         "name": "Fused",
         "email": "info@fused.io",

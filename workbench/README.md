@@ -20,3 +20,7 @@ Rules:
 - When a strip block has an only twin right after it, the two are copies of the same text with the clone wording swapped in. Edit both when you change either.
 - Clone wording: the folder is a live clone kept in sync by fused-render; never pull or push there (both are refused); the canvas publishes itself when the agent's turn ends and whenever the folder goes quiet; server changes arrive in the folder automatically and the session hook names the files; verify with the `canvas_screenshot` tool and `fused workbench canvas validate .`.
 - Markers cannot go in YAML frontmatter, so keep `canvas pull` / `canvas push` out of skill descriptions.
+
+## Skills that apply only inside a fused-render canvas clone
+
+`canvas-reference` is for a clone session alone: it teaches how to search the read-only reference canvases fused-render keeps beside the clone (`user/`, `team/`, `public/`) before writing a node. It needs no marker blocks, since its description and first paragraph say where it applies. fused-render's seeded `CLAUDE.md` and session prompt name it (`workbench:canvas-reference`) and carry only where the folders are and the read-only rules; how to search, and what we learn about how these canvases are organised, belongs in this skill.
