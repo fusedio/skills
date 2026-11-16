@@ -21,6 +21,8 @@ Rules:
 - Clone wording: the folder is a live clone kept in sync by fused-render; never pull or push there (both are refused); the canvas publishes itself when the agent's turn ends and whenever the folder goes quiet; server changes arrive in the folder automatically and the session hook names the files; verify with the `canvas_screenshot` tool and `fused workbench canvas validate .`.
 - Markers cannot go in YAML frontmatter, so keep `canvas pull` / `canvas push` out of skill descriptions.
 
-## Skills that apply only inside a fused-render canvas clone
+## Skills that apply only inside fused-render
 
 `canvas-reference` is for a clone session alone: it teaches how to search the read-only reference canvases fused-render keeps beside the clone (`user/`, `team/`, `public/`) before writing a node. It needs no marker blocks, since its description and first paragraph say where it applies. fused-render's seeded `CLAUDE.md` and session prompt name it (`workbench:canvas-reference`) and carry only where the folders are and the read-only rules; how to search, and what we learn about how these canvases are organised, belongs in this skill.
+
+`s3-files` applies in any session fused-render started, clone or not, that carries fused-render's `s3_search` and `s3_read` tools (they come with the Fused/Canvases integration): it teaches how to find and read the S3 files fused-render serves through those tools. It is gated on the tools rather than on a folder, and likewise needs no marker blocks: its description and first paragraph say where it applies and to stop when the tools are absent. fused-render's canvas-clone `CLAUDE.md` names it (`workbench:s3-files`) next to the two tools; how to search, read ranges and handle each failure belongs in this skill. Which buckets are served is fused-render's to decide, so the skill states what is available today in one place and keeps everything else true for any bucket.
