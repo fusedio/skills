@@ -66,7 +66,7 @@ else:
     print(md.schema.to_arrow_schema())
 ```
 
-This file's footer is 140,109 bytes, larger than the 64 KiB tail, so the script prints `read again with offset -140117`. Read `{"url": "…", "offset": -140117}` and run it on the new path: 267,209 rows, 343 row groups, and the schema. A footer over 64 MiB comes back cut short (no `PAR1` at the end): read on from each `range.end` until it reaches `size`, and pass every saved path, in order.
+This file's footer is 140,109 bytes, larger than the 64 KiB tail, so the script prints `read again with offset -140117`. Read `{"url": "…", "offset": -140117}` and run it on the new path: 267,209 rows, 343 row groups, and the schema. A footer over 64 MiB comes back cut short (no `PAR1` at the end): read on from each `range.end` until it reaches `size`, with `"save": true` on each read so that even a last window of a few bytes is a file, and pass every saved path, in order.
 
 That schema and row count are this one file's. In a partitioned dataset a partition column (such as `month` in `month=…/`) may exist only in the folder names, and files can differ in schema, so check more than one file before describing the whole dataset.
 
