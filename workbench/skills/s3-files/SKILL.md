@@ -55,7 +55,7 @@ The bytes are binary, so the result is a `path`. Parse it with any Python that h
 import io, struct, sys
 import pyarrow.parquet as pq
 
-tail = open(sys.argv[1], "rb").read()          # the saved tail
+tail = b"".join(open(p, "rb").read() for p in sys.argv[1:])  # the saved tail, in order
 assert tail[-4:] == b"PAR1", "not the end of a parquet file"
 n = struct.unpack("<I", tail[-8:-4])[0]         # footer length
 if n + 8 > len(tail):
@@ -66,7 +66,9 @@ else:
     print(md.schema.to_arrow_schema())
 ```
 
-This file's footer is 140,109 bytes, larger than the 64 KiB tail, so the script prints `read again with offset -140117`. Read `{"url": "…", "offset": -140117}` and run it on the new path: 267,209 rows, 343 row groups, and the schema. One file's footer gives the schema of a partitioned dataset; row counts are per file.
+This file's footer is 140,109 bytes, larger than the 64 KiB tail, so the script prints `read again with offset -140117`. Read `{"url": "…", "offset": -140117}` and run it on the new path: 267,209 rows, 343 row groups, and the schema. A footer over 64 MiB comes back cut short (no `PAR1` at the end): read on from each `range.end` until it reaches `size`, and pass every saved path, in order.
+
+That schema and row count are this one file's. In a partitioned dataset a partition column (such as `month` in `month=…/`) may exist only in the folder names, and files can differ in schema, so check more than one file before describing the whole dataset.
 
 ### CSV head
 
