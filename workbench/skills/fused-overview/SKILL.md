@@ -122,6 +122,7 @@ results = pool.df()
 - `json-ui-schemas` — building widget UIs on top of UDFs
 - `html-template-nodes` — custom HTML pages on the canvas: `window.fused` params/`runPython`, `$param` / `{{udf}}` substitution, edges, sharing
 - `canvas-reference` — inside a fused-render canvas clone: finding a working example in the read-only reference canvases beside it before writing a node
+- `s3-files` — inside a fused-render session that has its S3 tools: finding and reading S3 files available through fused-render
 - `canvas-comments` — reading and resolving `[[canvas.comments]]` threads in `canvas.toml`
 - `fused-h3` — H3 ingestion and querying with `fused.h3`
 - `fused-runtime` — runtime packages and environment for UDFs
