@@ -6,10 +6,10 @@ description: JSON schemas for Fused canvas UI widget components (text, text-inpu
 # Fused JSON UI widget schemas
 
 <!-- fused-render:strip -->
-> **CLI version:** commands below are written `fused workbench …` (only the 2.9.2b0+ pre-releases have this namespace; released versions such as 2.9.1 and 2.9.3 don't). If `fused workbench` fails with `No such command 'workbench'`, drop the word `workbench` — e.g. `fused canvas push`. See `fused-workbench-cli`.
+> **CLI version:** commands below are written `fused workbench …` (the 2.9.2b0+ pre-releases and released versions from 2.9.5 have this namespace; older releases such as 2.9.1 and 2.9.3 don't). If `fused workbench` fails with `No such command 'workbench'`, drop the word `workbench` — e.g. `fused canvas push`. See `fused-workbench-cli`.
 <!-- /fused-render:strip -->
 <!-- fused-render:only (this block applies only inside a fused-render canvas clone; ignore it anywhere else)
-> **CLI version:** commands below are written `fused workbench …` (only the 2.9.2b0+ pre-releases have this namespace; released versions such as 2.9.1 and 2.9.3 don't). If `fused workbench` fails with `No such command 'workbench'`, drop the word `workbench` — e.g. `fused canvas validate .`. See `fused-workbench-cli`.
+> **CLI version:** commands below are written `fused workbench …` (the 2.9.2b0+ pre-releases and released versions from 2.9.5 have this namespace; older releases such as 2.9.1 and 2.9.3 don't). If `fused workbench` fails with `No such command 'workbench'`, drop the word `workbench` — e.g. `fused canvas validate .`. See `fused-workbench-cli`.
 -->
 
 Reference for every supported widget `type` and its prop schema.
