@@ -783,7 +783,7 @@ Interactive map with tile, UDF and SQL layers.
             "type": "string"
           },
           "type": {
-            "description": "Layer type. Omit it to detect from the data: an image \u2192 raster (tiles from a tile UDF, else one image placed at the bounds the run returned or was sent), an H3 cell column \u2192 h3, start/end lat-lng pairs \u2192 arc, one lat-lng pair \u2192 scatterplot, a geometry column \u2192 geojson. The detected type and columns are written into this config once known. All types render through deck.gl. geojson: polygons/lines/points from inline data, sql or udf rows (deck-geojson is an alias of geojson; prefer geojson). h3: hexagons from h3Column. scatterplot: point circles. heatmap: point density. arc: source\u2192target arcs. raster: tiles from tileUrl or a udf with tile: true, else a single image from a udf. mvt: tiles from tileUrl, or from udf with tile: true. fused-hex: H3 tiles queried from a Fused server's ERA5, gridMET or /h3/query endpoints (see source); it is never detected, so set it explicitly. For your own data: partition it with fused.h3.partition, register it with fused.h3.index, then set source {path, overview: {}} and h3Column. Row tiles load from the layer's zoom floor (default zoom 7) and a zoomed-out overview of the whole dataset draws below it.",
+            "description": "Layer type. Omit it to detect from the data: an image \u2192 raster (tiles from a tile UDF, else one image placed at the bounds the run returned or was sent), an H3 cell column \u2192 h3, start/end lat-lng pairs \u2192 arc, one lat-lng pair \u2192 scatterplot, a geometry column \u2192 geojson. The detected type and columns are written into this config once known. All types render through deck.gl. geojson: polygons/lines/points from inline data, sql or udf rows (deck-geojson is an alias of geojson; prefer geojson). h3: hexagons from h3Column. scatterplot: point circles. heatmap: point density. arc: source\u2192target arcs. raster: tiles from tileUrl or a udf with tile: true, else a single image from a udf. mvt: tiles from tileUrl, or from udf with tile: true. fused-hex: H3 tiles queried from a Fused server's ERA5, gridMET or /h3/query endpoints (see source); it is never detected, so set it explicitly. For your own data: partition it with fused.h3.partition, register it with fused.h3.index, then set source {path, overview: {}} and h3Column. Row tiles load from the layer's zoom floor (default zoom 7) and a zoomed-out overview of the whole dataset draws below it. fused-bbox: features of a dataset indexed by bounding box (fused.bbox.index, for tables written by fused.ingest or GeoParquet with a bbox covering), queried per tile from /bbox/query; never detected either. Set source {path, overview: {}}; its rows draw as geojson from the zoom floor (minZoom, default 8) and the boxes of its chunks draw below it.",
             "type": "string",
             "enum": [
               "mvt",
@@ -794,7 +794,8 @@ Interactive map with tile, UDF and SQL layers.
               "arc",
               "scatterplot",
               "deck-geojson",
-              "fused-hex"
+              "fused-hex",
+              "fused-bbox"
             ]
           },
           "visible": {
@@ -1116,7 +1117,7 @@ Interactive map with tile, UDF and SQL layers.
             ]
           },
           "source": {
-            "description": "fused-hex only: the server endpoint and query each XYZ tile's bbox is sent to. For your own data, set path to an indexed folder and overview to {}; the layer then also needs h3Column. Example: {path: 's3://bucket/indexed/', overview: {}} with h3Column 'hex' and style.fillColor {type: 'continuous', attr: 'temp'}.",
+            "description": "fused-hex and fused-bbox. fused-bbox reads only path, overview {minZoom, extent}, variables (columns to fetch; all when unset) and maxRowGroups, e.g. {path: 's3://bucket/table/', overview: {}}. fused-hex: the server endpoint and query each XYZ tile's bbox is sent to. For your own data, set path to an indexed folder and overview to {}; the layer then also needs h3Column. Example: {path: 's3://bucket/indexed/', overview: {}} with h3Column 'hex' and style.fillColor {type: 'continuous', attr: 'temp'}.",
             "type": "object",
             "properties": {
               "endpoint": {
