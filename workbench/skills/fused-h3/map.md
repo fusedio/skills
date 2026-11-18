@@ -33,8 +33,9 @@ A hex dataset that is **indexed** can be drawn with the `fused-map` widget's `fu
 }
 ```
 
-- `type: "fused-hex"` is never auto-detected: set it.
+- `type: "fused-hex"` is never auto-detected: set it. It never auto-fits either: set the map's `centerLng`, `centerLat` and `zoom` on the data (`initialViewState` is not a prop).
 - `source.path` is the indexed folder. It sets the endpoint to `/h3/query`, so `source.endpoint` is not needed. The layer also needs `h3Column`, the dataset's hex column (`hex` for anything `fused.h3.partition` wrote).
+- ERA5 or gridMET instead of your data: no `path`, and `source.endpoint` set to `/retrieve/era5/daily/bbox` or `/retrieve/gridmet/bbox`, with `dateMin`, `dateMax` and `variables` (see [`http.md`](http.md)).
 - `source.dateMin` / `source.dateMax` (ISO) bound the time window. `source.timeColumn` names the time column (set it for `/h3/query` datasets). `source.reduce` collapses each cell's rows over the window: `latest` (default), `first`, `mean`, `min`, `max`, `sum`.
 - `source.variables` lists the columns to fetch. Left out, it is the attributes the style, tooltip and filters name.
 - `source.limit` and `source.maxRowGroups` cap each tile request. Raise them only for dense data.
@@ -49,6 +50,7 @@ Optional fields: `overview.minZoom` (the overview draws below the floor, default
 
 ## Pitfalls
 
+- **Judging by eye.** Tiles can take 30 s on first load, and a res-11 cell is about one pixel wide at zoom 10. Check with a `metric` on `SELECT COUNT(*) FROM {{<layer id>}}`: the rows in view.
 - **Not indexed, or stale index.** Empty maps and 404s usually mean `fused.h3.index` never ran, or the data was re-partitioned afterwards. Re-index.
 - **Domain.** Leave `domain` out, or set it to the data's real range. A default like `[0, 100]` on data in `[260, 310]` paints one flat colour.
 - **Chunking is all or nothing for a path.** Appending a `chunk_res_offset` partition onto an unchunked output (or the reverse) is refused. Write a new output path and index that.
