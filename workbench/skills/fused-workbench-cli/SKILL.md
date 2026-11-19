@@ -72,11 +72,11 @@ On Windows the same rules apply, with a few differences:
 
 <!-- fused-render:strip -->
 - `--env TEXT` (env: `FUSED_ENV`): `prod`, `stg`, `unstable`, `dev`, a dev PR number, or a base URL. Put it right after `workbench`: `fused workbench --env unstable canvas push ./my_canvas --canvas my_canvas`. `fused --env ...` before `workbench` is a different flag and leaves the command on the default environment. When the target is the `base_url` that `~/.fused/settings.toml` sets explicitly, that file's `[auth]` is kept; any other target uses the default Fused sign-in.
-- `--format [json|text]` (env: `FUSED_CLI_FORMAT`) — set to `json` for machine-readable output. Put it right after `workbench` too: after `run` it is passed to the UDF (`unexpected keyword argument 'format'`).
+- `--format [json|text]` (env: `FUSED_CLI_FORMAT`) — set to `json` for machine-readable output. Put it right after `workbench`, like `--env`.
 <!-- /fused-render:strip -->
 <!-- fused-render:only (this block applies only inside a fused-render canvas clone; ignore it anywhere else)
 - `--env TEXT` (env: `FUSED_ENV`): `prod`, `stg`, `unstable`, `dev`, a dev PR number, or a base URL. Put it right after `workbench`: `fused workbench --env unstable run my_canvas my_udf`. `fused --env ...` before `workbench` is a different flag and leaves the command on the default environment. When the target is the `base_url` that `~/.fused/settings.toml` sets explicitly, that file's `[auth]` is kept; any other target uses the default Fused sign-in.
-- `--format [json|text]` (env: `FUSED_CLI_FORMAT`) — set to `json` for machine-readable output. Put it right after `workbench` too: after `run` it is passed to the UDF (`unexpected keyword argument 'format'`).
+- `--format [json|text]` (env: `FUSED_CLI_FORMAT`) — set to `json` for machine-readable output. Put it right after `workbench`, like `--env`.
 -->
 
 <!-- fused-render:only (this block applies only inside a fused-render canvas clone; ignore it anywhere else)
