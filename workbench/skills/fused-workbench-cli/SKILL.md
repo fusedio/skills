@@ -67,7 +67,6 @@ On Windows the same rules apply, with a few differences:
   powershell -ExecutionPolicy ByPass -c "irm https://astral.sh/uv/install.ps1 | iex"
   ```
   Restart the terminal after installing, then use `uvx fused` as usual.
-- **Console encoding:** set `PYTHONUTF8=1` (PowerShell: `$env:PYTHONUTF8=1`). On a cp1252 console, `canvas validate` fails with `UnicodeEncodeError`.
 
 ## Global flags
 

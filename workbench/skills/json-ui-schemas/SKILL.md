@@ -123,8 +123,6 @@ A `sql-runner` names one SQL result. Its SQL can read several UDFs, and runners 
 
 - `sql-runner` publishes its result as `{{name}}` to every SQL widget in reach, not only its children: a sibling in the same widget file, a widget on a node with an edge from the runner's node, and `fused.query` in an HTML node with that edge. A widget on a node without that edge does not see it and logs `'data' is not connected via an edge`. Keep runner names unique across connected nodes: when two are in reach, the first one published wins.
 - It caps rows at `maxRows`, 10,000 by default: set it when the UDF returns more (see Known gotchas).
-- `fused workbench canvas validate` before 2.9.12 wrongly flags `{{name}}` as an unknown node.
-  `[validate] skip = ["widget_refs"]` in `canvas.toml` works around it, but turns off the whole check: review other `{{name}}` refs by hand.
 - Readers reference `{{data}}` (or whatever `name` you set), **not** `{{my_udf}}`.
 - The canvas edge (`["my_udf", "widget_node"]`) must also exist in `canvas.toml` for the UDF to be reachable at runtime.
 - **The source UDF must have `visible = true` in `canvas.toml`.** Hidden nodes (`visible = false`) do not execute on canvas load and have no cached result. Referencing them in `sql-runner` will fail with: `UDF 'my_udf' has no cached result. Run the UDF first.`
@@ -156,7 +154,7 @@ One `GET /h3/query` (or any endpoint speaking its parameters), its Parquet resul
 - Every string or number prop accepts `$param` (`"timeMin": "$date"`); the query waits until it is set and re-runs when it changes. Params come from the same node or a node with an edge into it. `"columns": "$cols"` takes an array or a comma-separated string, so a dropdown value like `"hex,t2m_max"` picks the variable.
 - To follow a map's view, split its `param` bounds into four params: `html-template-nodes` skill, "Map with a custom chart", which is also the runnable `h3-query` canvas.
 - The whole result stays in browser memory (`maxPages`, default 16, caps it). For large or pan-aware data use a `fused-map` `fused-hex` layer instead.
-- No UDF runs; no `visible = true` requirement; `fused workbench canvas validate` before 2.9.12 may flag `{{name}}` as unknown (see `sql-runner`).
+- No UDF runs; no `visible = true` requirement.
 
 ## `fused-map`: a layer from a canvas SQL source (`data: "{{name}}"`)
 
@@ -200,7 +198,6 @@ To let viewers change a tile UDF's arguments, put the inputs and the map in one 
 - Give every input a `defaultValue`, so `$param` has a value on the first load.
 - The input's `param` name and the UDF argument name can be different (`band_index=$band`).
 - No `sql-runner` is needed: a `fused-map` layer's `udf` runs the UDF directly.
-- A map's `param` bounds can't feed a `fused.types.Bounds` argument yet: `?bounds=$view` arrives as `w,s,e,n` text, the run fails with `JSONDecodeError`, and the layer stays blank with no error on the map. Use `tile: true` instead: each tile passes its own `bounds`.
 - A tiled layer takes a `sql` too (`udf` with `tile: true`, or `fused-hex`): one `SELECT` (a `WITH` is fine) over the rows of every tile in view, read as `{{source}}`. It runs again on pan, zoom or a `$param` change, without refetching tiles. The result must keep the cell column (`h3`, `fused-hex`) or the geometry (vector layers). `raster`, `mvt` and `tileUrl` layers take no `sql`.
 
   ```json
@@ -226,7 +223,6 @@ Pages and widgets read these params with `fused.params` or `$param`; a page writ
 - Each layer is a SQL source named by its `id`, for SQL widgets and `fused.query` in the map's node or page, on a node with an edge from the map's node, or on one with an edge from the layer's UDF. A layer id equal to a UDF name shadows that UDF.
 - A `udf` layer's source is the UDF's whole result. A cell-tiled layer's (`fused-hex`, or `h3` with `tile: true`) is every row of the tiles in view, one per cell per time step, typed as in the Parquet (a timestamp stays `TIMESTAMP`), with the cell column as a lowercase hex string; it is empty below the layer's `minZoom`. Both are read before the layer's `sql`, `filters` and `source.reduce`. A `data: "{{name}}"` layer's source is that source itself: same rows, column types, loading state and errors, read before the layer's `sql`. Other tiled layers hold the tiles loaded.
 - Until a layer first has rows, SQL widgets show loading and `fused.query` rejects `not_ready`. After that a rebuild (pan, param change) keeps serving the previous rows; a `data` layer follows its source, and an `h3-query` keeps serving its previous rows while it fetches again. The source exists only while the map is mounted.
-- `fused workbench canvas validate` before 2.9.12 flags `{{layer_id}}` as an unknown node, as it does a `sql-runner` name; same workaround.
 
 ## Common conventions
 
@@ -286,7 +282,7 @@ Always set `maxRows` explicitly on `sql-runner` when the source UDF may return m
 1. Open `reference.md` and find the section for the widget `type` you're working with.
 2. Honor `required` props and respect `enum` constraints.
 3. When constructing a widget JSON, prefer SQL-driven options/data over static when a UDF is available.
-4. Validate with `fused workbench json-ui validate <file>`. It flags missing required props, bad enums and props outside `props`, not unknown prop keys: an invented prop such as `initialViewState` passes here and the canvas rejects it, so take a screenshot too.
+4. Validate with `fused workbench json-ui validate <file>`. It flags missing required props, bad enums and props outside `props`, not unknown prop keys.
 
 ## Debugging widgets with the Fused CLI
 
