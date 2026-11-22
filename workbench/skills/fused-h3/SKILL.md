@@ -1,6 +1,6 @@
 ---
 name: fused-h3
-description: Ingest data into H3 hex datasets and query them with the `fused.h3` API. Covers partitioning points, geometries, gridded rasters (ERA5-style) or tables that already carry an H3 column into hex-sorted Parquet as server-side runs, checking a large or messy Parquet folder first with `fused.h3.inspect`, registering the output with `fused.h3.index` (whole tree, some partition folders, a flat folder in file batches, or fanned out over several instances), and reading it back with `fused.h3.query` inside a UDF or `/h3/query` over HTTP. Use when converting data to H3, building, adding to or redoing a hex dataset, following or retrying a partition/index run, querying one by point/bbox/cell/time/partition, or calling `/h3/query` with curl, a script or an HTML page. Also use when showing a hex dataset on a map or visualising it (the `fused-map` `fused-hex` layer, zoomed-out overviews, `chunk_res_offset`).
+description: Ingest data into H3 hex datasets and query them with the `fused.h3` API. Covers partitioning points, geometries, gridded rasters (ERA5-style) or tables that already carry an H3 column into hex-sorted Parquet as server-side runs, checking a large or messy Parquet folder first with `fused.h3.inspect`, registering the output with `fused.h3.index` (whole tree, some partition folders, a flat folder in file batches, or fanned out over several instances), and reading it back with `fused.h3.query` inside a UDF or `/h3/query` over HTTP. Use when converting data to H3, building, adding to or redoing a hex dataset, following or retrying a partition/index run, querying one by point/bbox/cell/time/partition, or calling `/h3/query` with curl, a script or an HTML page. Also use when showing a hex dataset on a map or visualising it (the `fused-map` `fused-hex` layer, zoomed-out overviews, `chunk_res_offset`, a `composite` layer with one resolution per zoom band).
 ---
 
 # H3 ingestion with `fused.h3`
@@ -16,7 +16,7 @@ The workflow is always:
 
 `partition` and `index` work from anywhere the `fused` SDK is authenticated: a notebook, a script, or a UDF. Nothing is read or uploaded from the calling machine. They send a description of the work to the Fused server and **return as soon as the run has started**. Call `run.tail()` to follow it to the end. `inspect` is the exception: it reads on your machine with your local credentials.
 
-To query an indexed dataset over HTTP (curl, a script, a web page), see [`http.md`](http.md). To show one on a map, see [`map.md`](map.md).
+To query an indexed dataset over HTTP (curl, a script, a web page), see [`http.md`](http.md). To show one on a map, or several resolutions of one dataset as zoom levels, see [`map.md`](map.md).
 
 ## Choosing how rows get a hex
 
