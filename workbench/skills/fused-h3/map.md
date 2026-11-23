@@ -52,7 +52,7 @@ Optional fields: `overview.minZoom` (the overview draws below the floor, default
 
 When one dataset has several versions per zoom band (say building counts per res-5 and per res-8 cell zoomed out, the res-12 rows zoomed in), use one `type: "composite"` layer. It holds each version as a **level** and draws exactly one at a time. Crossing into another band, the level on screen keeps drawing until the new level has loaded the view, then they swap, so the map never goes blank. Several layers gated with `minZoom`/`maxZoom` or `visibleMinZoom`/`visibleMaxZoom` blank out at every boundary: do not build level of detail that way.
 
-A level is an ordinary layer of any type except `composite`: `fused-hex`, `h3`, `geojson`, `scatterplot`, `arc`, `heatmap`, `mvt`, `raster`, a tiled UDF (`udf` + `tile: true`), or a row layer fed by `data`, `sql` or a non-tiled `udf`. It takes exactly the keys a standalone layer of its type takes. A `fused-hex` level is its own indexed dataset: write each coarse level as Parquet with one row per cell and an integer H3 column at that resolution, partition it with `hex_column=` and that `h3_res` (the column becomes `hex`, so one `h3Column` serves every level), and index it, as in steps 1 and 2.
+A level is an ordinary layer of any type except `composite`: `fused-hex`, `h3`, `geojson`, `scatterplot`, `arc`, `heatmap`, `mvt`, `raster`, a tiled UDF (`udf` + `tile: true`), or a row layer fed by `data`, `sql` or a non-tiled `udf`. It takes exactly the keys a standalone layer of its type takes. Set `type` on every level (a level without one is read as `fused-hex` when it names a `source` path, else detected from its data; do not rely on that). A `fused-hex` level is its own indexed dataset: write each coarse level as Parquet with one row per cell and an integer H3 column at that resolution, partition it with `hex_column=` and that `h3_res` (the column becomes `hex`, so one `h3Column` serves every level), and index it, as in steps 1 and 2.
 
 ```json
 {
@@ -61,9 +61,9 @@ A level is an ordinary layer of any type except `composite`: `fused-hex`, `h3`, 
   "style": {"opacity": 0.8, "fillColor": {"type": "continuous", "attr": "n_buildings", "palette": "Sunset", "scaleType": "quantile"}},
   "filters": [{"attr": "n_buildings", "type": "range", "min": 1}],
   "levels": [
-    {"id": "z0", "maxZoom": 8, "source": {"path": "s3://bucket/buildings/hex5/", "variables": ["n_buildings"]}},
-    {"id": "z8", "minZoom": 8, "maxZoom": 12, "source": {"path": "s3://bucket/buildings/hex8/", "variables": ["n_buildings"]}},
-    {"id": "z12", "minZoom": 12, "maxZoom": 15, "source": {"path": "s3://bucket/buildings/hex12/", "variables": ["subtype", "height"]},
+    {"id": "z0", "type": "fused-hex", "maxZoom": 8, "source": {"path": "s3://bucket/buildings/hex5/", "variables": ["n_buildings"]}},
+    {"id": "z8", "type": "fused-hex", "minZoom": 8, "maxZoom": 12, "source": {"path": "s3://bucket/buildings/hex8/", "variables": ["n_buildings"]}},
+    {"id": "z12", "type": "fused-hex", "minZoom": 12, "maxZoom": 15, "source": {"path": "s3://bucket/buildings/hex12/", "variables": ["subtype", "height"]},
      "tooltip": ["hex", "subtype", "height"],
      "style": {"fillColor": {"type": "categorical", "attr": "subtype", "palette": "Bold"}}},
     {"id": "z15", "minZoom": 15, "type": "geojson", "udf": "{{building_tiles}}", "tile": true,
@@ -74,8 +74,9 @@ A level is an ordinary layer of any type except `composite`: `fused-hex`, `h3`, 
 
 - A level draws while `minZoom <= map zoom < maxZoom`; an unset end is open. One level draws at a time: where bands overlap the higher `minZoom` wins, and a zoom no band covers draws nothing. Make bands meet: each level's `maxZoom` is the next level's `minZoom`.
 - A tiled level's tiles load from `floor(minZoom)` (0 when unset) up to its `maxZoom`. Keep fine datasets on high bands: a fine level on a low band requests tiles too large for the server.
-- **Defaults and differences.** The composite holds the defaults (any layer key: `h3Column`, `style`, `tooltip`, `legend`, `sql`, `filters`, a shared `source` such as `variables` or `timeColumn`, ...); a level stores only what differs. Plain objects (`style`, `source`, `legend`) merge key by key; colour configs (`style.fillColor`, `style.lineColor`), arrays (`tooltip`, `source.variables`) and scalars replace whole. `null` on a level unsets the composite's value there (`"tooltip": null`). `source.path` and `source.endpoint` are always the level's own, never inherited. Each level keeps its own colour scale.
-- **Only on the composite:** `id`, `visible`, `visibleMinZoom`, `visibleMaxZoom` (a level's are ignored; the composite's hide every level at once). Give each level an `id` (letters, digits, `_`, `-`; unique) so editing the list keeps the right level on screen.
+- **Defaults and differences.** The composite holds the defaults (any layer key but `sql` and `filters`, which stack, see below: `h3Column`, `style`, `tooltip`, `legend`, a shared `source` such as `variables` or `timeColumn`, ...); a level stores only what differs. Plain objects (`style`, `source`, `legend`) merge key by key; colour configs (`style.fillColor`, `style.lineColor`), arrays (`tooltip`, `source.variables`) and scalars replace whole. `null` on a level unsets the composite's value there (`"tooltip": null`). `source.path` and `source.endpoint` are always the level's own, never inherited. Each level keeps its own colour scale.
+- **Only on the composite:** `visible`, `visibleMinZoom`, `visibleMaxZoom` (a level's are ignored; the composite's hide every level at once), and the layer `id` that names its sources.
+- **A level's `id` is its own key inside the composite, not a layer id.** Give every level one (letters, digits, `_`, `-`; unique within the composite), so that adding, removing or reordering levels keeps the right level on screen.
 - **A level's `sql` and `filters` stack on the composite's; they do not replace them.** The level's `sql` runs first over its own rows, then the composite's `sql` runs over that result (its `{{source}}` is the level's result), then a row must pass the level's `filters` AND the composite's. Unset or `null` on a level adds nothing; the composite's always apply, with no opt-out. `mvt` and `raster` levels run no query. A composite filter on a column a level's rows lack is skipped at that level; a composite `sql` that fails at a level (it names a column that level lacks) leaves that level drawing its own rows.
 - Filters run after the composed query, so a composite `sql` that aggregates sees the rows before the level's filters, not after.
 - `source.overview` is ignored on a level: the coarser levels play that role. Not a time-playback target.
