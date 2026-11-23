@@ -86,20 +86,18 @@ class Descriptions(unittest.TestCase):
         self.assertEqual(cl.description_height("", 700), 0)
         self.assertEqual(cl.description_height("   ", 700), 0)
 
-    def test_one_line(self) -> None:
-        self.assertAlmostEqual(
-            cl.description_height("One short line", 700), 4 + 8 + 31.5
-        )
+    def test_heights(self) -> None:
+        self.assertEqual(cl.description_height("One short line", 700), 48)
+        self.assertEqual(cl.description_height("x" * 110, 700), 79)
 
     def test_explicit_lines(self) -> None:
         self.assertEqual(cl.description_lines("a\nb\nc", 700), 3)
         self.assertEqual(cl.description_lines("a\n\n\nb", 700), 2)
 
     def test_wrapping(self) -> None:
-        self.assertEqual(
-            cl.description_lines("x" * 140, 700), 3
-        )  # ~60 chars per line at 700px
-        self.assertEqual(cl.description_lines("x" * 40, 700), 1)
+        self.assertEqual(cl.description_lines("x" * 64, 600), 1)
+        self.assertEqual(cl.description_lines("x" * 65, 600), 2)
+        self.assertEqual(cl.description_lines("x" * 140, 700), 2)
 
 
 class Arrange(unittest.TestCase):
@@ -234,8 +232,8 @@ class EndToEnd(unittest.TestCase):
         self.assertIsNone(inner.parent)  # ignored by the workbench → top-level
         self.assertEqual((inner.eff_w, inner.eff_h), (780, 615))  # min width, one row
         outer = c.nodes["F"]
-        # one row: a (500) + b (500 + 43.5 desc) → 75 + 543.5 + 40
-        self.assertEqual(outer.eff_h, 75 + 543.5 + 40)
+        # one row: a (500) + b (500 + 48 desc) → 75 + 548 + 40
+        self.assertEqual(outer.eff_h, 75 + 548 + 40)
         self.assertNotIn("inner", outer.computed_children)
 
     def test_fix_makes_check_clean(self) -> None:

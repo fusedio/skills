@@ -229,7 +229,7 @@ A JSON-UI widget can be placed inside the page. Write its spec as the text of a 
 - **Inputs set params with the HTML node as origin.** A dropdown inside the element that sets `city` is indistinguishable from the page calling `fused.params.set("city", …)`: the page's `onChange` fires and downstream UDFs re-run.
 - **Read once; lifetime follows the DOM.** The spec is read when the element connects. To change it, replace the element. Removing the element removes the widget. Every iframe reload (substitution change, upstream run, Run button) drops widgets and the page re-registers them on load.
 - **Errors in place.** A spec that fails to parse or validate shows the workbench's standard error card inside the element.
-- **Sidebar edits write into the block.** A `fused-map` inside the element is editable from its sidebar on your own canvas (Add layer, basemap, layer styles, filters): each edit is written into that `<fused-widget>` block of the `.html` file, one undo step in the code editor, exactly as it would be for a `.json` widget node. The rest of the page is untouched. On a share page the edits are runtime overrides, as for any widget.
+- **Sidebar edits are a draft until saved.** A `fused-map` inside the element is editable from its sidebar on your own canvas (Add layer, basemap, layer styles, filters). Edits stay in a draft (lost on reload) until Save writes the block into the `.html` file; Discard drops them. On a share page the edits are runtime overrides, as for any widget.
 - **Only authored elements render.** The workbench renders the specs it finds in the node's source file. An element the page creates at runtime from other text (for example by echoing a param) renders nothing. Elements inside a template inlined through `{{other_html_node}}` are not rendered either; put the widget in the outer page.
 - **Write the spec raw.** The text between the tags is parsed as is: write `<`, `>` and `&` directly, not as HTML entities.
 - **Talk to the widget through params and SQL.** The page cannot call methods on the widget. It sets params the spec reads (`$param`, a map filter bound to `$param`), reads the params the widget writes (a map's are listed in `json-ui-schemas`), writes a map's `selectParam`, and queries a map's layers with `fused.query`. See [Map with a custom chart](#map-with-a-custom-chart).
@@ -273,7 +273,7 @@ onParams(fused.params.getAll());
 ```
 
 - The map writes `bounds` as one `[w, s, e, n]` array and the `h3-query` bbox props each take one number, so the page splits it into `w`/`s`/`e`/`n`. Both widgets run in this node, so the `h3-query` sees the page's params with no edge. Each new bbox aborts the query in flight and fetches again; `autoSendDebounceMs` spaces the fetches, `minZoom` caps the area, `maxPages` caps the rows.
-- To use a UDF instead, replace the h3-query with a `udf` layer (`{ "type": "h3", "udf": "{{my_udf}}", "h3Column": "hex" }`) and an edge from the UDF node.
+- To use a UDF instead, replace the h3-query with a `udf` layer (`{ "type": "h3", "udf": "{{my_udf?bbox=$bounds}}", "h3Column": "hex" }`) and an edge from the UDF node. It re-runs when `bounds` changes; the array arrives as `w,s,e,n`.
 - Send every query through `q()`: write params as `@name` and the layer as `{layer}`; `q()` turns them into `$name` and `{{calls}}` at runtime. Written literally, `$name` and `{{...}}` are substituted before the script runs.
 - Re-query only when the layer's `version` or a filter changes, never on a timer. A pan refetches, which bumps `version`. `refresh()` keeps one query in flight (`busy` / `again`); `detail()` passes `key`, so a newer click supersedes the older call.
 - For a dataset at several resolutions, one per zoom band, the map layer is a `composite` (`fused-h3` skill, `map.md`, "Level of detail"). It publishes `{{id}}` (rows loaded) and `{{id_drawn}}` (rows drawn, after the level's and the composite's `sql` and filters), both from the level on screen, and their `sources` entries add `level` and `band`; query only columns every level has.
@@ -322,7 +322,7 @@ Confirm auth first: `fused workbench whoami`.
    grep -oE '\{\{ *[A-Za-z_][A-Za-z0-9_-]*|fused\.runPython\( *["'"'"'`][^"'"'"'`]+' *.html | sort -u
    ```
    Every name must be a `udfName` in `canvas.toml` with an edge into the HTML node, or a `fused-map` layer id or `sql-runner` name in reach. Names a page builds at runtime for `fused.query` are not in the grep: check them against the layer ids by eye.
-2. **Look at it**: the `canvas_screenshot` tool photographs the canvas in fused-render. There is no push step: the canvas publishes itself when your turn ends and whenever the folder goes quiet. Page `console.log` output is not in the screenshot; use the browser devtools on the canvas.
+2. **Look at it**: the `canvas_screenshot` tool photographs the canvas in fused-render. There is no push step: the canvas publishes itself when your turn ends. Page `console.log` output is not in the screenshot; use the browser devtools on the canvas.
 -->
 
 Do not report success from `validate` alone: it checks structure, not rendering or data. Look at the screenshot or the page.

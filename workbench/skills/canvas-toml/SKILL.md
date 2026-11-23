@@ -22,7 +22,7 @@ A Fused canvas is a folder containing one `canvas.toml` plus per-UDF source file
 
 > **This folder is a live canvas clone.** fused-render keeps it in sync with the canvas on the server. Never run `fused workbench canvas pull` or `fused workbench canvas push` here (nor `pull --force`, `--no-validate` or `--no-ignore`): they are refused.
 >
-> - Edit the files. The canvas publishes itself when your turn ends and whenever the folder goes quiet.
+> - Edit the files. The canvas publishes itself when your turn ends, not during it.
 > - Changes made on the server arrive in this folder automatically, and the session hook names the files that changed. Re-read those files before editing them.
 > - Verify with the `canvas_screenshot` tool and `fused workbench canvas validate .`. `fused workbench run` (UDFs) and `fused workbench json-ui validate` (widgets) stay useful.
 -->
@@ -185,7 +185,7 @@ height = 500
 | `childUdfOrder` | Ordered `udfName` list of children (file-backed nodes only — never another folder). A node absent from every `childUdfOrder` is top-level |
 | `isLocked` | Locks child editing; default `false` |
 
-`validate` accepts folder nodes without a source file but **does not check `childUdfOrder`** — a misspelled child passes validation. Diff the list against every node's `udfName` yourself (folder ids have no file stem).
+`validate` accepts folder nodes without a source file but **does not check `childUdfOrder`** — a misspelled child passes validation. `scripts/canvas_layout.py check` flags unknown names and nested folders.
 
 ### Folder geometry — the workbench re-packs folders on load
 
@@ -193,7 +193,7 @@ height = 500
 
 - Children: still write `x`/`y` (they are required fields) but don't spend effort on them — only `childUdfOrder`, each child's `width`/`height`, and the folder `width` affect the result.
 - The folder's on-screen size is **computed**, so a folder you size too small will grow over whatever sits next to or below it. Compute its real size with the formula below and reserve that space in the top-level layout.
-- A child with a `description` is **taller than its `height`**: the workbench measures the description panel and adds it when packing (see "Description panel"). One line ≈ 44 px, two lines ≈ 75 px. So a folder of described nodes is taller than the bare formula says.
+- A child with a `description` is **taller than its `height`**: the workbench measures the description panel and adds it when packing (see "Description panel"). So a folder of described nodes is taller than the bare formula says.
 
 **Do not do this arithmetic by hand — run `scripts/canvas_layout.py` (see "Deterministic layout tools").** The rules, for reading the output:
 
@@ -302,7 +302,7 @@ The correct testing approach:
 Running by name resolves the UDF from the server with full canvas context, so `fused.load("other_udf")` inside it can find its sibling.
 <!-- /fused-render:strip -->
 <!-- fused-render:only (this block applies only inside a fused-render canvas clone; ignore it anywhere else)
-Test the UDF by name instead, in the clone's own environment: `fused workbench --env <env> run <canvas> my_udf`, where `<env>` is the segment after `canvas/` in the clone's path (no `--env` for a `custom` clone; see the `fused-workbench-cli` skill). Do not test with a Python `fused.load("my_udf")()` script here: the SDK ignores the clone's environment and runs against whatever `~/.fused/settings.toml` names. Running by name resolves the UDF from the server with full canvas context, so `fused.load("other_udf")` inside it can find its sibling. The server has your edit once the folder has gone quiet and published itself.
+Test the UDF by name instead, in the clone's own environment: `fused workbench --env <env> run <canvas> my_udf`, where `<env>` is the segment after `canvas/` in the clone's path (no `--env` for a `custom` clone; see the `fused-workbench-cli` skill). Do not test with a Python `fused.load("my_udf")()` script here: the SDK ignores the clone's environment and runs against whatever `~/.fused/settings.toml` names. Running by name resolves the UDF from the server with full canvas context, so `fused.load("other_udf")` inside it can find its sibling. A by-name run sees the version published before your turn.
 -->
 
 ## Canvas naming
@@ -387,7 +387,7 @@ Workflow when authoring or editing a canvas:
 3. Run `check` (also run by `fix`). Ship only when it prints `ok`. `fused workbench canvas validate` does **not** check layout.
 4. Adding one node to an existing canvas: `place --near <node>` gives the slot the workbench itself would use (right, then below, above, left); `place --center x,y` spirals out from a point the way the toolbar "add node" does. Then `check`.
 
-`check` output levels: `error` = the workbench will show something different from your file (overlap, folder size); `warn` = probable visual problem (description panel runs into a neighbour, negative coordinates); `info` = harmless (child x/y differ from the packed position).
+`check` output levels: `error` = the workbench will show something different from your file (overlap, folder size); `warn` = probable visual problem (description panel runs into a neighbour, negative coordinates, a folder height off by at most one description line per described row, since the workbench measures descriptions in the browser); `info` = harmless (child x/y differ from the packed position).
 
 ### Node sizes
 
@@ -406,8 +406,8 @@ Workflow when authoring or editing a canvas:
 A node's `description` renders in a panel **below** the body, outside `height`, 4 px under the node, full node width, text at `14 × nodeDescriptionScaleFactor` px (21 px at the default 1.5) with line-height 1.5:
 
 ```
-panel height ≈ 12 + lines × 31.5      → 1 line ≈ 44 px, 2 lines ≈ 75 px, 3 lines ≈ 107 px
-lines ≈ ceil(characters / (width / 11.5))  per paragraph, at scale 1.5   (700 px wide ≈ 60 characters per line)
+panel height ≈ 16.5 + lines × 31.5, rounded down  → 1 line 48 px, 2 lines 79 px, 4 lines 142 px
+lines ≈ ceil(characters / ((width − 18) / 9))  per paragraph, at scale 1.5   (600 px wide ≈ 64 characters per line)
 ```
 
 The workbench measures the real panel and adds it to the child height when packing folders, so folders grow with descriptions. For top-level rows nothing adds it for you: the row height must be `max(height + panel)` of the row, otherwise a two-line description runs into the row below (the 75 px gap hides a one-line panel, not more). The script does both. Keep descriptions to one line where you can; put longer text in a `.md` node.

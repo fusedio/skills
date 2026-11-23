@@ -67,13 +67,14 @@ ARRANGE_ROW_FACTOR = 3.5
 
 # Description panel (node-description-panel.tsx + textbox-renderer.tsx).
 # Rendered BELOW the node body, outside ``height``:
-#   marginTop 4px + padding 4px top + 4px bottom + lines * (14px * scale * 1.5)
+#   marginTop 4px + floor(16.5 + lines * (14px * scale * 1.5)); folders skip the 4px
 DESC_PANEL_GAP = 4
-DESC_PANEL_PADDING = 4
+DESC_PANEL_BASE = 16.5
+DESC_TEXT_MARGIN = 6
 DESC_FONT_PX = 14
 DESC_LINE_HEIGHT = 1.5
 DESC_DEFAULT_SCALE = 1.5  # DEFAULT_NODE_DESCRIPTION_SCALE_FACTOR
-DESC_AVG_CHAR_EM = 0.55  # rough average glyph width for wrap estimate
+DESC_AVG_CHAR_EM = 0.43  # rough average glyph width for wrap estimate
 
 KIND_BY_EXT = {".py": "udf", ".json": "json", ".html": "html", ".md": "text"}
 
@@ -117,12 +118,13 @@ def description_lines(
     """Estimate how many rendered lines a description takes at ``width_px``.
 
     The workbench measures this from the DOM; we can only estimate. Each
-    paragraph wraps at roughly ``width / (font * 0.55)`` characters.
+    paragraph wraps at roughly ``text width / (font * DESC_AVG_CHAR_EM)`` characters.
     """
     if not text or not text.strip():
         return 0
     font = DESC_FONT_PX * scale
-    chars_per_line = max(8, int(width_px / (font * DESC_AVG_CHAR_EM)))
+    text_px = width_px - 2 * DESC_TEXT_MARGIN * scale
+    chars_per_line = max(8, int(text_px / (font * DESC_AVG_CHAR_EM)))
     lines = 0
     for para in text.replace("\r\n", "\n").split("\n"):
         stripped = para.strip()
@@ -135,12 +137,15 @@ def description_lines(
 def description_height(
     text: str, width_px: float, scale: float = DESC_DEFAULT_SCALE
 ) -> float:
-    """Estimated extra height (px) the description panel adds below a node."""
-    lines = description_lines(text, width_px, scale)
-    if lines == 0:
-        return 0.0
+    """Estimated height (px) a folder adds for the description panel."""
+    return description_height_for_lines(description_lines(text, width_px, scale), scale)
+
+
+def description_height_for_lines(
+    lines: int, scale: float = DESC_DEFAULT_SCALE
+) -> float:
     line_px = DESC_FONT_PX * scale * DESC_LINE_HEIGHT
-    return DESC_PANEL_GAP + 2 * DESC_PANEL_PADDING + lines * line_px
+    return math.floor(DESC_PANEL_BASE + lines * line_px) if lines else 0
 
 
 def folder_grid_layout(
@@ -510,6 +515,8 @@ class Canvas:
 
     def rect(self, n: Node, with_description: bool = True) -> Rect:
         h = n.eff_h if (with_description or n.is_folder) else (n.height or 0)
+        if with_description and n.desc_h:
+            h += DESC_PANEL_GAP
         return Rect(n.x or 0.0, n.y or 0.0, n.eff_w, h)
 
     # -- checks ----------------------------------------------------------- #
@@ -525,7 +532,10 @@ class Canvas:
                     computed=f.eff_w,
                 )
             if f.height is not None and abs(f.height - f.eff_h) > 0.5:
-                self.error(
+                line_px = DESC_FONT_PX * DESC_DEFAULT_SCALE * DESC_LINE_HEIGHT
+                rows = {cy for c, (_, cy) in f.computed_children.items() if self.nodes[c].desc_h}
+                near = abs(f.height - f.eff_h) <= line_px * len(rows)
+                (self.warn if near else self.error)(
                     "folder height will be recomputed by the workbench",
                     folder=f.name,
                     declared=f.height,
@@ -632,7 +642,7 @@ class Canvas:
                     changed.append(n.name)
                 n.x, n.y = x, row_y
                 prev_right = x + n.eff_w
-                bottom = max(bottom, row_y + n.eff_h)
+                bottom = max(bottom, row_y + self.rect(n).h)
             prev_bottom = bottom
         return changed
 
@@ -648,7 +658,7 @@ class Canvas:
                 if tops
                 else (0.0, 0.0)
             )
-        items = [(n.name, n.eff_w, n.eff_h) for n in tops_sorted]
+        items = [(n.name, n.eff_w, self.rect(n).h) for n in tops_sorted]
         pos = arrange_rows(items, origin=origin, columns=columns)
         changed: list[str] = []
         for name, (x, y) in pos.items():
@@ -867,13 +877,7 @@ def cmd_folder_size(args: argparse.Namespace) -> int:
         parts = spec.split("x")
         w, h = float(parts[0]), float(parts[1])
         desc_lines = int(parts[2]) if len(parts) > 2 else 0
-        extra = description_height("x" * 1, w) if desc_lines == 1 else 0.0
-        if desc_lines > 1:
-            extra = (
-                DESC_PANEL_GAP
-                + 2 * DESC_PANEL_PADDING
-                + desc_lines * DESC_FONT_PX * DESC_DEFAULT_SCALE * DESC_LINE_HEIGHT
-            )
+        extra = description_height_for_lines(desc_lines)
         children.append((f"child_{i}", w, h + extra))
     width = effective_folder_width(args.width, [w for _, w, _ in children])
     positions, height = folder_grid_layout(width, children)

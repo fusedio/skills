@@ -237,6 +237,7 @@ def udf(data_path: str):
 - Use caching for expensive operations
 - Cache data loading, not business logic that changes frequently
 - Consider hierarchical caching for complex pipelines
+- Read Parquet on S3 with `pq.read_table` or `pyarrow.dataset`, not `pq.ParquetFile(...).read()`, which skips pre-buffering and is far slower. For many small row-group reads, raise pyarrow's IO pool from 8: `pa.set_io_thread_count(48)`.
 
 ## Cache Invalidation
 
@@ -422,7 +423,7 @@ fused workbench run CANVAS_NAME udf_name --cache-max-age=0
 fused workbench run CANVAS_NAME udf_name --profile
 ```
 
-**What counts as passing:** no exception, and the values you expect. The CLI prints a truncated DataFrame (middle rows and columns elided), so to check values return a few scalar columns or `df.to_csv()`. An empty `{}` or `None` is fine if the data source isn't populated yet. If the UDF has a `date` or `id` parameter, test with a real value that should have data.
+**What counts as passing:** no exception, and the values you expect. The CLI prints a truncated DataFrame (middle rows and columns elided), so to check values return a few scalar columns or `df.to_csv()`, or pass `--output-file out.parquet`. An empty `{}` or `None` is fine if the data source isn't populated yet. If the UDF has a `date` or `id` parameter, test with a real value that should have data.
 
 **Start with a smoke test.** When writing a new UDF — especially one that connects to an external service — verify the connection returns data before building the full logic. This separates "can I connect?" from "does my logic work?", and makes failures much easier to diagnose.
 
@@ -437,14 +438,14 @@ fused workbench run CANVAS_NAME udf_name --profile
 > fused workbench run my_canvas my_udf --param=value
 > ```
 >
-> Alternatively, pass the local `.py` file directly to run without pushing — but note that `fused.secrets` and `fused.api` integrations are only available in the remote runtime:
+> Alternatively, pass the local `.py` file directly to run without pushing. It still runs on Fused, but a `fused.load("<sibling>")` inside it fails with `UDF not found`:
 >
 > ```bash
 > fused workbench run my_canvas ./my_canvas/my_udf.py --param=value
 > ```
 <!-- /fused-render:strip -->
 <!-- fused-render:only (this block applies only inside a fused-render canvas clone; ignore it anywhere else)
-> **`fused workbench run` executes the published remote version, not your local files.** In a canvas clone the folder publishes itself whenever it goes quiet and when your turn ends, so a run right after an edit can still return the previous version. Never run `fused workbench canvas push` here, it is refused. To run exactly what is on disk, pass the local `.py` file, but note that `fused.secrets` and `fused.api` integrations are only available in the remote runtime:
+> **`fused workbench run` executes the published remote version, not your local files.** In a canvas clone the folder publishes only between turns, so a by-name run mid-turn returns the previous version. Never run `fused workbench canvas push` here, it is refused. To run what is on disk, pass the local `.py` file. It still runs on Fused, but a `fused.load("<sibling>")` inside it fails with `UDF not found`:
 >
 > ```bash
 > fused workbench run my_canvas ./my_udf.py --param=value

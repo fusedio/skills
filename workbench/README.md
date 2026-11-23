@@ -18,7 +18,7 @@ Rules:
 - An only block's body must not contain `-->` (it would end the comment early) or `<!--`.
 - Put a blank line before a strip block and after the only block that follows it, so the clone text keeps its spacing once the markers are gone.
 - When a strip block has an only twin right after it, the two are copies of the same text with the clone wording swapped in. Edit both when you change either.
-- Clone wording: the folder is a live clone kept in sync by fused-render; never pull or push there (both are refused); the canvas publishes itself when the agent's turn ends and whenever the folder goes quiet; server changes arrive in the folder automatically and the session hook names the files; verify with the `canvas_screenshot` tool and `fused workbench canvas validate .`.
+- Clone wording: the folder is a live clone kept in sync by fused-render; never pull or push there (both are refused); the canvas publishes itself when the agent's turn ends, not during it; server changes arrive in the folder automatically and the session hook names the files; verify with the `canvas_screenshot` tool and `fused workbench canvas validate .`.
 - Markers cannot go in YAML frontmatter, so keep `canvas pull` / `canvas push` out of skill descriptions.
 
 ## Skills that apply only inside fused-render
