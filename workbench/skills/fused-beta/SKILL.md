@@ -1,6 +1,6 @@
 ---
 name: fused-beta
-description: Call the team-built `fused.beta` methods — UDFs the Fused team wrote whose code stays on Fused's servers and whose calls run there — from Python (`fused.beta.{canvas}.{udf}(...)` or `fused.beta("canvas", "udf", ...)`), the CLI, or over HTTP (`POST /v1/tasks/run` with `task: "beta.run"`, user or service-account token). Covers discovery with `fused beta catalog`, `fused.beta.catalog()` and the public catalog JSON, the `TaskRun` handle for realtime and batch runs, `beta_version=` for an older published version, following a run to its result, trying a canvas directory locally with `fused.beta.local`, and the authoring rules a canvas must meet. Use when code mentions `fused.beta`, when asked to call a Fused team or beta UDF or method, when starting beta tasks over HTTP, or when writing a canvas for `fused.beta`.
+description: Call the team-built `fused.beta` methods — UDFs the Fused team wrote whose code stays on Fused's servers and whose calls run there — from Python (`fused.beta.{canvas}.{udf}(...)` or `fused.beta("canvas", "udf", ...)`) or over HTTP (`POST /v1/tasks/run` with `task: "beta.run"`, user or service-account token). Covers discovery with `fused.beta.catalog()` and the public catalog JSON, the `TaskRun` handle for realtime and batch runs, `beta_version=` for an older published version, following a run to its result, trying a canvas directory locally with `fused.beta.local`, and the authoring rules a canvas must meet. Use when code mentions `fused.beta`, when asked to call a Fused team or beta UDF or method, when starting beta tasks over HTTP, or when writing a canvas for `fused.beta`.
 ---
 
 # Calling `fused.beta` methods
@@ -18,7 +18,7 @@ dir(fused.beta); dir(fused.beta.example)       # canvases; a canvas's methods
 help(fused.beta)                               # the HTTP guide
 ```
 
-CLI: `fused beta catalog [example[.hello]]`, `fused --format json beta catalog ...`, `fused beta skill ./skills/fused-beta` (writes a SKILL.md listing every method). The catalog JSON is public, no auth: `https://fused-asset.s3.us-west-2.amazonaws.com/.beta/catalog.json`. An unknown name is a `ValueError` (Python, CLI) listing the known ones; `fused.beta.nosuch` is an `AttributeError`.
+The catalog JSON is public, no auth: `https://fused-asset.s3.us-west-2.amazonaws.com/.beta/catalog.json`. An unknown name is a `ValueError` listing the known ones; `fused.beta.nosuch` is an `AttributeError`.
 
 In a signature, `Any` means the author gave no usable type and `= ...` a default the catalog cannot show; read `doc` for both.
 

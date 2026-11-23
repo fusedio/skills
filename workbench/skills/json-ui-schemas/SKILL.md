@@ -31,14 +31,14 @@ Every widget in a JSON UI file follows this envelope:
     /* ALL component properties go here: value, sql, param, style, label, chart options, etc. */
   },
   "children": [
-    /* child widget nodes — only valid for container types: div, form, sql-runner */
+    /* child widget nodes — only valid for container types: div, form, sql-runner, h3-query */
   ]
 }
 ```
 
 **Critical rules:**
 - ALL component properties (`value`, `sql`, `param`, `style`, `label`, chart options, etc.) MUST be nested under `"props"`. Never place them directly on the node object.
-- `"children"` is an array of widget nodes. Only container types (`div`, `form`, `sql-runner`) accept children. Omit it for leaf widgets.
+- `"children"` is an array of widget nodes. Only container types (`div`, `form`, `sql-runner`, `h3-query`) accept children. Omit it for leaf widgets.
 - The top-level JSON UI file is itself a widget node (typically a root `div`).
 
 **Minimal correct example:**
@@ -152,7 +152,7 @@ One `GET /h3/query` (or any endpoint speaking its parameters), its Parquet resul
 - `path` (required): the indexed dataset, sent as `path=`. `endpoint` (optional): where the query goes, default `/h3/query` on the current server; a full URL elsewhere gets no token.
 - `columns` lists every column returned: include `hex` when a map draws the rows.
 - At most one spatial selector: `cell`, `lat`+`lng`, the four bbox edges, or `hexMin`+`hexMax`; none reads the whole dataset.
-- Every string or number prop accepts `$param` (`"timeMin": "$date"`); the query waits until it is set and re-runs when it changes. Params come from the same node or a node with an edge into it. `"columns": "$cols"` takes an array or a comma-separated string, so a dropdown value like `"hex,t2m_max"` picks the variable.
+- Every string or number prop, including those inside `partition` and `partitionRange`, accepts `$param` (`"timeMin": "$date"`); the query waits until it is set and re-runs when it changes. Params come from the same node or a node with an edge into it. `"columns": "$cols"` takes an array or a comma-separated string, so a dropdown value like `"hex,t2m_max"` picks the variable.
 - To follow a map's view, split its `param` bounds into four params: `html-template-nodes` skill, "Map with a custom chart", which is also the runnable `h3-query` canvas.
 - The whole result stays in browser memory (`maxPages`, default 16, caps it). For large or pan-aware data use a `fused-map` `fused-hex` layer instead.
 - No UDF runs; no `visible = true` requirement.
@@ -208,13 +208,13 @@ To let viewers change a tile UDF's arguments, put the inputs and the map in one 
 
 ## `fused-map`: params it writes, filters bound to params, layers as SQL sources
 
-Pages and widgets read these params with `fused.params` or `$param`; a page writes only `selectParam` back. All of them are used together in the `html-template-nodes` skill, section "Map with a custom chart". "Saved" means kept with the canvas and restored on reload.
+Pages and widgets read these params with `fused.params` or `$param`; a page writes back only `selectParam` and `stateParam`. All of them are used together in the `html-template-nodes` skill, section "Map with a custom chart". "Saved" means kept with the canvas and restored on reload.
 
 - `param`: the view's `[west, south, east, north]`. Sent once when the map is ready, then on pans with `autoSend` (after `autoSendDebounceMs`, default 600). Saved.
 - `clickParam`: the clicked feature's properties, only the layer's `tooltip` fields when it lists them. Saved.
 - `hoverParam`: the same for the feature under the cursor, at most once per frame; removed when the cursor leaves every feature. Not saved.
 - `selectParam`: `{ layer, key, ids, count, bbox, mode, truncated }`. Shift+drag draws a box (`mode: "box"`; filter by `bbox`), shift+click toggles a feature (`"click"`, `bbox: null`; filter by `ids`), Escape or a plain click clears (`"none"`). `ids` are `selectKey` values (default: the cell column on hex layers, else `id`). Not saved. The page the map is in, or a node with an edge to or from it, can write it: `null` clears the box and the dimming, `{ bbox: [west, south, east, north] }` draws that box.
-- `stateParam`: layer overrides and the camera, `view: { centerLng, centerLat, zoom, bearing, pitch, width, height }` (`zoom` in 512 px Web Mercator tiles, `width` / `height` in CSS px): enough to project lng/lat to map pixels. `view` is written when a gesture ends and is absent until the first one. Saved.
+- `stateParam`: layer overrides and the camera, `view: { centerLng, centerLat, zoom, bearing, pitch, width, height }` (`zoom` in 512 px Web Mercator tiles, `width` / `height` in CSS px): enough to project lng/lat to map pixels. `view` is written when a gesture ends and is absent until the first one. A page moves the camera by writing the whole param back with a new `view` (add `transition` in ms to fly). Saved.
 - `sourceParam`: `{ [sourceName]: { version, loading, rows, error, tiles?, level?, band? } }`, one entry per layer id, and on a `composite` layer one for `id` and one for `id_drawn`. Re-query a layer when its `version` changes (`!==`, not `>`); `version` is 0 until the layer has rows. `rows` is the row count when known, else null (always null for a `udf` layer). A cell-tiled layer (`fused-hex`, or `h3` with `tile: true`) and a composite add `tiles`, the tiles in view the rows come from; a composite adds `level` (index in `levels` of the level on screen) and `band` (its `[minZoom, maxZoom]`, null for an open end). Not saved.
 
 **Filters bound to params.** A range filter's `min` / `max` or a categories filter's `values` can be a `"$param"`: `{"attr": "temp", "type": "range", "min": "$lo", "max": "$hi"}`. The map applies it live in the browser. An unset param turns that bound (or that categories filter) off, a `{min, max}` param fills each bound that names it, and a categories list of `[]` keeps every feature. Editing a bound filter in the sidebar writes the param.
@@ -222,7 +222,7 @@ Pages and widgets read these params with `fused.params` or `$param`; a page writ
 **Layers as SQL sources: `{{layer_id}}`.**
 
 - Each layer is a SQL source named by its `id`, for SQL widgets and `fused.query` in the map's node or page, on a node with an edge from the map's node, or on one with an edge from the layer's UDF. A layer id equal to a UDF name shadows that UDF.
-- A `udf` layer's source is the UDF's whole result. A cell-tiled layer's (`fused-hex`, or `h3` with `tile: true`) is every row of the tiles in view, one per cell per time step, typed as in the Parquet (a timestamp stays `TIMESTAMP`), with the cell column as a lowercase hex string; it is empty below the layer's `minZoom`. Both are read before the layer's `sql`, `filters` and `source.reduce`. A `data: "{{name}}"` layer's source is that source itself: same rows, column types, loading state and errors, read before the layer's `sql`. Other tiled layers hold the tiles loaded.
+- A `udf` layer's source is the UDF's whole result, fetched as Parquet. Without `tile` it runs once and never again on pan; pass the view through a `?bbox=$param` override. A cell-tiled layer's (`fused-hex`, or `h3` with `tile: true`) is every row of the tiles in view, one per cell per time step, typed as in the Parquet (a timestamp stays `TIMESTAMP`), with the cell column as a lowercase hex string; it is empty below the layer's `minZoom`. Both are read before the layer's `sql`, `filters` and `source.reduce`. A `data: "{{name}}"` layer's source is that source itself: same rows, column types, loading state and errors, read before the layer's `sql`. Other tiled layers hold the tiles loaded.
 - A `composite` layer publishes two sources, both from the level on screen: `{{id}}`, the rows loaded for the view (before the layer's `sql` and `filters`), and `{{id_drawn}}`, the rows drawn (after them, one per cell). `canvas validate` does not know `id_drawn`: list it under `[validate] known_refs` in `canvas.toml`.
 - Until a layer first has rows, SQL widgets show loading and `fused.query` rejects `not_ready`. After that a rebuild (pan, param change) keeps serving the previous rows; a `data` layer follows its source, and an `h3-query` keeps serving its previous rows while it fetches again. The source exists only while the map is mounted.
 

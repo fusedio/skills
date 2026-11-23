@@ -143,7 +143,7 @@ Most canvas subcommands take a `CANVAS_REF` (name or ID) plus:
 <!-- fused-render:only (this block applies only inside a fused-render canvas clone; ignore it anywhere else)
 > **This folder is a live canvas clone.** fused-render keeps it in sync with the canvas on the server. Never run `fused workbench canvas pull` or `fused workbench canvas push` here (nor `pull --force`, `--no-validate` or `--no-ignore`): they are refused.
 >
-> - Edit the files. The canvas publishes itself when your turn ends and whenever the folder goes quiet.
+> - Edit the files. The canvas publishes itself only between turns: when your turn ends, or when the folder goes quiet.
 > - Changes made on the server arrive in this folder automatically, and the session hook names the files that changed. Re-read those files before editing them.
 > - Verify with the `canvas_screenshot` tool and `fused workbench canvas validate .`. `fused workbench run` (UDFs) and `fused workbench json-ui validate` (widgets) stay useful, run in the clone's own environment (see **Run in the canvas's environment** under Global flags).
 > - If `canvas_screenshot` says the canvas is not open, open it yourself, then call it again: `open "$FUSED_RENDER_ORIGIN/canvases/<env>/<canvas>"` on macOS.
@@ -174,7 +174,7 @@ fused workbench canvas push ./fused-canvas --canvas feedback_pipeline
 If you're unsure of the remote canvas name, run `fused workbench canvas list` first.
 <!-- /fused-render:strip -->
 <!-- fused-render:only (this block applies only inside a fused-render canvas clone; ignore it anywhere else)
-- To check a change, use the `canvas_screenshot` tool for JSON UI nodes and HTML template nodes, and `fused workbench --env <env> run` for UDFs, in the clone's own environment (see **Run in the canvas's environment**). A by-name run uses the published version, which catches up once the folder goes quiet; pass the local `.py` path to run exactly what is on disk.
+- To check a change, use the `canvas_screenshot` tool for JSON UI nodes and HTML template nodes, and `fused workbench --env <env> run` for UDFs, in the clone's own environment (see **Run in the canvas's environment**). A by-name run uses the version published before your turn; pass the local `.py` path to run what is on disk (a `fused.load("<sibling>")` in it fails with `UDF not found`).
 -->
 
 ## Reading an existing canvas
@@ -356,12 +356,15 @@ Options:
 
 - `--engine [remote|local]`
 - `--instance-type TEXT` — remote instance type override
-- `--max-retry INTEGER`
+- `--max-retry INTEGER` — default 0; re-submits after transport errors, never after a UDF error
 - `--cache-max-age TEXT` — e.g. `10s`, `5m`, `1h`
 - `--cache / --no-cache`
 - `--disk-size-gb INTEGER`
 - `--stdin` — read UDF source from stdin instead of passing `UDF` (do not pass `UDF` with `--stdin`)
 - `--verbose / --no-verbose` — show UDF stdout/stderr (default on)
+- `--output-file FILE` — write the raw result (Parquet for a DataFrame); a printed DataFrame is truncated
+- `--profile` — per-line timings; wall time includes several seconds of per-call overhead
+- `--team`, `--id` — treat `CANVAS` as a team canvas name or a canvas ID
 
 <!-- fused-render:strip -->
 > **`fused[vector]` required for local result deserialization.** When running via `uv run`, the result DataFrame is deserialized locally and requires `pandas` to be available in that environment. Without it you get `ModuleNotFoundError: No module named 'pandas'` even if the UDF itself doesn't use pandas. Install `fused[vector]` — it pulls in `geopandas` (and therefore `pandas`), plus `shapely`, which most UDFs need:
@@ -377,7 +380,7 @@ Options:
 > **Run it in the canvas's environment.** In a clone the form is `fused workbench --env <env> run <canvas> <udf>`, with `<env>` taken from the clone's path, and no `--env` for a `custom` clone (see **Run in the canvas's environment** above). Use the app's bare `fused`, never `uv run` / `uvx`: those bypass the app's wrapper and run against whatever `~/.fused/settings.toml` names.
 -->
 
-Additionally, `fused workbench run` accepts **arbitrary keyword args matching the UDF's signature**, e.g. `--abc=123` is forwarded as the `abc` parameter to the UDF. These pass-through args are not listed in `--help`.
+Additionally, `fused workbench run` accepts **arbitrary keyword args matching the UDF's signature**, e.g. `--abc=123` is forwarded as the `abc` parameter to the UDF. These pass-through args are not listed in `--help`. A UDF parameter named like a `run` option (`engine`, `id`, `cache`, …) is taken by the CLI: rename it.
 
 <!-- fused-render:strip -->
 When running locally via `uv run`, install `fused[vector]` if the UDF returns a DataFrame — the CLI needs pandas to deserialize the result, and the error (`ModuleNotFoundError: No module named 'pandas'`) appears at result-read time, not inside the UDF itself. `fused[vector]` bundles `pandas` (via `geopandas`) along with `shapely`, covering both plain and geospatial DataFrames:

@@ -30,6 +30,7 @@ version("polars")
 ## Version traps
 
 - **polars is 1.x in realtime and 0.20 in batch.** APIs renamed in polars 1.0 break on `engine="medium"/"large"`: `join(how="full")` is `how="outer"` in 0.20, and `pivot(on=...)` is `pivot(columns=...)`. In a UDF that may run on both engines, check `pl.__version__` or use pandas/DuckDB.
+- **DuckDB is 1.4**: use `.fetch_arrow_table()` for a Table; `.arrow()` returns a `RecordBatchReader`.
 - **torch is the CPU build** in both images. There is no CUDA anywhere.
 - Commonly assumed but **not installed**: tensorflow, keras, jax, lightgbm, catboost, langchain, altair, lonboard, h3ronpy, deltalake, pyiceberg, kerchunk, dask-geopandas, streamlit, pyspark. Pick an installed alternative (scikit-learn/xgboost, plotly/pydeck, `h3` + DuckDB, pyarrow).
 

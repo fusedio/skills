@@ -278,7 +278,7 @@ run = fused.h3.index(
 ) -> TaskRun
 ```
 
-Starts a run that reads every file's row-group stats, and returns its `TaskRun` at once (a group `Run` when `instances` is above 1, see below). Follow it with `run.tail()`, or poll `run.status()` / `run.done()` / `run.error()`. A realtime run is limited to a few minutes and fails when it runs out of time. For a large tree, pass a batch `engine` such as `"large"`, or split the tree over several instances (see "Fanning out an index"). Engines never fall back from one to the other.
+Starts a run that reads every file's row-group stats, and returns its `TaskRun` at once (a group `Run` when `instances` is above 1, see below). Follow it with `run.tail()`, or poll `run.status()` / `run.done()` / `run.error()`. A realtime run is limited to a few minutes and 1,000 files to read (unchanged folders don't count); over that the call fails at once with a 400 naming the `instances` or `engine` that fits. For a large tree, pass a batch `engine` such as `"large"`, or split the tree over several instances (see "Fanning out an index"). Engines never fall back from one to the other.
 
 - A single `date` partition column is used as time automatically. Otherwise pass `time_column`: an in-file column, or a `key=value` folder holding `YYYY`, `YYYY-MM`, `YYYY-MM-DD` or an ISO instant.
 - Re-running is incremental: unchanged folders are skipped, and a stopped or partly failed run resumes.
@@ -286,6 +286,8 @@ Starts a run that reads every file's row-group stats, and returns its `TaskRun` 
 - `redo=True` with `subset` re-reads every file in those folders while the location keeps serving. Without `subset` it rebuilds the whole index, which is also how to change the location's columns.
 - If some files fail, the rest are indexed and queryable. The run's error names the failed paths, and re-running retries them.
 - Every file must share one H3 resolution. `/mount` paths can't be indexed; partition to `fd://` or `s3://` instead.
+- Any Parquet tree with an H3 column can be indexed, not only `partition` output. Without a `_manifest.json`, pass `partition_columns` or its `key=value` folders can't be filtered; folder values are not added to the rows.
+- The index is keyed by exact path, not stored in the files: a copied or moved folder returns 404 until indexed at its new path.
 - The index belongs to your team, and only your team can re-index or delete it. `fused.h3.set_visibility(path, "public")` (Fused admins only) makes it readable by everyone; the files must be publicly readable on S3.
 
 ### Fanning out an index
@@ -315,7 +317,7 @@ The location is finalized once, when the last slice finishes, and stays `indexin
 
 Batch slices queue against the team's job quota and start as capacity frees up. Realtime slices are not queued.
 
-Use it for a large tree with many folders, where one run is slow or hits the realtime time limit. Don't use it when only a few folders changed, since there are then few slices and a single run is as fast. N has no cap and there is no back-pressure: every slice writes to the file-index database, so if it comes under pressure, put a pooler in front of it or lower N.
+Use it for a large tree with many folders, where one run is slow or hits a realtime limit. Don't use it when only a few folders changed, since there are then few slices and a single run is as fast. N has no cap and there is no back-pressure: every slice writes to the file-index database, so if it comes under pressure, put a pooler in front of it or lower N.
 
 ### Indexing a flat folder in batches
 
@@ -343,17 +345,19 @@ df = fused.h3.query(
     lat=None, lng=None,                 # or a point
     bbox=None,                          # or (min_lng, min_lat, max_lng, max_lat)
     hex_range=None,                     # or (hex_min, hex_max) as H3 strings
+    polygon=None,                       # or shapely / GeoDataFrame / WKT / WKB / GeoJSON, EPSG:4326
+    k=None, contain=None,               # as over HTTP (http.md)
     time_min=None, time_max=None,
     partition=None,                     # {"scenario": ["ssp245", "ssp585"], "date": "2050-01"}
     partition_range=None,               # {"date": ("2050-01", None)}
-    columns=None,
+    columns=None,                       # returns exactly these; list "hex" to keep it
     max_row_groups=None,                # page size, not a result limit
 )
 ```
 
 - **Only runs inside a UDF on a Fused realtime or batch instance.** Called from a notebook or script it raises `RuntimeError`. Wrap it in a `@fused.udf` and `fused.run` that, or call `/h3/query` over HTTP (see [`http.md`](http.md)).
 - Reads your team's index of `path`, else the public one. The server returns a read plan and the rows are read in the calling process.
-- Give at most one spatial selector; none returns everything. The `polygon` / `polygon_wkt` selectors are HTTP only ([`http.md`](http.md)); `fused.h3.query` has no such argument and raises `TypeError`. A bbox keeps rows whose cell centre is inside, so the edge is accurate to one cell.
+- Give at most one spatial selector; none returns everything. A bbox keeps rows whose cell centre is inside, so the edge is accurate to one cell.
 - Date partitions match by overlap (`"2050-01"` matches every day in that month). A `partition_range` on the time column also narrows the time window.
 - Only space, time and partition values are filtered. Filter other columns on the returned DataFrame.
 - There is no row cap, so **the whole result is held in memory**, and a result too big for the instance fails the job. Split the area or time window into narrower queries (fan out with `fused.submit`). Row order is not defined.
