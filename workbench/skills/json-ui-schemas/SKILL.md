@@ -85,7 +85,7 @@ Input widgets set canvas params (edge: widget → UDF). Output widgets show a UD
 - **Output, tables:** `sql-table`
 - **Output, maps:** `fused-map` (mature, use it by default), `kepler-map`, `map` (legacy)
   - To draw an indexed H3 dataset, use a `fused-map` layer of type `fused-hex` (tiles, pan-aware), or an `h3-query` widget's result as a layer (`data: "{{name}}"`, refetched only when its params change): see the `fused-h3` skill's `map.md`.
-  - For several resolutions of one dataset, one per zoom band (coarse aggregates zoomed out, fine cells zoomed in), use one layer of type `composite` with `levels`, not several zoom-gated `fused-hex` layers: it swaps levels without the map going blank. Rules, pitfalls and a stats recipe: `map.md`, "Level of detail".
+  - For several resolutions of one dataset, one per zoom band (coarse aggregates zoomed out, fine cells zoomed in), use one layer of type `composite` with `levels`, each an ordinary layer of any type, not several zoom-gated layers: it swaps levels without the map going blank. Rules, pitfalls and a stats recipe: `map.md`, "Level of detail".
 - **Meta / advanced:** `widget-builder`, `transformer`, `ai-chat`
 
 ## `html` and `iframe` widgets vs an HTML template node
@@ -223,7 +223,7 @@ Pages and widgets read these params with `fused.params` or `$param`; a page writ
 
 - Each layer is a SQL source named by its `id`, for SQL widgets and `fused.query` in the map's node or page, on a node with an edge from the map's node, or on one with an edge from the layer's UDF. A layer id equal to a UDF name shadows that UDF.
 - A `udf` layer's source is the UDF's whole result. A cell-tiled layer's (`fused-hex`, or `h3` with `tile: true`) is every row of the tiles in view, one per cell per time step, typed as in the Parquet (a timestamp stays `TIMESTAMP`), with the cell column as a lowercase hex string; it is empty below the layer's `minZoom`. Both are read before the layer's `sql`, `filters` and `source.reduce`. A `data: "{{name}}"` layer's source is that source itself: same rows, column types, loading state and errors, read before the layer's `sql`. Other tiled layers hold the tiles loaded.
-- A `composite` layer publishes two sources, both from the level on screen: `{{id}}`, the rows loaded for the view (before the layer's `sql` and `filters`), and `{{id_drawn}}`, the rows drawn (after them, one per cell). `canvas validate` does not know `id_drawn`: list it under `[validate] known_refs` in `canvas.toml`.
+- A `composite` layer publishes two sources, both from the level on screen: `{{id}}`, the rows loaded for the view (before any `sql` or filters), and `{{id_drawn}}`, the rows drawn (after the level's and the composite's queries and filters). `canvas validate` does not know `id_drawn`: list it under `[validate] known_refs` in `canvas.toml`.
 - Until a layer first has rows, SQL widgets show loading and `fused.query` rejects `not_ready`. After that a rebuild (pan, param change) keeps serving the previous rows; a `data` layer follows its source, and an `h3-query` keeps serving its previous rows while it fetches again. The source exists only while the map is mounted.
 
 ## Common conventions
