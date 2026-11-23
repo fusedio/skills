@@ -33,7 +33,7 @@ A hex dataset that is **indexed** can be drawn with the `fused-map` widget's `fu
 }
 ```
 
-- `type: "fused-hex"` is never auto-detected: set it. It never auto-fits either: set the map's `centerLng`, `centerLat` and `zoom` on the data (`initialViewState` is not a prop).
+- `type: "fused-hex"` is never auto-detected: set it. It never auto-fits either: set the map's `centerLng`, `centerLat` and `zoom` on the data (`initialViewState` is not a prop). The map then opens there on every load, not at the camera the viewer left.
 - `source.path` is the indexed folder. It sets the endpoint to `/h3/query`, so `source.endpoint` is not needed. The layer also needs `h3Column`, the dataset's hex column (`hex` for anything `fused.h3.partition` wrote).
 - ERA5 or gridMET instead of your data: no `path`, and `source.endpoint` set to `/retrieve/era5/daily/bbox` or `/retrieve/gridmet/bbox`, with `dateMin`, `dateMax` and `variables` (see [`http.md`](http.md)).
 - `source.dateMin` / `source.dateMax` (ISO) bound the time window. `source.timeColumn` names the time column (set it for `/h3/query` datasets). `source.reduce` collapses each cell's rows over the window: `latest` (default), `first`, `mean`, `min`, `max`, `sum`.
@@ -90,7 +90,19 @@ Pitfalls:
 
 ### Variable-size hexagons
 
-A hex layer's size (`style.coverage`) is one number per layer. For a size per cell, return the geometry instead: a tile UDF that emits each cell as a hexagon polygon scaled about its centre (scale by a column, say), drawn as a `geojson` layer: `{"type": "geojson", "tile": true, "udf": "{{my_tile_udf?geometry=true}}"}`. It works as a standalone layer and as a composite level, so a coarse `fused-hex` level can hand over to sized hexagons when zoomed in.
+A hex layer (`h3`, `fused-hex`, a composite or one of its levels) sizes each cell from a numeric column with `style.coverageAttr`:
+
+```json
+"style": {"coverage": 0.92, "coverageAttr": "density_bucket", "coverageDomain": [0, 10], "coverageRange": [0.25, 1]}
+```
+
+- `coverageDomain` is the column's value range, `coverageRange` the size factors it maps to (each 0 to 1), linearly. A cell draws at `coverage` times its factor, so `coverage` is the largest size. Values outside the domain clamp to the nearer end; a cell with no value draws at the smallest size.
+- Always set `coverageDomain`. It is fixed: the same value draws at the same size in every tile and view, and the map does not fit it to the data.
+- Pick a column that means the same at every zoom. A count per cell grows with the cell (about 7 times per resolution step), so one domain cannot serve every level of a composite: size by a density or a ratio (fields per km²), or give each level its own `coverageDomain`. For a skewed column, bucket or log it in the layer `sql` and size by the result.
+- The column can be one the layer `sql` computes. `coverageAttr` takes a column name, not a `$param`; to switch sizes on and off from a page, compute the column from a param in the `sql` (`CASE WHEN $size_on = 1 THEN density_bucket ELSE 10 END AS sz`, sized by `sz`).
+- The sidebar's Coverage group has the same controls ("Size by", "Min size", "Max size").
+
+Do not draw sized hexagons as polygons from a tile UDF or from SQL that emits shrunk outlines: that was the way before `coverageAttr`.
 
 ### Stats next to the map
 
