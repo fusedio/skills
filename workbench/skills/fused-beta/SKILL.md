@@ -43,7 +43,7 @@ fused.beta.example.hello(n=3, beta_version=2)               # an older published
 
 ## HTTP
 
-Base URL `https://www.fused.io/server` (or your deployment's `/server`). Auth header: `Authorization: Bearer {user token}` (Python: `fused.api.credentials.access_token()`) or `Authorization: Fused-Service-Token {service-account-id}:{token}`.
+Base URL `https://www.fused.io/server` for prod; other environments and tenant deployments use their own host (in Python, `fused.options.base_url` is the current one and ends in `/server/v1`). Auth header: `Authorization: Bearer {user token}` (Python: `fused.api.credentials.access_token()`) or `Authorization: Fused-Service-Token {service-account-id}:{token}`.
 
 ```
 POST /v1/tasks/run  -> 202 with the run and its id
