@@ -187,6 +187,10 @@ def udf(items_csv: str = "a,b,c"):
 
 This pattern gives you two working nodes in the canvas: the worker for single-item debugging and the orchestrator for the full parallel run. Design the worker first; the orchestrator is always a thin wrapper.
 
+### Batch job links
+
+When a UDF or script submits a batch job (for example `fused.ingest(...).run_remote()`), report `run.logs_url` as its progress link. If you only have the job ID, use `fused.api.job_get_status(job_id).logs_url`. Never build a job or status URL from a typed host: `logs_url` is built from `fused.options.base_web_url`, so it points at the environment the SDK is configured for, including tenant environments.
+
 ## Performance Optimization
 
 **📖 Reference:** [Scaling Out UDFs](https://docs.fused.io/guide/working-with-udfs/udf-best-practices/scaling-out/)
@@ -266,6 +270,8 @@ For CI/CD, cron jobs, or anything outside a UDF, use the REST endpoint with a se
 ```
 DELETE https://www.fused.io/server/v1/realtime-shared/{client_id}/udf-cache/by-id/{udf_id}/delete
 ```
+
+The host is per environment: `www.fused.io` is prod, and tenant environments use their own. In Python, `fused.options.base_url` is the current server URL.
 
 Get the identifiers from the SDK:
 
