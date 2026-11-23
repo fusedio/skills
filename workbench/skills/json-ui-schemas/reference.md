@@ -783,7 +783,7 @@ Interactive map with tile, UDF and SQL layers.
             "type": "string"
           },
           "type": {
-            "description": "Layer type. Omit it to detect from the data: an image \u2192 raster (tiles from a tile UDF, else one image placed at the bounds the run returned or was sent), an H3 cell column \u2192 h3, start/end lat-lng pairs \u2192 arc, one lat-lng pair \u2192 scatterplot, a geometry column \u2192 geojson. The detected type and columns are written into this config once known. geojson: polygons/lines/points from inline data, sql or udf rows (deck-geojson is an alias of geojson; prefer geojson). h3: hexagons from h3Column. scatterplot: point circles. heatmap: point density. arc: source\u2192target arcs. raster: tiles from tileUrl or a udf with tile: true, else a single image from a udf. mvt: tiles from tileUrl, or from udf with tile: true. fused-hex: H3 tiles queried from a Fused server's ERA5, gridMET or /h3/query endpoints (see source); it is never detected, so set it explicitly. For your own data: partition it with fused.h3.partition, register it with fused.h3.index, then set source {path, overview: {}} and h3Column. Row tiles load from the layer's zoom floor (default zoom 7) and a zoomed-out overview of the whole dataset draws below it. fused-bbox: features of a dataset indexed by bounding box (fused.bbox.index, for tables written by fused.ingest or GeoParquet with a bbox covering), queried per tile from /bbox/query; never detected either. Set source {path, overview: {}}; its rows draw as geojson from the zoom floor (minZoom, default 8) and the boxes of its chunks draw below it. composite: one layer of several fused-hex sources (`levels`), each bound to a map zoom range, for level of detail (coarse aggregates zoomed out, fine cells zoomed in); it hands over between levels without the map flashing empty. Set levels and h3Column; never detected.",
+            "description": "Layer type. Omit it to detect from the data: an image \u2192 raster (tiles from a tile UDF, else one image placed at the bounds the run returned or was sent), an H3 cell column \u2192 h3, start/end lat-lng pairs \u2192 arc, one lat-lng pair \u2192 scatterplot, a geometry column \u2192 geojson. The detected type and columns are written into this config once known. geojson: polygons/lines/points from inline data, sql or udf rows (deck-geojson is an alias of geojson; prefer geojson). h3: hexagons from h3Column. scatterplot: point circles. heatmap: point density. arc: source\u2192target arcs. raster: tiles from tileUrl or a udf with tile: true, else a single image from a udf. mvt: tiles from tileUrl, or from udf with tile: true. fused-hex: H3 tiles queried from a Fused server's ERA5, gridMET or /h3/query endpoints (see source); it is never detected, so set it explicitly. For your own data: partition it with fused.h3.partition, register it with fused.h3.index, then set source {path, overview: {}} and h3Column. Row tiles load from the layer's zoom floor (default zoom 7) and a zoomed-out overview of the whole dataset draws below it. fused-bbox: features of a dataset indexed by bounding box (fused.bbox.index, for tables written by fused.ingest or GeoParquet with a bbox covering), queried per tile from /bbox/query; never detected either. Set source {path, overview: {}}; its rows draw as geojson from the zoom floor (minZoom, default 8) and the boxes of its chunks draw below it. composite: one layer made of several layers (`levels`, each any other layer type), each bound to a map zoom range, for level of detail (coarse aggregates zoomed out, fine cells or shapes zoomed in); it hands over between levels without the map flashing empty. Set levels (and h3Column for fused-hex levels); never detected.",
             "type": "string",
             "enum": [
               "mvt",
@@ -1138,7 +1138,7 @@ Interactive map with tile, UDF and SQL layers.
             ]
           },
           "source": {
-            "description": "fused-hex and fused-bbox. fused-bbox reads only path, overview {minZoom, extent}, variables (columns to fetch; all when unset) and maxRowGroups, e.g. {path: 's3://bucket/table/', overview: {}}. fused-hex: the server endpoint and query each XYZ tile's bbox is sent to. For your own data, set path to an indexed folder and overview to {}; the layer then also needs h3Column. Example: {path: 's3://bucket/indexed/', overview: {}} with h3Column 'hex' and style.fillColor {type: 'continuous', attr: 'temp'}.",
+            "description": "fused-hex and fused-bbox. fused-bbox reads only path, overview {minZoom, extent}, variables (columns to fetch; all when unset) and maxRowGroups, e.g. {path: 's3://bucket/table/', overview: {}}. fused-hex: the server endpoint and query each XYZ tile's bbox is sent to. For your own data, set path to an indexed folder and overview to {}; the layer then also needs h3Column. Example: {path: 's3://bucket/indexed/', overview: {}} with h3Column 'hex' and style.fillColor {type: 'continuous', attr: 'temp'}. composite: optional source options shared by every level that reads a source (variables, loader, timeColumn, reduce, limit, ...), merged under each level's own source; path and endpoint here are never inherited (always the level's own), though they make a level without a type a fused-hex level.",
             "type": "object",
             "properties": {
               "endpoint": {
@@ -1261,10 +1261,20 @@ Interactive map with tile, UDF and SQL layers.
             "type": "object",
             "properties": {
               "fillColor": {
-                "description": "Fill color (source colour for arc, weight attr for heatmap): [r,g,b] or [r,g,b,a] array, CSS string, or data-driven {type:\"continuous\", attr, domain?:[min,max], palette?, steps?, reverse?, nullColor?, scaleType?:\"quantize\"|\"quantile\"} | {type:\"categorical\", attr, colors?:{value:\"#hex\"}, palette?, nullColor?}. See the component description for palette names."
+                "description": "Fill color (source colour for arc, weight attr for heatmap): [r,g,b] or [r,g,b,a] array, CSS string, or data-driven {type:\"continuous\", attr, domain?:[min,max], palette?, steps?, reverse?, nullColor?, scaleType?:\"quantize\"|\"quantile\"} | {type:\"categorical\", attr, colors?:{value:\"#hex\"}, palette?, nullColor?}. See the component description for palette names.",
+                "properties": {
+                  "palette": {
+                    "$ref": "#/$defs/fusedMapPalette"
+                  }
+                }
               },
               "lineColor": {
-                "description": "Stroke color (target colour for arc): [r,g,b] or [r,g,b,a] array, CSS string, or the same data-driven {type:\"continuous\"|\"categorical\", attr, ...} object as fillColor."
+                "description": "Stroke color (target colour for arc): [r,g,b] or [r,g,b,a] array, CSS string, or the same data-driven {type:\"continuous\"|\"categorical\", attr, ...} object as fillColor.",
+                "properties": {
+                  "palette": {
+                    "$ref": "#/$defs/fusedMapPalette"
+                  }
+                }
               },
               "lineWidth": {
                 "description": "Stroke width in pixels",
@@ -1345,262 +1355,948 @@ Interactive map with tile, UDF and SQL layers.
             }
           },
           "levels": {
-            "description": "composite only, required there: the level-of-detail sources, each bound to a map zoom range. Exactly one level draws at a time, the one whose [minZoom, maxZoom) holds the map zoom (where ranges overlap, the one with the highest minZoom; a zoom no level covers draws nothing). Crossing into another level keeps the previous level drawing until the new level has loaded the view, then they swap in one frame, so the map never flashes empty. The composite's h3Column, style, tooltip, filters, sql, legend and visible apply to every level; a level's own h3Column and tooltip replace them and its style merges over them. Each level keeps its own colour scale. A filter on a column a level's rows do not have (or that is not in its source.variables) is skipped at that level, which draws unfiltered by it, and a level whose sql fails draws its rows unqueried. Example: [{maxZoom: 6, source: {path: \"s3://b/res5/\"}}, {minZoom: 6, maxZoom: 10, source: {path: \"s3://b/res8/\"}}, {minZoom: 10, source: {path: \"s3://b/res11/\"}}].",
+            "description": "composite only, required there: the levels, each an ordinary layer (any type but composite) bound to a map zoom range. Exactly one level draws at a time, the one whose [minZoom, maxZoom) holds the map zoom (where ranges overlap, the one with the highest minZoom; a zoom no level covers draws nothing). Crossing into another level keeps the previous level drawing until the new level has loaded the view (a tiled level: its tiles in view; a row level: its rows), then they swap in one frame, so the map never flashes empty. A level is read and drawn exactly as a layer of its type: it may set any layer key (type, source, udf, tile, data, sql, tileUrl, sourceLayer, filters, h3Column, latColumn, geometryColumn, tooltip, legend, style, zoomOffset, maxRequests, autoRetry, ...). The composite holds the defaults and a level stores only what differs: objects (style, source, legend) merge key by key over the composite's, a fillColor or lineColor replaces the composite's whole, arrays (tooltip) and plain values (udf, type, ...) replace, null unsets the composite's value at that level. sql and filters STACK instead: the composite's query and filters apply at every level, always; a level's own sql runs first and the composite's sql over its result (one query), and a row must pass the level's filters and the composite's (null or unset on a level adds nothing). The composite's `source` holds options shared by every source level (variables, loader, timeColumn, reduce, limit, ...); path and endpoint are always the level's own. A level without a type is fused-hex when it (or the composite) names a source path or endpoint, else detected from its data. visible, visibleMinZoom and visibleMaxZoom are the composite's only (a level's are ignored). A level's `id` is its own key within the composite, not a layer id: give each level an `id` (e.g. \"z4\") so editing the list keeps the right level on screen. Each level keeps its own colour scale. A composite filter on a column a level does not fetch (not in its source.variables, or absent from its rows) is skipped at that level; a level's own filters always apply. Example: [{id: \"z0\", maxZoom: 6, source: {path: \"s3://b/res5/\"}}, {id: \"z6\", minZoom: 6, maxZoom: 10, type: \"scatterplot\", data: \"{{points}}\", sql: \"SELECT * FROM {{points}} WHERE pop > 1000\"}, {id: \"z10\", minZoom: 10, type: \"geojson\", udf: \"{{buildings}}\", tile: true, tooltip: [\"name\"]}].",
             "type": "array",
             "items": {
               "type": "object",
               "properties": {
+                "tileUrl": {
+                  "anyOf": [
+                    {
+                      "description": "Tile URL template with {x}/{y}/{z} placeholders (mvt, raster, tiled h3)",
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "description": "At this level, replaces the composite's value (null unsets it here; leave it out to use the composite's). Tile URL template with {x}/{y}/{z} placeholders (mvt, raster, tiled h3)"
+                },
+                "zoomOffset": {
+                  "anyOf": [
+                    {
+                      "description": "Tiled layers only: an integer added to the zoom tiles are requested at. 1 requests tiles one level finer than the map zoom (four times as many, more detail); -1 one level coarser (a quarter as many, useful to generalize H3 tiles). minZoom and maxZoom bound the offset zoom.",
+                      "type": "number"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "description": "At this level, replaces the composite's value (null unsets it here; leave it out to use the composite's). Tiled layers only: an integer added to the zoom tiles are requested at. 1 requests tiles one level finer than the map zoom (four times as many, more detail); -1 one level coarser (a quarter as many, useful to generalize H3 tiles). minZoom and maxZoom bound the offset zoom."
+                },
+                "maxRequests": {
+                  "anyOf": [
+                    {
+                      "description": "Maximum parallel tile requests for tiled layers. 0 means no limit.",
+                      "type": "number"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "description": "At this level, replaces the composite's value (null unsets it here; leave it out to use the composite's). Maximum parallel tile requests for tiled layers. 0 means no limit."
+                },
+                "autoRetry": {
+                  "anyOf": [
+                    {
+                      "description": "Retry failed tiles automatically: a few fetch attempts on transient errors, and a refetch when a failed tile scrolls back into view. Default true. Set false to make a tile fail after one attempt and stay failed until Retry.",
+                      "type": "boolean"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "description": "At this level, replaces the composite's value (null unsets it here; leave it out to use the composite's). Retry failed tiles automatically: a few fetch attempts on transient errors, and a refetch when a failed tile scrolls back into view. Default true. Set false to make a tile fail after one attempt and stay failed until Retry."
+                },
+                "bounds": {
+                  "anyOf": [
+                    {
+                      "description": "Lock a udf tile layer (tile: true) drawn as geojson or deck-geojson to these bounds [minLng, minLat, maxLng, maxLat]: the UDF runs once with bounds passed as a parameter (a JSON string \"[w, s, e, n]\", like the legacy single-viewport run) and the result renders as one static layer, with no per-tile runs and no refetch on pan or zoom. A sql on the layer runs on that one result while locked, and over the tiles in view otherwise. Ignored by other layers: other types (h3, scatterplot, arc, heatmap, raster, mvt) keep their tiles.",
+                      "minItems": 4,
+                      "maxItems": 4,
+                      "type": "array",
+                      "items": {
+                        "type": "number"
+                      }
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "description": "At this level, replaces the composite's value (null unsets it here; leave it out to use the composite's). Lock a udf tile layer (tile: true) drawn as geojson or deck-geojson to these bounds [minLng, minLat, maxLng, maxLat]: the UDF runs once with bounds passed as a parameter (a JSON string \"[w, s, e, n]\", like the legacy single-viewport run) and the result renders as one static layer, with no per-tile runs and no refetch on pan or zoom. A sql on the layer runs on that one result while locked, and over the tiles in view otherwise. Ignored by other layers: other types (h3, scatterplot, arc, heatmap, raster, mvt) keep their tiles."
+                },
+                "sourceLayer": {
+                  "anyOf": [
+                    {
+                      "description": "Source layer name for MVT tiles (defaults to 'default')",
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "description": "At this level, replaces the composite's value (null unsets it here; leave it out to use the composite's). Source layer name for MVT tiles (defaults to 'default')"
+                },
+                "data": {
+                  "anyOf": [
+                    {
+                      "description": "Inline GeoJSON FeatureCollection, or one {{name}} placeholder naming a canvas SQL source: an h3-query or sql-runner widget's name (offered by Add layer and wired by an edge automatically), or another map's layer id (draw the edge from that map yourself). The source's rows are read from DuckDB as they are (no UDF runs; its loading and errors show on the layer; it re-queries when the widget fetches again), and the edge from that node to this one grants access, as for a UDF. Add sql to query them ({{source}} or {{name}} reads the rows). Row layers only (geojson, h3, scatterplot, heatmap, arc, or type omitted to detect from the rows): not with tile, udf or tileUrl, nor on raster, mvt or fused-hex. Example: \"{{h3_rows}}\" with h3Column \"hex\"."
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "description": "At this level, replaces the composite's value (null unsets it here; leave it out to use the composite's). Inline GeoJSON FeatureCollection, or one {{name}} placeholder naming a canvas SQL source: an h3-query or sql-runner widget's name (offered by Add layer and wired by an edge automatically), or another map's layer id (draw the edge from that map yourself). The source's rows are read from DuckDB as they are (no UDF runs; its loading and errors show on the layer; it re-queries when the widget fetches again), and the edge from that node to this one grants access, as for a UDF. Add sql to query them ({{source}} or {{name}} reads the rows). Row layers only (geojson, h3, scatterplot, heatmap, arc, or type omitted to detect from the rows): not with tile, udf or tileUrl, nor on raster, mvt or fused-hex. Example: \"{{h3_rows}}\" with h3Column \"hex\"."
+                },
+                "udf": {
+                  "anyOf": [
+                    {
+                      "description": "UDF placeholder, e.g. {{my_udf}}, {{my_udf?param=value}} or {{my_udf?param=$param_name}}. The UDF is run directly (no share token needed) and re-run when it or a referenced $param_name changes: the whole result as rows for geojson and deck-geojson layers, or per tile when tile is true (a sql then queries the tiles in view). An input in the same widget (slider, number-input, with a defaultValue) can drive it; only the UDF \u2192 widget edge is needed. Combine with sql to query the result (the tiles in view when tile is true). Mutually exclusive with tileUrl.",
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "description": "At this level, replaces the composite's value (null unsets it here; leave it out to use the composite's). UDF placeholder, e.g. {{my_udf}}, {{my_udf?param=value}} or {{my_udf?param=$param_name}}. The UDF is run directly (no share token needed) and re-run when it or a referenced $param_name changes: the whole result as rows for geojson and deck-geojson layers, or per tile when tile is true (a sql then queries the tiles in view). An input in the same widget (slider, number-input, with a defaultValue) can drive it; only the UDF \u2192 widget edge is needed. Combine with sql to query the result (the tiles in view when tile is true). Mutually exclusive with tileUrl."
+                },
+                "tile": {
+                  "anyOf": [
+                    {
+                      "description": "With udf: run the UDF per XYZ tile (raster \u2192 PNG bitmaps, h3 \u2192 hexagons, geojson \u2192 vector features). Required when type is mvt and the source is a udf. Without it a raster udf layer runs once and draws one image at the bounds the run returned (`image, bounds`) or was sent (the map view at the time of the run, for a UDF with a bounds parameter; moving the map later does not run it again). Tiled layers never auto-fit and ignore the whole-result size limit.",
+                      "type": "boolean"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "description": "At this level, replaces the composite's value (null unsets it here; leave it out to use the composite's). With udf: run the UDF per XYZ tile (raster \u2192 PNG bitmaps, h3 \u2192 hexagons, geojson \u2192 vector features). Required when type is mvt and the source is a udf. Without it a raster udf layer runs once and draws one image at the bounds the run returned (`image, bounds`) or was sent (the map view at the time of the run, for a UDF with a bounds parameter; moving the map later does not run it again). Tiled layers never auto-fit and ignore the whole-result size limit."
+                },
+                "sql": {
+                  "anyOf": [
+                    {
+                      "description": "DuckDB SQL query with {{name}} placeholders: a UDF result, or a canvas SQL source (an h3-query or sql-runner widget's name, another map's layer id) read from DuckDB with no UDF run. Rows are converted to GeoJSON for rendering. On a tiled layer (udf with tile: true, or fused-hex) the query runs once over the rows of every tile loaded in the current view, reading them as {{source}}, which takes no ?params (a udf layer may also write its own {{udf_name}}, bare or with exactly its own ?params), and runs again as the view moves (pan, zoom), the query changes or a $param changes; no tile is refetched. WHERE, computed columns, GROUP BY, aggregates, LIMIT, ORDER BY and USING SAMPLE apply to the whole view (before a fused-hex reduce); only a single SELECT (a WITH is fine) over {{source}} runs (no UNION, several statements, other UDFs or joins), and its result must keep the cell column (h3, fused-hex) or the geometry columns (vector layers). raster, mvt and tileUrl layers take no sql.",
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "description": "The level's own DuckDB query, ADDED to the composite's (never replacing it): it runs first, over the level's own rows ({{source}}: its tiles in view, its udf result, or its data source), and the composite's sql then runs over its result (the composite's {{source}} reads this query's rows), as one query. Write here what only this level needs (reshape its data, e.g. cell centres as lat/lng for a scatterplot level); write what every level needs on the composite. null or unset: the level adds no query (the composite's still runs). If the composite's query fails at this level (e.g. it names a column the level lacks), the level draws this query's rows and the error names the composite's query."
+                },
+                "filters": {
+                  "anyOf": [
+                    {
+                      "description": "Feature filters applied on the client: range filters on numeric properties, category filters on any property.",
+                      "type": "array",
+                      "items": {
+                        "anyOf": [
+                          {
+                            "type": "object",
+                            "properties": {
+                              "attr": {
+                                "type": "string",
+                                "description": "Feature property to filter on"
+                              },
+                              "type": {
+                                "type": "string",
+                                "const": "range"
+                              },
+                              "min": {
+                                "description": "Inclusive lower bound, or a `$param` holding one",
+                                "anyOf": [
+                                  {
+                                    "type": "number"
+                                  },
+                                  {
+                                    "type": "string",
+                                    "pattern": "^\\$[a-zA-Z_][a-zA-Z0-9_]*$",
+                                    "description": "A canvas parameter reference such as `$day_min`; the filter reads its value live and is inactive while the parameter has none"
+                                  }
+                                ]
+                              },
+                              "max": {
+                                "description": "Inclusive upper bound, or a `$param` holding one",
+                                "anyOf": [
+                                  {
+                                    "type": "number"
+                                  },
+                                  {
+                                    "type": "string",
+                                    "pattern": "^\\$[a-zA-Z_][a-zA-Z0-9_]*$",
+                                    "description": "A canvas parameter reference such as `$day_min`; the filter reads its value live and is inactive while the parameter has none"
+                                  }
+                                ]
+                              }
+                            },
+                            "required": [
+                              "attr",
+                              "type"
+                            ]
+                          },
+                          {
+                            "type": "object",
+                            "properties": {
+                              "attr": {
+                                "type": "string",
+                                "description": "Feature property to filter on"
+                              },
+                              "type": {
+                                "type": "string",
+                                "const": "categories"
+                              },
+                              "values": {
+                                "anyOf": [
+                                  {
+                                    "type": "array",
+                                    "items": {
+                                      "anyOf": [
+                                        {
+                                          "type": "string"
+                                        },
+                                        {
+                                          "type": "number"
+                                        },
+                                        {
+                                          "type": "boolean"
+                                        }
+                                      ]
+                                    }
+                                  },
+                                  {
+                                    "type": "string",
+                                    "pattern": "^\\$[a-zA-Z_][a-zA-Z0-9_]*$",
+                                    "description": "A canvas parameter reference such as `$day_min`; the filter reads its value live and is inactive while the parameter has none"
+                                  }
+                                ],
+                                "description": "Values to keep (empty keeps every feature), or a `$param` holding the list"
+                              }
+                            },
+                            "required": [
+                              "attr",
+                              "type",
+                              "values"
+                            ]
+                          },
+                          {
+                            "type": "object",
+                            "properties": {
+                              "attr": {
+                                "type": "string",
+                                "description": "Feature property holding each row's time: ISO date or datetime text (no zone reads as UTC), other common date text, or an epoch number in seconds, milliseconds, microseconds or nanoseconds (told apart by size)"
+                              },
+                              "type": {
+                                "type": "string",
+                                "const": "time"
+                              },
+                              "min": {
+                                "description": "Inclusive start of the time window: ISO date or datetime, epoch milliseconds, or a `$param` holding either",
+                                "anyOf": [
+                                  {
+                                    "type": "number"
+                                  },
+                                  {
+                                    "type": "string"
+                                  }
+                                ]
+                              },
+                              "max": {
+                                "description": "Inclusive end of the time window: ISO date or datetime, epoch milliseconds, or a `$param` holding either",
+                                "anyOf": [
+                                  {
+                                    "type": "number"
+                                  },
+                                  {
+                                    "type": "string"
+                                  }
+                                ]
+                              },
+                              "playback": {
+                                "description": "Open the map's time playback bar on this filter when the map loads. The bar plays one filter at a time; its clock button sets and clears this",
+                                "type": "boolean"
+                              },
+                              "playbackOptions": {
+                                "description": "The playback bar's settings for this filter, kept while the bar is closed. Every key is optional; one at its default is left out",
+                                "type": "object",
+                                "properties": {
+                                  "mode": {
+                                    "description": "How the playback bar plays: auto (default: a click on the chart shows one bar, a drag a window), window (a window of fixed width moves), point (one histogram bar at a time), cumulative (the start pinned on the first time, the end grows)",
+                                    "type": "string",
+                                    "enum": [
+                                      "auto",
+                                      "window",
+                                      "point",
+                                      "cumulative"
+                                    ]
+                                  },
+                                  "skipEmpty": {
+                                    "description": "Play jumps over stretches with no rows instead of crossing them at one pace (default false). Point mode always skips",
+                                    "type": "boolean"
+                                  },
+                                  "interval": {
+                                    "description": "One histogram bar's length as `<step>-<unit>`, unit one of millisecond, second, minute, hour, day, week, month, year (`1-day`, `15-minute`), aligned on the calendar of `timezone`; also what one point plays. Absent: 100 equal bars over the data's time range",
+                                    "type": "string"
+                                  },
+                                  "timezone": {
+                                    "description": "IANA time zone the bar prints times and aligns intervals in (`Europe/Paris`); default UTC",
+                                    "type": "string"
+                                  },
+                                  "timeFormat": {
+                                    "description": "Clock the bar prints times with; default 24-hour",
+                                    "type": "string",
+                                    "enum": [
+                                      "12-hour",
+                                      "24-hour"
+                                    ]
+                                  },
+                                  "yAxis": {
+                                    "description": "The playback chart's y axis; absent, it counts rows",
+                                    "type": "object",
+                                    "properties": {
+                                      "field": {
+                                        "description": "Numeric property the chart plots per bar instead of the row count",
+                                        "type": "string"
+                                      },
+                                      "aggregation": {
+                                        "description": "How the field's values in one bar combine; default average",
+                                        "type": "string",
+                                        "enum": [
+                                          "average",
+                                          "sum",
+                                          "maximum",
+                                          "minimum",
+                                          "median",
+                                          "stdev"
+                                        ]
+                                      },
+                                      "fit": {
+                                        "description": "Fit the y range to the values instead of starting at 0 (default false)",
+                                        "type": "boolean"
+                                      }
+                                    }
+                                  },
+                                  "collapsed": {
+                                    "description": "The playback bar shows as one slim row, without its chart (default false); the chevron on the bar sets and clears this",
+                                    "type": "boolean"
+                                  },
+                                  "speed": {
+                                    "description": "Speed multiplier play runs at, any number above 0 (default 1)",
+                                    "type": "number"
+                                  }
+                                }
+                              }
+                            },
+                            "required": [
+                              "attr",
+                              "type"
+                            ]
+                          }
+                        ]
+                      }
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "description": "The level's own feature filters, ADDED to the composite's: a row draws only when it passes both. null or unset: none of its own (the composite's still apply). Unlike the composite's filters, which are skipped at a level whose rows lack their column, a level's own filter always applies."
+                },
+                "geometryColumn": {
+                  "anyOf": [
+                    {
+                      "description": "Column containing the geometry: GeoJSON strings (use ST_AsGeoJSON in SQL), GeoJSON objects, or WKB blobs as stored by GeoDataFrame outputs. Defaults to 'geometry'.",
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "description": "At this level, replaces the composite's value (null unsets it here; leave it out to use the composite's). Column containing the geometry: GeoJSON strings (use ST_AsGeoJSON in SQL), GeoJSON objects, or WKB blobs as stored by GeoDataFrame outputs. Defaults to 'geometry'."
+                },
+                "h3Column": {
+                  "anyOf": [
+                    {
+                      "description": "Column containing H3 hex indexes (h3 layer type). Auto-detected from common names (hex, h3, ...) when omitted.",
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "description": "At this level, replaces the composite's value (null unsets it here; leave it out to use the composite's). Column containing H3 hex indexes (h3 layer type). Auto-detected from common names (hex, h3, ...) when omitted."
+                },
+                "latColumn": {
+                  "anyOf": [
+                    {
+                      "description": "Column for latitude (point data). Defaults to 'lat'.",
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "description": "At this level, replaces the composite's value (null unsets it here; leave it out to use the composite's). Column for latitude (point data). Defaults to 'lat'."
+                },
+                "lngColumn": {
+                  "anyOf": [
+                    {
+                      "description": "Column for longitude (point data). Defaults to 'lng'.",
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "description": "At this level, replaces the composite's value (null unsets it here; leave it out to use the composite's). Column for longitude (point data). Defaults to 'lng'."
+                },
+                "startLatColumn": {
+                  "anyOf": [
+                    {
+                      "description": "Column for the arc start latitude (arc layer type).",
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "description": "At this level, replaces the composite's value (null unsets it here; leave it out to use the composite's). Column for the arc start latitude (arc layer type)."
+                },
+                "startLngColumn": {
+                  "anyOf": [
+                    {
+                      "description": "Column for the arc start longitude (arc layer type).",
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "description": "At this level, replaces the composite's value (null unsets it here; leave it out to use the composite's). Column for the arc start longitude (arc layer type)."
+                },
+                "endLatColumn": {
+                  "anyOf": [
+                    {
+                      "description": "Column for the arc end latitude (arc layer type).",
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "description": "At this level, replaces the composite's value (null unsets it here; leave it out to use the composite's). Column for the arc end latitude (arc layer type)."
+                },
+                "endLngColumn": {
+                  "anyOf": [
+                    {
+                      "description": "Column for the arc end longitude (arc layer type).",
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "description": "At this level, replaces the composite's value (null unsets it here; leave it out to use the composite's). Column for the arc end longitude (arc layer type)."
+                },
+                "tooltip": {
+                  "anyOf": [
+                    {
+                      "description": "Show tooltip on hover. true = all properties, string[] = specific properties. Off for data rows when unset. A fused-hex overview cell always shows its hover (cell, rows, rows in window) unless this is false.",
+                      "anyOf": [
+                        {
+                          "type": "boolean"
+                        },
+                        {
+                          "type": "array",
+                          "items": {
+                            "type": "string"
+                          }
+                        }
+                      ]
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "description": "At this level, replaces the composite's value (null unsets it here; leave it out to use the composite's). Show tooltip on hover. true = all properties, string[] = specific properties. Off for data rows when unset. A fused-hex overview cell always shows its hover (cell, rows, rows in window) unless this is false."
+                },
+                "legend": {
+                  "anyOf": [
+                    {
+                      "description": "Show color legend for this layer. true = auto title, {title} = custom title. Only applies when fillColor or lineColor is data-driven.",
+                      "anyOf": [
+                        {
+                          "type": "boolean"
+                        },
+                        {
+                          "type": "object",
+                          "properties": {
+                            "title": {
+                              "type": "string"
+                            }
+                          }
+                        }
+                      ]
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "description": "At this level, replaces the composite's value (null unsets it here; leave it out to use the composite's). Show color legend for this layer. true = auto title, {title} = custom title. Only applies when fillColor or lineColor is data-driven."
+                },
+                "id": {
+                  "description": "The level's stable id: unique within the composite, letters, digits, _ and - only (e.g. \"z4\"). The map keeps a level's tiles and on-screen state by it, so removing or reordering levels never draws the wrong one; without it a level is known by its position in levels.",
+                  "type": "string"
+                },
                 "type": {
-                  "description": "What the level reads. Only \"fused-hex\" (the default) for now: an indexed H3 dataset per XYZ tile, as a fused-hex layer reads it.",
+                  "description": "The level's layer type: any layer type but composite, read and drawn exactly as a layer of that type (fused-hex, fused-bbox, geojson, scatterplot, h3, heatmap, arc, mvt, raster, deck-geojson), fed by that type's own data keys (source, udf with tile, data, sql, tileUrl). Unset: fused-hex when the level (or the composite) names a source path or endpoint; otherwise detected from the data, as for a layer without a type.",
                   "type": "string",
                   "enum": [
-                    "fused-hex"
+                    "mvt",
+                    "raster",
+                    "geojson",
+                    "h3",
+                    "heatmap",
+                    "arc",
+                    "scatterplot",
+                    "deck-geojson",
+                    "fused-hex",
+                    "fused-bbox"
                   ]
                 },
                 "name": {
-                  "description": "Display name of the level, e.g. 'res 7'.",
+                  "description": "Display name of the level in the sidebar, e.g. 'res 7'. The layer keeps the composite's name.",
                   "type": "string"
                 },
                 "minZoom": {
-                  "description": "Map zoom the level starts at (inclusive). Unset: from zoom 0. The level draws while minZoom <= map zoom < maxZoom; its tiles start at floor(minZoom).",
+                  "description": "Map zoom the level starts at (inclusive). Unset: from zoom 0. The level draws while minZoom <= map zoom < maxZoom; a tiled level's tiles start at floor(minZoom).",
                   "type": "number",
                   "minimum": 0,
                   "maximum": 24
                 },
                 "maxZoom": {
-                  "description": "Map zoom the level ends at (exclusive): the next level usually starts here. Unset: no upper end. Also the deepest zoom its tiles are requested at; past it they draw enlarged.",
+                  "description": "Map zoom the level ends at (exclusive): the next level usually starts here. Unset: no upper end. For a tiled level also the deepest zoom its tiles are requested at; past it they draw enlarged.",
                   "type": "number",
                   "minimum": 0,
                   "maximum": 24
                 },
                 "source": {
-                  "description": "Required. The level's indexed dataset, as a fused-hex layer's `source`: usually {path: \"s3://bucket/indexed/res7/\", variables: [...]}. `overview` is ignored (the coarser levels play that role).",
-                  "type": "object",
-                  "properties": {
-                    "endpoint": {
-                      "description": "Bbox query endpoint on a Fused server: a full URL or a path relative to the current server root. Supported: /retrieve/era5/daily/bbox, /retrieve/era5/hourly/bbox, /retrieve/gridmet/bbox and /h3/query. Defaults to /h3/query when path is set.",
-                      "type": "string"
-                    },
-                    "path": {
-                      "description": "Indexed dataset location, e.g. s3://bucket/indexed/data/. Sets the endpoint to /h3/query when none is given. Needs the layer's h3Column (the location's indexed space column, 'hex' for what fused.h3.partition writes). The folder must be hex-sorted H3 parquet that fused.h3.partition wrote and fused.h3.index registered for your team (run partition, then index; pass chunk_res_offset to partition for the chunk-level overview). Not used by the retrieve endpoints, which serve a fixed dataset.",
-                      "type": "string"
-                    },
-                    "dateMin": {
-                      "description": "Inclusive start of the time window (ISO date or datetime). Required for the retrieve endpoints.",
-                      "type": "string"
-                    },
-                    "dateMax": {
-                      "description": "Inclusive end of the time window (ISO date or datetime). Required for the retrieve endpoints.",
-                      "type": "string"
-                    },
-                    "variables": {
-                      "description": "Measurement columns to fetch. Defaults to the attributes the style, tooltip and filters name, or every column when none do.",
-                      "type": "array",
-                      "items": {
-                        "type": "string"
-                      }
-                    },
-                    "reduce": {
-                      "description": "How each hex's rows across the time window collapse to one value: latest (default) or first keep one time step; mean, min, max and sum aggregate every numeric variable and add count, date_min and date_max. Ignored while the layer's time filter on its time column holds one instant (time playback, experimental): the layer then draws that time step.",
-                      "type": "string",
-                      "enum": [
-                        "latest",
-                        "first",
-                        "mean",
-                        "min",
-                        "max",
-                        "sum"
-                      ]
-                    },
-                    "hour": {
-                      "description": "Hourly datasets only: keep rows for this hour of the day before reducing.",
-                      "type": "integer",
-                      "minimum": 0,
-                      "maximum": 23
-                    },
-                    "timeColumn": {
-                      "description": "Column holding each row's time, used to order rows for latest/first and, with time playback (experimental), the column a time filter plays the layer's time steps on. Defaults to 'date' for the retrieve endpoints; set it for /h3/query datasets.",
-                      "type": "string"
-                    },
-                    "limit": {
-                      "description": "Server row cap per tile request (the endpoint's `limit`)",
-                      "type": "integer",
-                      "exclusiveMinimum": 0,
-                      "maximum": 9007199254740991
-                    },
-                    "maxRowGroups": {
-                      "description": "Server row group cap per tile request (`max_row_groups`)",
-                      "type": "integer",
-                      "exclusiveMinimum": 0,
-                      "maximum": 9007199254740991
-                    },
-                    "maxRanges": {
-                      "description": "Retrieve endpoints only: cell ranges the bbox cover may use (`max_ranges`). Higher values cover each tile more tightly, so fewer rows outside it are read.",
-                      "type": "integer",
-                      "exclusiveMinimum": 0,
-                      "maximum": 9007199254740991
-                    },
-                    "overview": {
-                      "type": "object",
-                      "properties": {
-                        "minZoom": {
-                          "description": "The overview needs the layer's zoom floor above this (default 3). It draws at every zoom below the floor, where row tiles start.",
-                          "type": "integer",
-                          "minimum": 0,
-                          "maximum": 9007199254740991
-                        },
-                        "extent": {
-                          "description": "[west, south, east, north] the overview looks up files in, with west < east (boxes crossing the antimeridian are not supported). Row tiles are also confined to it: none are requested outside it. Cells are drawn only inside it, in the overview and in rows, by cell centre. Defaults to the whole world.",
-                          "type": "array",
-                          "items": {
-                            "0": {
-                              "type": "number"
-                            },
-                            "1": {
-                              "type": "number"
-                            },
-                            "2": {
-                              "type": "number"
-                            },
-                            "3": {
-                              "type": "number"
-                            }
-                          }
-                        },
-                        "chunkMinZoom": {},
-                        "mode": {},
-                        "statistic": {},
-                        "attr": {},
-                        "resolution": {}
-                      },
-                      "description": "Zoomed-out view below the layer's zoom floor, drawn from one request, so `overview: {}` is all it takes. Each cell is a file's H3 cell (file level) or, when the location was partitioned chunk-aligned (fused.h3.partition with chunk_res_offset) and has at most 100,000 distinct chunk cells, one row-group chunk (chunk level). The server picks the level; ERA5 and gridMET are always file level. Default at both levels: cells fill light by row count with grey outlines, not coloured by the layer's colour. Cells carry only their row counts, never column values, at either level. Hovering a cell shows it, its row count and the rows the current date window reads. Available for the ERA5 and gridMET retrieve endpoints and /h3/query. style.overview overrides the colours."
-                    },
-                    "loader": {
-                      "description": "How each tile's row groups are read. server (the default) has the server read them and answer Parquet pages. browser reads the row groups from object storage in the browser, from a plan the server answers (/h3/query with format=browser); it needs an execution environment, and a share link without one fails. auto tries browser and falls back to server when the plan is refused or the browser loader cannot start. reader sends the query to the regional reader service (fast path for read-only Parquet pages) when the client is configured with one, and falls back to server when it is not configured or refuses the request.",
-                      "type": "string",
-                      "enum": [
-                        "auto",
-                        "server",
-                        "browser",
-                        "reader"
-                      ]
-                    },
-                    "maxChunks": {
-                      "description": "Browser and auto loaders only: most chunks (storage range requests) the browser may fetch for one tile page. Defaults to 1000. A tile whose plan needs more is not loaded and the layer shows a warning naming the value to set here.",
-                      "type": "integer",
-                      "exclusiveMinimum": 0,
-                      "maximum": 9007199254740991
-                    }
-                  }
-                },
-                "h3Column": {
-                  "description": "The level's indexed cell column, when it differs from the composite's h3Column.",
-                  "type": "string"
-                },
-                "tooltip": {
-                  "description": "Replaces the composite's tooltip at this level (levels often carry other columns).",
+                  "description": "fused-hex and fused-bbox levels: the level's indexed dataset, as that layer's `source`: usually {path: \"s3://bucket/indexed/res7/\"}. path and endpoint are always the level's own (never inherited); every other key merges over the composite's `source` (options shared by every level, such as variables, loader, timeColumn, reduce, limit), a level's value replacing it and null unsetting it. `overview` is ignored (the coarser levels play that role).",
                   "anyOf": [
                     {
-                      "type": "boolean"
+                      "type": "object",
+                      "properties": {
+                        "dateMin": {
+                          "anyOf": [
+                            {
+                              "description": "Inclusive start of the time window (ISO date or datetime). Required for the retrieve endpoints.",
+                              "type": "string"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ],
+                          "description": "Merged over the composite's source.<key> (null unsets it here). Inclusive start of the time window (ISO date or datetime). Required for the retrieve endpoints."
+                        },
+                        "dateMax": {
+                          "anyOf": [
+                            {
+                              "description": "Inclusive end of the time window (ISO date or datetime). Required for the retrieve endpoints.",
+                              "type": "string"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ],
+                          "description": "Merged over the composite's source.<key> (null unsets it here). Inclusive end of the time window (ISO date or datetime). Required for the retrieve endpoints."
+                        },
+                        "variables": {
+                          "anyOf": [
+                            {
+                              "description": "Measurement columns to fetch. Defaults to the attributes the style, tooltip and filters name, or every column when none do.",
+                              "type": "array",
+                              "items": {
+                                "type": "string"
+                              }
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ],
+                          "description": "Merged over the composite's source.<key> (null unsets it here). Measurement columns to fetch. Defaults to the attributes the style, tooltip and filters name, or every column when none do."
+                        },
+                        "reduce": {
+                          "anyOf": [
+                            {
+                              "description": "How each hex's rows across the time window collapse to one value: latest (default) or first keep one time step; mean, min, max and sum aggregate every numeric variable and add count, date_min and date_max. Ignored while the layer's time filter on its time column holds one instant (time playback, experimental): the layer then draws that time step.",
+                              "type": "string",
+                              "enum": [
+                                "latest",
+                                "first",
+                                "mean",
+                                "min",
+                                "max",
+                                "sum"
+                              ]
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ],
+                          "description": "Merged over the composite's source.<key> (null unsets it here). How each hex's rows across the time window collapse to one value: latest (default) or first keep one time step; mean, min, max and sum aggregate every numeric variable and add count, date_min and date_max. Ignored while the layer's time filter on its time column holds one instant (time playback, experimental): the layer then draws that time step."
+                        },
+                        "hour": {
+                          "anyOf": [
+                            {
+                              "description": "Hourly datasets only: keep rows for this hour of the day before reducing.",
+                              "type": "integer",
+                              "minimum": 0,
+                              "maximum": 23
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ],
+                          "description": "Merged over the composite's source.<key> (null unsets it here). Hourly datasets only: keep rows for this hour of the day before reducing."
+                        },
+                        "timeColumn": {
+                          "anyOf": [
+                            {
+                              "description": "Column holding each row's time, used to order rows for latest/first and, with time playback (experimental), the column a time filter plays the layer's time steps on. Defaults to 'date' for the retrieve endpoints; set it for /h3/query datasets.",
+                              "type": "string"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ],
+                          "description": "Merged over the composite's source.<key> (null unsets it here). Column holding each row's time, used to order rows for latest/first and, with time playback (experimental), the column a time filter plays the layer's time steps on. Defaults to 'date' for the retrieve endpoints; set it for /h3/query datasets."
+                        },
+                        "limit": {
+                          "anyOf": [
+                            {
+                              "description": "Server row cap per tile request (the endpoint's `limit`)",
+                              "type": "integer",
+                              "exclusiveMinimum": 0,
+                              "maximum": 9007199254740991
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ],
+                          "description": "Merged over the composite's source.<key> (null unsets it here). Server row cap per tile request (the endpoint's `limit`)"
+                        },
+                        "maxRowGroups": {
+                          "anyOf": [
+                            {
+                              "description": "Server row group cap per tile request (`max_row_groups`)",
+                              "type": "integer",
+                              "exclusiveMinimum": 0,
+                              "maximum": 9007199254740991
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ],
+                          "description": "Merged over the composite's source.<key> (null unsets it here). Server row group cap per tile request (`max_row_groups`)"
+                        },
+                        "maxRanges": {
+                          "anyOf": [
+                            {
+                              "description": "Retrieve endpoints only: cell ranges the bbox cover may use (`max_ranges`). Higher values cover each tile more tightly, so fewer rows outside it are read.",
+                              "type": "integer",
+                              "exclusiveMinimum": 0,
+                              "maximum": 9007199254740991
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ],
+                          "description": "Merged over the composite's source.<key> (null unsets it here). Retrieve endpoints only: cell ranges the bbox cover may use (`max_ranges`). Higher values cover each tile more tightly, so fewer rows outside it are read."
+                        },
+                        "overview": {
+                          "anyOf": [
+                            {
+                              "type": "object",
+                              "properties": {
+                                "minZoom": {
+                                  "description": "The overview needs the layer's zoom floor above this (default 3). It draws at every zoom below the floor, where row tiles start.",
+                                  "type": "integer",
+                                  "minimum": 0,
+                                  "maximum": 9007199254740991
+                                },
+                                "extent": {
+                                  "description": "[west, south, east, north] the overview looks up files in, with west < east (boxes crossing the antimeridian are not supported). Row tiles are also confined to it: none are requested outside it. Cells are drawn only inside it, in the overview and in rows, by cell centre. Defaults to the whole world.",
+                                  "type": "array",
+                                  "items": {
+                                    "0": {
+                                      "type": "number"
+                                    },
+                                    "1": {
+                                      "type": "number"
+                                    },
+                                    "2": {
+                                      "type": "number"
+                                    },
+                                    "3": {
+                                      "type": "number"
+                                    }
+                                  }
+                                },
+                                "chunkMinZoom": {},
+                                "mode": {},
+                                "statistic": {},
+                                "attr": {},
+                                "resolution": {}
+                              },
+                              "description": "Zoomed-out view below the layer's zoom floor, drawn from one request, so `overview: {}` is all it takes. Each cell is a file's H3 cell (file level) or, when the location was partitioned chunk-aligned (fused.h3.partition with chunk_res_offset) and has at most 100,000 distinct chunk cells, one row-group chunk (chunk level). The server picks the level; ERA5 and gridMET are always file level. Default at both levels: cells fill light by row count with grey outlines, not coloured by the layer's colour. Cells carry only their row counts, never column values, at either level. Hovering a cell shows it, its row count and the rows the current date window reads. Available for the ERA5 and gridMET retrieve endpoints and /h3/query. style.overview overrides the colours."
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ],
+                          "description": "Merged over the composite's source.<key> (null unsets it here)."
+                        },
+                        "loader": {
+                          "anyOf": [
+                            {
+                              "description": "How each tile's row groups are read. server (the default) has the server read them and answer Parquet pages. browser reads the row groups from object storage in the browser, from a plan the server answers (/h3/query with format=browser); it needs an execution environment, and a share link without one fails. auto tries browser and falls back to server when the plan is refused or the browser loader cannot start. reader sends the query to the regional reader service (fast path for read-only Parquet pages) when the client is configured with one, and falls back to server when it is not configured or refuses the request.",
+                              "type": "string",
+                              "enum": [
+                                "auto",
+                                "server",
+                                "browser",
+                                "reader"
+                              ]
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ],
+                          "description": "Merged over the composite's source.<key> (null unsets it here). How each tile's row groups are read. server (the default) has the server read them and answer Parquet pages. browser reads the row groups from object storage in the browser, from a plan the server answers (/h3/query with format=browser); it needs an execution environment, and a share link without one fails. auto tries browser and falls back to server when the plan is refused or the browser loader cannot start. reader sends the query to the regional reader service (fast path for read-only Parquet pages) when the client is configured with one, and falls back to server when it is not configured or refuses the request."
+                        },
+                        "maxChunks": {
+                          "anyOf": [
+                            {
+                              "description": "Browser and auto loaders only: most chunks (storage range requests) the browser may fetch for one tile page. Defaults to 1000. A tile whose plan needs more is not loaded and the layer shows a warning naming the value to set here.",
+                              "type": "integer",
+                              "exclusiveMinimum": 0,
+                              "maximum": 9007199254740991
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ],
+                          "description": "Merged over the composite's source.<key> (null unsets it here). Browser and auto loaders only: most chunks (storage range requests) the browser may fetch for one tile page. Defaults to 1000. A tile whose plan needs more is not loaded and the layer shows a warning naming the value to set here."
+                        },
+                        "path": {
+                          "description": "Indexed dataset location, e.g. s3://bucket/indexed/data/. Sets the endpoint to /h3/query when none is given. Needs the layer's h3Column (the location's indexed space column, 'hex' for what fused.h3.partition writes). The folder must be hex-sorted H3 parquet that fused.h3.partition wrote and fused.h3.index registered for your team (run partition, then index; pass chunk_res_offset to partition for the chunk-level overview). Not used by the retrieve endpoints, which serve a fixed dataset.",
+                          "type": "string"
+                        },
+                        "endpoint": {
+                          "description": "Bbox query endpoint on a Fused server: a full URL or a path relative to the current server root. Supported: /retrieve/era5/daily/bbox, /retrieve/era5/hourly/bbox, /retrieve/gridmet/bbox and /h3/query. Defaults to /h3/query when path is set.",
+                          "type": "string"
+                        }
+                      }
                     },
                     {
-                      "type": "array",
-                      "items": {
-                        "type": "string"
-                      }
+                      "type": "null"
                     }
                   ]
                 },
                 "style": {
-                  "description": "Overrides of the composite's style at this level, merged over it key by key; a fillColor or lineColor given here replaces the composite's whole (e.g. a categorical fill on the finest level).",
-                  "type": "object",
-                  "properties": {
-                    "fillColor": {
-                      "description": "Fill color (source colour for arc, weight attr for heatmap): [r,g,b] or [r,g,b,a] array, CSS string, or data-driven {type:\"continuous\", attr, domain?:[min,max], palette?, steps?, reverse?, nullColor?, scaleType?:\"quantize\"|\"quantile\"} | {type:\"categorical\", attr, colors?:{value:\"#hex\"}, palette?, nullColor?}. See the component description for palette names."
-                    },
-                    "lineColor": {
-                      "description": "Stroke color (target colour for arc): [r,g,b] or [r,g,b,a] array, CSS string, or the same data-driven {type:\"continuous\"|\"categorical\", attr, ...} object as fillColor."
-                    },
-                    "lineWidth": {
-                      "description": "Stroke width in pixels",
-                      "type": "number"
-                    },
-                    "opacity": {
-                      "description": "Layer opacity 0-1",
-                      "type": "number",
-                      "minimum": 0,
-                      "maximum": 1
-                    },
-                    "pointRadius": {
-                      "description": "Circle radius for point features",
-                      "type": "number"
-                    },
-                    "coverage": {
-                      "description": "H3 hex coverage 0-1 (1 = no gap, 0.8 = small gaps). Defaults to 1 for fused-hex layers, 0.9 for other hex layers.",
-                      "type": "number",
-                      "minimum": 0,
-                      "maximum": 1
-                    },
-                    "extruded": {
-                      "description": "Enable 3D extrusion (h3, deck-geojson)",
-                      "type": "boolean"
-                    },
-                    "elevationAttr": {
-                      "description": "Feature property to use for extrusion height",
-                      "type": "string"
-                    },
-                    "elevationScale": {
-                      "description": "Multiplier for extrusion height values",
-                      "type": "number"
-                    },
-                    "overview": {
-                      "description": "fused-hex only, optional: overrides how the overview cells (source.overview) draw; leave it out for the defaults, which need no setting. Defaults, at both levels: light fill by row count with #afafaf outlines at opacity 0.35, not coloured by the layer's colour. Cells carry only row counts (row_count_total, row_count_window), so a colour can only be data-driven by those; hovering a cell shows it and its row counts. Example: {fillColor: [255, 140, 0], opacity: 0.5, lineWidth: 0}. null clears a configured block (a layer switched out of fused-hex).",
-                      "anyOf": [
-                        {
-                          "type": "object",
-                          "properties": {
-                            "fillColor": {
-                              "description": "Unset or \"auto\": a light fill by row_count_total at both levels, so the overview does not read as data coloured by a column. A single colour fills the cells; null draws no fill; \"inherit\" takes the layer's fillColor (a single colour is used as is; a data-driven one falls back to the row-count fill, since cells carry no column values); or a data-driven {type:\"continuous\"|\"categorical\", attr, ...} over the only cell properties: row_count_total (rows in the cell's files or chunk) and row_count_window (rows the current date window reads). Any other attr falls back to the row-count fill."
+                  "description": "Overrides of the composite's style at this level, merged over it key by key (nested blocks such as overview one level deeper); a fillColor or lineColor given here replaces the composite's whole (e.g. a categorical fill on the finest level); null on a key unsets the composite's value here (elevationAttr: null: not extruded by attribute at this level); style: null drops the composite's style at this level.",
+                  "anyOf": [
+                    {
+                      "type": "object",
+                      "properties": {
+                        "fillColor": {
+                          "anyOf": [
+                            {
+                              "description": "Fill color (source colour for arc, weight attr for heatmap): [r,g,b] or [r,g,b,a] array, CSS string, or data-driven {type:\"continuous\", attr, domain?:[min,max], palette?, steps?, reverse?, nullColor?, scaleType?:\"quantize\"|\"quantile\"} | {type:\"categorical\", attr, colors?:{value:\"#hex\"}, palette?, nullColor?}. See the component description for palette names.",
+                              "properties": {
+                                "palette": {
+                                  "$ref": "#/$defs/fusedMapPalette"
+                                }
+                              }
                             },
-                            "opacity": {
-                              "description": "Opacity 0-1 of the overview cells, fill and outline alike. Defaults to 0.35; with fillColor \"inherit\" of a single colour at the chunk level, the layer's own opacity.",
-                              "type": "number",
-                              "minimum": 0,
-                              "maximum": 1
-                            },
-                            "lineColor": {
-                              "description": "Unset or \"auto\": #afafaf at both levels. A single colour outlines the cells; \"inherit\" takes the layer's lineColor (a data-driven one falls back to #afafaf); or a data-driven {type:\"continuous\"|\"categorical\", attr, ...} over the same cell properties as fillColor."
-                            },
-                            "lineWidth": {
-                              "description": "Overview cell stroke width in pixels. Defaults to 1 at both levels; 0 draws no outline.",
-                              "type": "number",
-                              "minimum": 0
-                            },
-                            "coverage": {
-                              "description": "Overview cell coverage, 0\u20131. Defaults to 1.",
-                              "type": "number",
-                              "minimum": 0,
-                              "maximum": 1
-                            },
-                            "stat": {
-                              "description": "No longer used and ignored: overview cells carry no column statistics. Accepted so saved configs that set it still load.",
-                              "type": "string",
-                              "enum": [
-                                "max",
-                                "min"
-                              ]
+                            {
+                              "type": "null"
                             }
-                          }
+                          ],
+                          "description": "Fill color (source colour for arc, weight attr for heatmap): [r,g,b] or [r,g,b,a] array, CSS string, or data-driven {type:\"continuous\", attr, domain?:[min,max], palette?, steps?, reverse?, nullColor?, scaleType?:\"quantize\"|\"quantile\"} | {type:\"categorical\", attr, colors?:{value:\"#hex\"}, palette?, nullColor?}. See the component description for palette names."
                         },
-                        {
-                          "type": "null"
+                        "lineColor": {
+                          "anyOf": [
+                            {
+                              "description": "Stroke color (target colour for arc): [r,g,b] or [r,g,b,a] array, CSS string, or the same data-driven {type:\"continuous\"|\"categorical\", attr, ...} object as fillColor.",
+                              "properties": {
+                                "palette": {
+                                  "$ref": "#/$defs/fusedMapPalette"
+                                }
+                              }
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ],
+                          "description": "Stroke color (target colour for arc): [r,g,b] or [r,g,b,a] array, CSS string, or the same data-driven {type:\"continuous\"|\"categorical\", attr, ...} object as fillColor."
+                        },
+                        "lineWidth": {
+                          "anyOf": [
+                            {
+                              "description": "Stroke width in pixels",
+                              "type": "number"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ],
+                          "description": "Stroke width in pixels"
+                        },
+                        "opacity": {
+                          "anyOf": [
+                            {
+                              "description": "Layer opacity 0-1",
+                              "type": "number",
+                              "minimum": 0,
+                              "maximum": 1
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ],
+                          "description": "Layer opacity 0-1"
+                        },
+                        "pointRadius": {
+                          "anyOf": [
+                            {
+                              "description": "Circle radius for point features",
+                              "type": "number"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ],
+                          "description": "Circle radius for point features"
+                        },
+                        "coverage": {
+                          "anyOf": [
+                            {
+                              "description": "H3 hex coverage 0-1 (1 = no gap, 0.8 = small gaps). Defaults to 1 for fused-hex layers, 0.9 for other hex layers.",
+                              "type": "number",
+                              "minimum": 0,
+                              "maximum": 1
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ],
+                          "description": "H3 hex coverage 0-1 (1 = no gap, 0.8 = small gaps). Defaults to 1 for fused-hex layers, 0.9 for other hex layers."
+                        },
+                        "extruded": {
+                          "anyOf": [
+                            {
+                              "description": "Enable 3D extrusion (h3, deck-geojson)",
+                              "type": "boolean"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ],
+                          "description": "Enable 3D extrusion (h3, deck-geojson)"
+                        },
+                        "elevationAttr": {
+                          "anyOf": [
+                            {
+                              "description": "Feature property to use for extrusion height",
+                              "type": "string"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ],
+                          "description": "Feature property to use for extrusion height"
+                        },
+                        "elevationScale": {
+                          "anyOf": [
+                            {
+                              "description": "Multiplier for extrusion height values",
+                              "type": "number"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ],
+                          "description": "Multiplier for extrusion height values"
+                        },
+                        "overview": {
+                          "anyOf": [
+                            {
+                              "description": "fused-hex only, optional: overrides how the overview cells (source.overview) draw; leave it out for the defaults, which need no setting. Defaults, at both levels: light fill by row count with #afafaf outlines at opacity 0.35, not coloured by the layer's colour. Cells carry only row counts (row_count_total, row_count_window), so a colour can only be data-driven by those; hovering a cell shows it and its row counts. Example: {fillColor: [255, 140, 0], opacity: 0.5, lineWidth: 0}. null clears a configured block (a layer switched out of fused-hex).",
+                              "anyOf": [
+                                {
+                                  "type": "object",
+                                  "properties": {
+                                    "fillColor": {
+                                      "description": "Unset or \"auto\": a light fill by row_count_total at both levels, so the overview does not read as data coloured by a column. A single colour fills the cells; null draws no fill; \"inherit\" takes the layer's fillColor (a single colour is used as is; a data-driven one falls back to the row-count fill, since cells carry no column values); or a data-driven {type:\"continuous\"|\"categorical\", attr, ...} over the only cell properties: row_count_total (rows in the cell's files or chunk) and row_count_window (rows the current date window reads). Any other attr falls back to the row-count fill."
+                                    },
+                                    "opacity": {
+                                      "description": "Opacity 0-1 of the overview cells, fill and outline alike. Defaults to 0.35; with fillColor \"inherit\" of a single colour at the chunk level, the layer's own opacity.",
+                                      "type": "number",
+                                      "minimum": 0,
+                                      "maximum": 1
+                                    },
+                                    "lineColor": {
+                                      "description": "Unset or \"auto\": #afafaf at both levels. A single colour outlines the cells; \"inherit\" takes the layer's lineColor (a data-driven one falls back to #afafaf); or a data-driven {type:\"continuous\"|\"categorical\", attr, ...} over the same cell properties as fillColor."
+                                    },
+                                    "lineWidth": {
+                                      "description": "Overview cell stroke width in pixels. Defaults to 1 at both levels; 0 draws no outline.",
+                                      "type": "number",
+                                      "minimum": 0
+                                    },
+                                    "coverage": {
+                                      "description": "Overview cell coverage, 0\u20131. Defaults to 1.",
+                                      "type": "number",
+                                      "minimum": 0,
+                                      "maximum": 1
+                                    },
+                                    "stat": {
+                                      "description": "No longer used and ignored: overview cells carry no column statistics. Accepted so saved configs that set it still load.",
+                                      "type": "string",
+                                      "enum": [
+                                        "max",
+                                        "min"
+                                      ]
+                                    }
+                                  }
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ]
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ],
+                          "description": "fused-hex only, optional: overrides how the overview cells (source.overview) draw; leave it out for the defaults, which need no setting. Defaults, at both levels: light fill by row count with #afafaf outlines at opacity 0.35, not coloured by the layer's colour. Cells carry only row counts (row_count_total, row_count_window), so a colour can only be data-driven by those; hovering a cell shows it and its row counts. Example: {fillColor: [255, 140, 0], opacity: 0.5, lineWidth: 0}. null clears a configured block (a layer switched out of fused-hex)."
                         }
-                      ]
+                      }
+                    },
+                    {
+                      "type": "null"
                     }
-                  }
+                  ]
+                },
+                "visible": {
+                  "description": "Not a level key: set it on the composite, which applies it at every level. A level's is ignored (the sidebar says so)."
+                },
+                "visibleMinZoom": {
+                  "description": "Not a level key: set it on the composite, which applies it at every level. A level's is ignored (the sidebar says so)."
+                },
+                "visibleMaxZoom": {
+                  "description": "Not a level key: set it on the composite, which applies it at every level. A level's is ignored (the sidebar says so)."
                 }
               },
-              "description": "One level of a composite layer: a source and its map zoom range."
+              "description": "One level of a composite layer: a layer of its own (any type but composite) bound to a map zoom range (minZoom, maxZoom). It may set any layer key (type, source, udf, tile, data, sql, tileUrl, sourceLayer, filters, style, tooltip, legend, columns, ...) that differs from the composite's defaults at this level."
             }
           }
         },
@@ -1620,7 +2316,7 @@ Interactive map with tile, UDF and SQL layers.
       "type": "boolean"
     },
     "showCoordinates": {
-      "default": false,
+      "default": true,
       "description": "Show the map centre's latitude, longitude and zoom under the scale bar; a click copies them",
       "type": "boolean"
     },
@@ -1696,7 +2392,101 @@ Interactive map with tile, UDF and SQL layers.
       "type": "string"
     }
   },
-  "description": "Interactive map: a Mapbox basemap with every data layer (mvt, raster, geojson, h3, heatmap, arc, scatterplot, deck-geojson, fused-hex) rendered through deck.gl, plus `composite` level-of-detail layers of several fused-hex sources. Layers load data from a UDF directly (`udf`), from a tile endpoint (`tileUrl`) or from a Fused server's hex query endpoints (`fused-hex` with `source`). A DuckDB query (`sql`) reads UDF results on its own, or queries the rows of a `udf` or `fused-hex` layer (once over the tiles in view when the layer is tiled). A sidebar lets viewers restyle, filter and re-query layers at runtime.\n\n## Example \u2014 UDF result (GeoDataFrame)\n\n```json\n{\n  \"type\": \"fused-map\",\n  \"props\": {\n    \"layers\": [{\n      \"id\": \"buildings\",\n      \"type\": \"geojson\",\n      \"udf\": \"{{my_udf}}\",\n      \"tooltip\": true,\n      \"style\": { \"fillColor\": { \"type\": \"continuous\", \"attr\": \"height\", \"palette\": \"Sunset\" } }\n    }]\n  }\n}\n```\n\n## Example \u2014 UDF as H3 tiles\n\n```json\n{\n  \"type\": \"fused-map\",\n  \"props\": {\n    \"layers\": [{\n      \"id\": \"hexes\",\n      \"type\": \"h3\",\n      \"udf\": \"{{my_h3_udf}}\",\n      \"tile\": true,\n      \"style\": { \"fillColor\": { \"type\": \"continuous\", \"attr\": \"count\", \"domain\": [0, 500] } }\n    }]\n  }\n}\n```\n\n## Example \u2014 MVT tile layer\n\n```json\n{\n  \"type\": \"fused-map\",\n  \"props\": {\n    \"layers\": [{\n      \"id\": \"counties\",\n      \"type\": \"mvt\",\n      \"tileUrl\": \"https://tiles.fused.io/public/my_tileset/{z}/{x}/{y}\",\n      \"style\": { \"fillColor\": [100, 150, 200], \"opacity\": 0.6 }\n    }]\n  }\n}\n```\n\n## Example \u2014 rows from a canvas SQL source (h3-query, sql-runner)\n\n```json\n{\n  \"type\": \"fused-map\",\n  \"props\": {\n    \"layers\": [{\n      \"id\": \"calls\",\n      \"type\": \"h3\",\n      \"h3Column\": \"hex\",\n      \"data\": \"{{nyc311}}\",\n      \"sql\": \"SELECT hex, COUNT(*) AS calls FROM {{source}} GROUP BY 1\",\n      \"style\": { \"fillColor\": { \"type\": \"continuous\", \"attr\": \"calls\" } }\n    }]\n  }\n}\n```\n\n`data: \"{{name}}\"` draws the rows a canvas SQL source published (an h3-query or sql-runner widget's `name`, or another map's layer id) straight from DuckDB: no UDF runs, and the edge from that node to this one grants access, as for a UDF. Add `sql` to query them (`{{source}}` or `{{name}}` reads the rows). Row layers only (geojson, h3, scatterplot, heatmap, arc, or type omitted to detect), never tiles.\n\n## Example \u2014 SQL with lat/lng points and a filter\n\n```json\n{\n  \"type\": \"fused-map\",\n  \"props\": {\n    \"layers\": [{\n      \"id\": \"sites\",\n      \"type\": \"geojson\",\n      \"sql\": \"SELECT name, lat, lng, score FROM {{my_udf}}\",\n      \"filters\": [{ \"attr\": \"score\", \"type\": \"range\", \"min\": 0.5 }],\n      \"style\": { \"fillColor\": [255, 80, 0], \"pointRadius\": 8 }\n    }]\n  }\n}\n```\n\n## Example \u2014 raster tile layer\n\n```json\n{\n  \"type\": \"fused-map\",\n  \"props\": {\n    \"layers\": [{\n      \"id\": \"seismic\",\n      \"type\": \"raster\",\n      \"tileUrl\": \"https://udf.ai/<token>/run/tiles/{z}/{x}/{y}?format=png\",\n      \"style\": { \"opacity\": 0.8 }\n    }]\n  }\n}\n```\n\n## Example \u2014 indexed H3 data (fused-hex)\n\n```json\n{\n  \"type\": \"fused-map\",\n  \"props\": {\n    \"centerLng\": -73.985, \"centerLat\": 40.755, \"zoom\": 14,\n    \"layers\": [{\n      \"id\": \"nyc311-hex\",\n      \"type\": \"fused-hex\",\n      \"h3Column\": \"hex\",\n      \"minZoom\": 14,\n      \"source\": {\n        \"path\": \"s3://fused-asset/data/nyc311/\",\n        \"timeColumn\": \"created_date\",\n        \"dateMin\": \"2024-07-01\",\n        \"dateMax\": \"2024-07-07T23:59:59\",\n        \"variables\": [\"complaint_type\"]\n      },\n      \"tooltip\": [\"hex\", \"created_date\", \"complaint_type\"],\n      \"style\": { \"fillColor\": { \"type\": \"categorical\", \"attr\": \"complaint_type\", \"palette\": \"Bold\" } }\n    }]\n  }\n}\n```\n\n## Example \u2014 level of detail (composite)\n\nOne layer of several indexed H3 datasets, each bound to a map zoom range (`levels`): coarse aggregates zoomed out, fine cells zoomed in. Exactly one level draws at a time, the one whose `[minZoom, maxZoom)` holds the map zoom (on an overlap the highest minZoom wins; a zoom no level covers draws nothing). Crossing into another level keeps the previous one drawing until the new one has loaded the view, then they swap in one frame, so the map never flashes empty; use this rather than several zoom-gated fused-hex layers. The composite's `h3Column`, `style`, `tooltip`, `filters`, `sql`, `legend` and `visible` apply to every level; a level's own `h3Column` and `tooltip` replace them and its `style` merges over them (a level's `fillColor` replaces the shared one). Each level keeps its own colour scale. A filter on a column a level's rows do not have is skipped at that level (it draws unfiltered by it), and a level whose `sql` fails draws its rows unqueried. Levels read fused-hex sources only; `source.overview` is ignored on a level. A composite is two canvas SQL sources: `{{id}}`, the raw rows of the tiles in view of the level on screen (as a fused-hex layer's `{{layer_id}}`: before its filters and `sql`), and `{{id_drawn}}`, the rows that level draws (its `sql` result, or its tiles' rows without one or when the query failed; one row per cell after the reduce; through the filters it applies). Both follow the level on screen: a swap, a settled view, a query result, a filter or `sql` edit rebuild them and move their `version` in `sourceParam`, whose entries also carry `tiles`, `level` and `band`. A layer id or a source name already called `id_drawn` in the map keeps that name and the drawn source is not published. A widget in the same node JSON reads them without an edge.\n\n```json\n{\n  \"id\": \"buildings\", \"name\": \"Buildings\", \"type\": \"composite\", \"h3Column\": \"hex\",\n  \"tooltip\": [\"hex\", \"n_buildings\"],\n  \"style\": { \"opacity\": 0.8, \"fillColor\": { \"type\": \"continuous\", \"attr\": \"n_buildings\", \"palette\": \"Sunset\", \"scaleType\": \"quantile\" } },\n  \"levels\": [\n    { \"maxZoom\": 8, \"source\": { \"path\": \"s3://bucket/buildings/hex5/\", \"variables\": [\"n_buildings\"] } },\n    { \"minZoom\": 8, \"maxZoom\": 12, \"source\": { \"path\": \"s3://bucket/buildings/hex8/\", \"variables\": [\"n_buildings\"] } },\n    { \"minZoom\": 12, \"source\": { \"path\": \"s3://bucket/buildings/hex12/\", \"variables\": [\"subtype\", \"height\"] },\n      \"tooltip\": [\"hex\", \"subtype\", \"height\"],\n      \"style\": { \"fillColor\": { \"type\": \"categorical\", \"attr\": \"subtype\", \"palette\": \"Bold\" } } }\n  ]\n}\n```\n\nRaster layers with a `tileUrl` fetch PNG tiles from a publicly reachable XYZ endpoint; only `opacity` and `visible` apply. `udf` with `tile: true` instead runs the UDF per tile through the workbench (or the canvas share token on a shared page), so no share token is needed and edits to the UDF re-render the layer.\n\n## Choosing a source\n\n- `udf` without `tile`: one whole run. Rows become features (geojson, h3, heatmap, arc, scatterplot); an image result becomes one `raster` picture at the bounds the run returned or was sent. Not valid for `mvt` \u2014 that needs `tile: true` with `udf`, or a `tileUrl`.\n- `udf` with `tile: true`: the UDF runs per XYZ tile; use for large or tile-shaped UDFs (`raster` \u2192 PNG, `h3` \u2192 hexagons, `geojson` \u2192 vector features). Tile layers never auto-fit.\n- `sql`: a DuckDB query over `{{udf}}` results; rows become features via geometryColumn / latColumn+lngColumn / h3Column. On a tiled layer (`udf` with `tile: true`, or `fused-hex`) it runs once over the rows of every tile loaded in the current view, reading them as `{{source}}`, which takes no `?params` (a udf layer may also write its own `{{udf}}`, bare or with exactly its own `?params`), and runs again as the view moves (pan, zoom), the query changes or a `$param` changes; no tile is refetched. WHERE, computed columns, GROUP BY, aggregates, LIMIT, ORDER BY and USING SAMPLE apply to the whole view; only a single SELECT (a WITH is fine) over `{{source}}` runs (no UNION, several statements, other UDFs or joins), and its result must keep the cell column (h3, `fused-hex`) or the geometry columns (vector layers). `raster`, `mvt` and `tileUrl` layers take no `sql`.\n- `source` (`fused-hex` only): a Fused server's ERA5, gridMET or `/h3/query` endpoint, queried per XYZ tile; no `udf` (a `sql` runs once over the tiles in view as `{{source}}`).\n- Whole-run results larger than the viewer's \"Max amount of data to auto-load\" setting (default 50 MB) are not loaded until the viewer confirms, and UDFs marked for manual runs show a Run button instead of running on load. Prefer `tile: true`, a narrowing `sql`, or both for big datasets.\n\n## Layer types\n\n- `geojson`: polygons, lines and points from any source. `deck-geojson` is an alias of `geojson` and renders identically \u2014 prefer `geojson`.\n- `h3`: hexagons from `h3Column` (auto-detected from common names like hex, h3 when omitted), styled with `coverage`, `extruded`, `elevationAttr`.\n- `scatterplot`: point circles; `pointRadius` in pixels (default 5), `lineColor`/`lineWidth` for the outline.\n- `heatmap`: density of points; weight comes from a continuous `fillColor.attr` (1 per point when fillColor is static), `pointRadius` is the kernel radius in pixels (default 30). Not pickable, no tooltip.\n- `arc`: one arc per row. Give the endpoints with `startLatColumn`/`startLngColumn` and `endLatColumn`/`endLngColumn` (auto-detected from common names when omitted), or a `source`/`target` property holding [lng, lat], or a LineString whose first and second vertices are the ends. `fillColor` colours the source end, `lineColor` the target end, `lineWidth` the arc width.\n- `mvt` / `raster`: tiled from `tileUrl`, or from `udf` with `tile: true`.\n- `fused-hex`: H3 tiles queried from a Fused server; each XYZ tile's bbox is sent to `source.endpoint` (a full URL, or a path on the current server; /h3/query when only `source.path` is set): `/retrieve/era5/daily/bbox`, `/retrieve/era5/hourly/bbox` and `/retrieve/gridmet/bbox` serve fixed resolution 7 datasets and need `dateMin`/`dateMax`; `/h3/query` reads any indexed `source.path` and needs the layer's `h3Column` set to the location's indexed space column (set `source.timeColumn` too so latest/first can order rows). Each hex's rows over the window are reduced to one (`reduce`: latest, first, mean, min, max, sum). Tiles load from zoom 7 for a single day; unless `minZoom` is set the floor rises with the window (about one zoom level per 4x more time steps) so a tile stays within the server's row limit, and nothing draws below it. A tile the server still rejects as too large shows an error: zoom in or narrow the window. Row cells cover their hexagon whole unless `style.coverage` is set (default 1, where other hex layers default to 0.9). It reads `source` instead of `udf`; `sql` runs once over every tile in view as `{{source}}`, before `reduce`. It is never auto-detected, never auto-fits and takes no `bounds`. Set `source.overview` (`{}` is enough) to outline, from zoom 3 up to the floor, the H3 cells of the files the query reads (no rows are read): one request lists them, with no tiles and no values, so the outlines show where data exists, not what it holds. ERA5 retrieve endpoints and /h3/query only (for /h3/query the world extent lists the whole location); it is an error on gridMET. `overview.minZoom` (default 3) must sit below the floor for the overview to draw, and `overview.extent` limits the area it looks up and also confines the row tiles: none are requested outside it, and cells are drawn only inside it, overview and rows alike, by cell centre (default: the whole world). Overview cells are styled apart from the rows by `style.overview` (fused-hex only): `lineColor` and `fillColor` (default: #afafaf stroke, no fill) each take a single colour, `\"inherit\"` (the layer's own stroke/fill; when that is data-driven, no overview is drawn and a warning shows on the layer card, rows unaffected), or a data-driven `{type: \"continuous\"|\"categorical\", attr, ...}` colouring cells by `row_count_total` (rows in the whole file) or `row_count_window` (rows in the file sections the current date window reads) -- the only two overview attributes, since a files overview carries no other values. Also `lineWidth` (default 1, 0 = no stroke), `opacity` (the fill's, default 0.35) and `coverage` (default 1).\n\n## Colours\n\n`style.fillColor` and `style.lineColor` accept an [r, g, b] or [r, g, b, a] array, a CSS colour string, or a data-driven object:\n\n- Continuous: `{ \"type\": \"continuous\", \"attr\": \"<numeric property>\", \"domain\": [min, max], \"palette\": \"Sunset\", \"steps\": 7, \"reverse\": false, \"nullColor\": \"#b8b8b8\", \"scaleType\": \"quantize\" }`. `domain` defaults to the data's min/max, `palette` to \"Sunset\". `scaleType` \"quantize\" (default) draws `steps` equal-width bands over the domain; \"quantile\" draws `steps` bands of roughly equal row count, with breaks from the data (`domain` is ignored). Sequential palettes (CARTOColors): Sunset, SunsetDark, Teal, TealGrn, Emrld, BluGrn, BluYl, Mint, DarkMint, Purp, PurpOr, Magenta, Burg, BurgYl, RedOr, OrYel, Peach, PinkYl, BrwnYl.\n- Categorical: `{ \"type\": \"categorical\", \"attr\": \"<property>\", \"colors\": { \"<value>\": \"#hex\" }, \"palette\": \"Bold\", \"nullColor\": \"rgba(128,128,128,0.5)\" }`. Omit `colors` to auto-assign from the palette (default \"Bold\"). Qualitative palettes: Bold, Vivid, Safe, Prism.\n\nA legend is drawn only for data-driven colours (see `legend` and `showLegend`).\n\n`layerBlending` (`normal`, `additive`, `subtractive`) sets how all data layers blend where they overlap, as kepler.gl's Layer blending does; omit it for normal.\n\n## Filters\n\nA layer's `filters` keep the features that pass every one: `{ \"attr\": \"score\", \"type\": \"range\", \"min\": 0.5 }`, `{ \"attr\": \"kind\", \"type\": \"categories\", \"values\": [\"a\", \"b\"] }`, or a time window `{ \"attr\": \"datetime\", \"type\": \"time\", \"min\": \"2025-01-06\", \"max\": \"2025-01-13T12:00:00Z\" }`. A time filter reads ISO dates and datetimes (no zone means UTC), common date text and epoch numbers; its bounds are ISO text, epoch milliseconds, or a `$param`. The sidebar types time columns as times and a time filter has a Time playback button: it opens a bar along the bottom of the map that plays the window across the data, as kepler.gl's time filter does (any layer with rows, tiled layers over their loaded tiles; not rasters). The bar's settings are kept on the filter as `playbackOptions` (mode auto | window | point | cumulative, skipEmpty, interval such as \"1-day\", timezone, timeFormat, yAxis { field, aggregation, fit }, collapsed, speed such as 2), every key optional. A fused-hex layer plays any time column. On its time column (source.timeColumn, date on the retrieve endpoints), when that is a series of daily or hourly steps, it plays one time step at a time: the window is one step, play moves 4 steps a second at 1\u00d7 and skips steps with no rows, and `source.reduce` is ignored while the filter holds one step. A paused or closed bar leaves that step in the filter (min and max equal), and the layer keeps drawing it; Reset clears it and the layer reduces again."
+  "description": "Interactive map: a Mapbox basemap with every data layer (mvt, raster, geojson, h3, heatmap, arc, scatterplot, deck-geojson, fused-hex) rendered through deck.gl, plus `composite` level-of-detail layers made of several layers (any type), one per zoom range. Layers load data from a UDF directly (`udf`), from a tile endpoint (`tileUrl`) or from a Fused server's hex query endpoints (`fused-hex` with `source`). A DuckDB query (`sql`) reads UDF results on its own, or queries the rows of a `udf` or `fused-hex` layer (once over the tiles in view when the layer is tiled). A sidebar lets viewers restyle, filter and re-query layers at runtime.\n\n## Example \u2014 UDF result (GeoDataFrame)\n\n```json\n{\n  \"type\": \"fused-map\",\n  \"props\": {\n    \"layers\": [{\n      \"id\": \"buildings\",\n      \"type\": \"geojson\",\n      \"udf\": \"{{my_udf}}\",\n      \"tooltip\": true,\n      \"style\": { \"fillColor\": { \"type\": \"continuous\", \"attr\": \"height\", \"palette\": \"Sunset\" } }\n    }]\n  }\n}\n```\n\n## Example \u2014 UDF as H3 tiles\n\n```json\n{\n  \"type\": \"fused-map\",\n  \"props\": {\n    \"layers\": [{\n      \"id\": \"hexes\",\n      \"type\": \"h3\",\n      \"udf\": \"{{my_h3_udf}}\",\n      \"tile\": true,\n      \"style\": { \"fillColor\": { \"type\": \"continuous\", \"attr\": \"count\", \"domain\": [0, 500] } }\n    }]\n  }\n}\n```\n\n## Example \u2014 MVT tile layer\n\n```json\n{\n  \"type\": \"fused-map\",\n  \"props\": {\n    \"layers\": [{\n      \"id\": \"counties\",\n      \"type\": \"mvt\",\n      \"tileUrl\": \"https://tiles.fused.io/public/my_tileset/{z}/{x}/{y}\",\n      \"style\": { \"fillColor\": [100, 150, 200], \"opacity\": 0.6 }\n    }]\n  }\n}\n```\n\n## Example \u2014 rows from a canvas SQL source (h3-query, sql-runner)\n\n```json\n{\n  \"type\": \"fused-map\",\n  \"props\": {\n    \"layers\": [{\n      \"id\": \"calls\",\n      \"type\": \"h3\",\n      \"h3Column\": \"hex\",\n      \"data\": \"{{nyc311}}\",\n      \"sql\": \"SELECT hex, COUNT(*) AS calls FROM {{source}} GROUP BY 1\",\n      \"style\": { \"fillColor\": { \"type\": \"continuous\", \"attr\": \"calls\" } }\n    }]\n  }\n}\n```\n\n`data: \"{{name}}\"` draws the rows a canvas SQL source published (an h3-query or sql-runner widget's `name`, or another map's layer id) straight from DuckDB: no UDF runs, and the edge from that node to this one grants access, as for a UDF. Add `sql` to query them (`{{source}}` or `{{name}}` reads the rows). Row layers only (geojson, h3, scatterplot, heatmap, arc, or type omitted to detect), never tiles.\n\n## Example \u2014 SQL with lat/lng points and a filter\n\n```json\n{\n  \"type\": \"fused-map\",\n  \"props\": {\n    \"layers\": [{\n      \"id\": \"sites\",\n      \"type\": \"geojson\",\n      \"sql\": \"SELECT name, lat, lng, score FROM {{my_udf}}\",\n      \"filters\": [{ \"attr\": \"score\", \"type\": \"range\", \"min\": 0.5 }],\n      \"style\": { \"fillColor\": [255, 80, 0], \"pointRadius\": 8 }\n    }]\n  }\n}\n```\n\n## Example \u2014 raster tile layer\n\n```json\n{\n  \"type\": \"fused-map\",\n  \"props\": {\n    \"layers\": [{\n      \"id\": \"seismic\",\n      \"type\": \"raster\",\n      \"tileUrl\": \"https://udf.ai/<token>/run/tiles/{z}/{x}/{y}?format=png\",\n      \"style\": { \"opacity\": 0.8 }\n    }]\n  }\n}\n```\n\n## Example \u2014 indexed H3 data (fused-hex)\n\n```json\n{\n  \"type\": \"fused-map\",\n  \"props\": {\n    \"centerLng\": -73.985, \"centerLat\": 40.755, \"zoom\": 14,\n    \"layers\": [{\n      \"id\": \"nyc311-hex\",\n      \"type\": \"fused-hex\",\n      \"h3Column\": \"hex\",\n      \"minZoom\": 14,\n      \"source\": {\n        \"path\": \"s3://fused-asset/data/nyc311/\",\n        \"timeColumn\": \"created_date\",\n        \"dateMin\": \"2024-07-01\",\n        \"dateMax\": \"2024-07-07T23:59:59\",\n        \"variables\": [\"complaint_type\"]\n      },\n      \"tooltip\": [\"hex\", \"created_date\", \"complaint_type\"],\n      \"style\": { \"fillColor\": { \"type\": \"categorical\", \"attr\": \"complaint_type\", \"palette\": \"Bold\" } }\n    }]\n  }\n}\n```\n\n## Example \u2014 level of detail (composite)\n\nOne layer made of several layers (`levels`), each bound to a map zoom range: coarse aggregates zoomed out, fine cells or shapes zoomed in. Exactly one level draws at a time, the one whose `[minZoom, maxZoom)` holds the map zoom (on an overlap the highest minZoom wins; a zoom no level covers draws nothing). Crossing into another level keeps the previous one drawing until the new one has loaded the view (a tiled level: its tiles in view; a row level: its rows), then they swap in one frame, so the map never flashes empty; use this rather than several zoom-gated layers. **A level is a layer**: any type but composite (`fused-hex`, `fused-bbox`, `geojson`, `scatterplot`, `h3`, `heatmap`, `arc`, `mvt`, `raster`, `deck-geojson`), fed by that type's own keys (`source`, `udf` with `tile`, `data`, `sql`, `tileUrl`, ...), read and drawn exactly as that layer alone. A level without a `type` is `fused-hex` when it (or the composite) names a `source` path or endpoint, else detected from its data. The composite holds the defaults and a level stores only what differs, for every layer key: objects (`style`, `source`, `legend`) merge key by key over the composite's, a `fillColor` or `lineColor` replaces the composite's whole, arrays (`filters`, `tooltip`) and plain values (`sql`, `udf`, `type`, ...) replace, and `null` unsets the composite's value at that level (`\"sql\": null`: no query there). The composite's own `source` holds options every source level shares; `path` and `endpoint` are always the level's. `visible`, `visibleMinZoom` and `visibleMaxZoom` are the composite's only. Give each level an `id` (letters, digits, `_`, `-`; unique in the composite) so editing the list keeps the level on screen. A composite is two canvas SQL sources, `{{id}}` and `{{id_drawn}}`, following the level on screen: for a fused-hex level the raw rows of its tiles in view and the rows it draws; for a row level its rows and its filtered rows; empty for mvt and raster levels. A widget in the same node JSON reads them without an edge.\n\n```json\n{\n  \"id\": \"places\", \"name\": \"Places\", \"type\": \"composite\", \"h3Column\": \"hex\",\n  \"tooltip\": true,\n  \"style\": { \"fillColor\": { \"type\": \"continuous\", \"attr\": \"n\", \"palette\": \"Sunset\", \"scaleType\": \"quantile\" } },\n  \"levels\": [\n    { \"id\": \"z0\", \"maxZoom\": 8, \"source\": { \"path\": \"s3://bucket/places/hex5/\" } },\n    { \"id\": \"z8\", \"minZoom\": 8, \"maxZoom\": 13, \"type\": \"scatterplot\", \"data\": \"{{place_points}}\",\n      \"sql\": \"SELECT * FROM {{place_points}} WHERE n > 10\", \"style\": { \"pointRadius\": 3 } },\n    { \"id\": \"z13\", \"minZoom\": 13, \"type\": \"geojson\", \"udf\": \"{{place_shapes}}\", \"tile\": true }\n  ]\n}\n```\n\nRaster layers with a `tileUrl` fetch PNG tiles from a publicly reachable XYZ endpoint; only `opacity` and `visible` apply. `udf` with `tile: true` instead runs the UDF per tile through the workbench (or the canvas share token on a shared page), so no share token is needed and edits to the UDF re-render the layer.\n\n## Choosing a source\n\n- `udf` without `tile`: one whole run. Rows become features (geojson, h3, heatmap, arc, scatterplot); an image result becomes one `raster` picture at the bounds the run returned or was sent. Not valid for `mvt` \u2014 that needs `tile: true` with `udf`, or a `tileUrl`.\n- `udf` with `tile: true`: the UDF runs per XYZ tile; use for large or tile-shaped UDFs (`raster` \u2192 PNG, `h3` \u2192 hexagons, `geojson` \u2192 vector features). Tile layers never auto-fit.\n- `sql`: a DuckDB query over `{{udf}}` results; rows become features via geometryColumn / latColumn+lngColumn / h3Column. On a tiled layer (`udf` with `tile: true`, or `fused-hex`) it runs once over the rows of every tile loaded in the current view, reading them as `{{source}}`, which takes no `?params` (a udf layer may also write its own `{{udf}}`, bare or with exactly its own `?params`), and runs again as the view moves (pan, zoom), the query changes or a `$param` changes; no tile is refetched. WHERE, computed columns, GROUP BY, aggregates, LIMIT, ORDER BY and USING SAMPLE apply to the whole view; only a single SELECT (a WITH is fine) over `{{source}}` runs (no UNION, several statements, other UDFs or joins), and its result must keep the cell column (h3, `fused-hex`; a composite level drawn as `scatterplot` or `geojson` may return lat/lng or a geometry column instead) or the geometry columns (vector layers). `raster`, `mvt` and `tileUrl` layers take no `sql`.\n- `source` (`fused-hex` only): a Fused server's ERA5, gridMET or `/h3/query` endpoint, queried per XYZ tile; no `udf` (a `sql` runs once over the tiles in view as `{{source}}`).\n- Whole-run results larger than the viewer's \"Max amount of data to auto-load\" setting (default 50 MB) are not loaded until the viewer confirms, and UDFs marked for manual runs show a Run button instead of running on load. Prefer `tile: true`, a narrowing `sql`, or both for big datasets.\n\n## Layer types\n\n- `geojson`: polygons, lines and points from any source. `deck-geojson` is an alias of `geojson` and renders identically \u2014 prefer `geojson`.\n- `h3`: hexagons from `h3Column` (auto-detected from common names like hex, h3 when omitted), styled with `coverage`, `extruded`, `elevationAttr`.\n- `scatterplot`: point circles; `pointRadius` in pixels (default 5), `lineColor`/`lineWidth` for the outline.\n- `heatmap`: density of points; weight comes from a continuous `fillColor.attr` (1 per point when fillColor is static), `pointRadius` is the kernel radius in pixels (default 30). Not pickable, no tooltip.\n- `arc`: one arc per row. Give the endpoints with `startLatColumn`/`startLngColumn` and `endLatColumn`/`endLngColumn` (auto-detected from common names when omitted), or a `source`/`target` property holding [lng, lat], or a LineString whose first and second vertices are the ends. `fillColor` colours the source end, `lineColor` the target end, `lineWidth` the arc width.\n- `mvt` / `raster`: tiled from `tileUrl`, or from `udf` with `tile: true`.\n- `fused-hex`: H3 tiles queried from a Fused server; each XYZ tile's bbox is sent to `source.endpoint` (a full URL, or a path on the current server; /h3/query when only `source.path` is set): `/retrieve/era5/daily/bbox`, `/retrieve/era5/hourly/bbox` and `/retrieve/gridmet/bbox` serve fixed resolution 7 datasets and need `dateMin`/`dateMax`; `/h3/query` reads any indexed `source.path` and needs the layer's `h3Column` set to the location's indexed space column (set `source.timeColumn` too so latest/first can order rows). Each hex's rows over the window are reduced to one (`reduce`: latest, first, mean, min, max, sum). Tiles load from zoom 7 for a single day; unless `minZoom` is set the floor rises with the window (about one zoom level per 4x more time steps) so a tile stays within the server's row limit, and nothing draws below it. A tile the server still rejects as too large shows an error: zoom in or narrow the window. Row cells cover their hexagon whole unless `style.coverage` is set (default 1, where other hex layers default to 0.9). It reads `source` instead of `udf`; `sql` runs once over every tile in view as `{{source}}`, before `reduce`. It is never auto-detected, never auto-fits and takes no `bounds`. Set `source.overview` (`{}` is enough) to outline, from zoom 3 up to the floor, the H3 cells of the files the query reads (no rows are read): one request lists them, with no tiles and no values, so the outlines show where data exists, not what it holds. ERA5 retrieve endpoints and /h3/query only (for /h3/query the world extent lists the whole location); it is an error on gridMET. `overview.minZoom` (default 3) must sit below the floor for the overview to draw, and `overview.extent` limits the area it looks up and also confines the row tiles: none are requested outside it, and cells are drawn only inside it, overview and rows alike, by cell centre (default: the whole world). Overview cells are styled apart from the rows by `style.overview` (fused-hex only): `lineColor` and `fillColor` (default: #afafaf stroke, no fill) each take a single colour, `\"inherit\"` (the layer's own stroke/fill; when that is data-driven, no overview is drawn and a warning shows on the layer card, rows unaffected), or a data-driven `{type: \"continuous\"|\"categorical\", attr, ...}` colouring cells by `row_count_total` (rows in the whole file) or `row_count_window` (rows in the file sections the current date window reads) -- the only two overview attributes, since a files overview carries no other values. Also `lineWidth` (default 1, 0 = no stroke), `opacity` (the fill's, default 0.35) and `coverage` (default 1).\n\n## Colours\n\n`style.fillColor` and `style.lineColor` accept an [r, g, b] or [r, g, b, a] array, a CSS colour string, or a data-driven object:\n\n- Continuous: `{ \"type\": \"continuous\", \"attr\": \"<numeric property>\", \"domain\": [min, max], \"palette\": \"Sunset\", \"steps\": 7, \"reverse\": false, \"nullColor\": \"#b8b8b8\", \"scaleType\": \"quantize\" }`. `domain` defaults to the data's min/max, `palette` to \"Sunset\". `scaleType` \"quantize\" (default) draws `steps` equal-width bands over the domain; \"quantile\" draws `steps` bands of roughly equal row count, with breaks from the data (`domain` is ignored). Continuous palettes: Sunset, SunsetDark, Teal, TealGrn, Emrld, BluGrn, BluYl, Mint, DarkMint, Purp, PurpOr, Magenta, Burg, BurgYl, RedOr, OrYel, Peach, PinkYl, BrwnYl, Uber Viz Sequential, Global Warming, Sunrise, Ocean Green, Pink Wine, Purple Blue Yellow, Violet Ocean, Summer Sky, Uber Viz Diverging, UberPool, Ice And Fire, BuGn, BuPu, GnBu, OrRd, PuBu, PuBuGn, PuRd, RdPu, YlGn, YlGnBu, YlOrBr, YlOrRd, Blues, Greens, Greys, Oranges, Purples, Reds, BrBG, PiYG, PRGn, PuOr, RdBu, RdGy, RdYlBu, RdYlGn, Spectral, Turbo, Viridis, Inferno, Magma, Plasma, Cividis, Warm, Cool, CubehelixDefault, Sinebow, Rainbow. Of these, Uber Viz Diverging, UberPool, Ice And Fire, BrBG, PiYG, PRGn, PuOr, RdBu, RdGy, RdYlBu, RdYlGn, Spectral are diverging.\n- Categorical: `{ \"type\": \"categorical\", \"attr\": \"<property>\", \"colors\": { \"<value>\": \"#hex\" }, \"palette\": \"Bold\", \"nullColor\": \"rgba(128,128,128,0.5)\" }`. Omit `colors` to auto-assign from the palette (default \"Bold\"). Categorical palettes: Bold, Vivid, Safe, Prism, Uber Viz Qualitative, Tol Bright, Tol Vibrant, Tol Muted, Tol Medium Contrast, Tol Light, Okabe Ito, Accent, Dark2, Paired, Pastel1, Pastel2, Set1, Set2, Set3, Tableau10. Any other palette name is invalid.\n\nA legend is drawn only for data-driven colours (see `legend` and `showLegend`).\n\n`layerBlending` (`normal`, `additive`, `subtractive`) sets how all data layers blend where they overlap, as kepler.gl's Layer blending does; omit it for normal.\n\n## Filters\n\nA layer's `filters` keep the features that pass every one: `{ \"attr\": \"score\", \"type\": \"range\", \"min\": 0.5 }`, `{ \"attr\": \"kind\", \"type\": \"categories\", \"values\": [\"a\", \"b\"] }`, or a time window `{ \"attr\": \"datetime\", \"type\": \"time\", \"min\": \"2025-01-06\", \"max\": \"2025-01-13T12:00:00Z\" }`. A time filter reads ISO dates and datetimes (no zone means UTC), common date text and epoch numbers; its bounds are ISO text, epoch milliseconds, or a `$param`. The sidebar types time columns as times and a time filter has a Time playback button: it opens a bar along the bottom of the map that plays the window across the data, as kepler.gl's time filter does (any layer with rows, tiled layers over their loaded tiles; not rasters). The bar's settings are kept on the filter as `playbackOptions` (mode auto | window | point | cumulative, skipEmpty, interval such as \"1-day\", timezone, timeFormat, yAxis { field, aggregation, fit }, collapsed, speed such as 2), every key optional. A fused-hex layer plays any time column. On its time column (source.timeColumn, date on the retrieve endpoints), when that is a series of daily or hourly steps, it plays one time step at a time: the window is one step, play moves 4 steps a second at 1\u00d7 and skips steps with no rows, and `source.reduce` is ignored while the filter holds one step. A paused or closed bar leaves that step in the filter (min and max equal), and the layer keeps drawing it; Reset clears it and the layer reduces again.",
+  "$defs": {
+    "fusedMapPalette": {
+      "enum": [
+        "Sunset",
+        "SunsetDark",
+        "Teal",
+        "TealGrn",
+        "Emrld",
+        "BluGrn",
+        "BluYl",
+        "Mint",
+        "DarkMint",
+        "Purp",
+        "PurpOr",
+        "Magenta",
+        "Burg",
+        "BurgYl",
+        "RedOr",
+        "OrYel",
+        "Peach",
+        "PinkYl",
+        "BrwnYl",
+        "Bold",
+        "Vivid",
+        "Safe",
+        "Prism",
+        "Uber Viz Sequential",
+        "Global Warming",
+        "Sunrise",
+        "Ocean Green",
+        "Pink Wine",
+        "Purple Blue Yellow",
+        "Violet Ocean",
+        "Summer Sky",
+        "Uber Viz Diverging",
+        "UberPool",
+        "Ice And Fire",
+        "Uber Viz Qualitative",
+        "Tol Bright",
+        "Tol Vibrant",
+        "Tol Muted",
+        "Tol Medium Contrast",
+        "Tol Light",
+        "Okabe Ito",
+        "BuGn",
+        "BuPu",
+        "GnBu",
+        "OrRd",
+        "PuBu",
+        "PuBuGn",
+        "PuRd",
+        "RdPu",
+        "YlGn",
+        "YlGnBu",
+        "YlOrBr",
+        "YlOrRd",
+        "Blues",
+        "Greens",
+        "Greys",
+        "Oranges",
+        "Purples",
+        "Reds",
+        "BrBG",
+        "PiYG",
+        "PRGn",
+        "PuOr",
+        "RdBu",
+        "RdGy",
+        "RdYlBu",
+        "RdYlGn",
+        "Spectral",
+        "Accent",
+        "Dark2",
+        "Paired",
+        "Pastel1",
+        "Pastel2",
+        "Set1",
+        "Set2",
+        "Set3",
+        "Turbo",
+        "Viridis",
+        "Inferno",
+        "Magma",
+        "Plasma",
+        "Cividis",
+        "Warm",
+        "Cool",
+        "CubehelixDefault",
+        "Sinebow",
+        "Rainbow",
+        "Tableau10"
+      ]
+    }
+  }
 }
 ~~~
 

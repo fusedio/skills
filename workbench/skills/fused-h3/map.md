@@ -50,42 +50,51 @@ Optional fields: `overview.minZoom` (the overview draws below the floor, default
 
 ## Level of detail: one `composite` layer
 
-When the data exists at several pre-aggregated resolutions, one per zoom band (say building counts per res-5 and per res-8 cell zoomed out, the res-12 rows zoomed in), use one `type: "composite"` layer. It holds each resolution as a **level** and draws exactly one at a time. Crossing into another band, the level on screen keeps drawing until the new level has loaded the view, then they swap, so the map never goes blank. Several `fused-hex` layers gated with `minZoom`/`maxZoom` or `visibleMinZoom`/`visibleMaxZoom` blank out at every boundary: do not build level of detail that way.
+When one dataset has several versions per zoom band (say building counts per res-5 and per res-8 cell zoomed out, the res-12 rows zoomed in), use one `type: "composite"` layer. It holds each version as a **level** and draws exactly one at a time. Crossing into another band, the level on screen keeps drawing until the new level has loaded the view, then they swap, so the map never goes blank. Several layers gated with `minZoom`/`maxZoom` or `visibleMinZoom`/`visibleMaxZoom` blank out at every boundary: do not build level of detail that way.
 
-Each level is its own indexed dataset. Write each coarse level as Parquet with one row per cell and an integer H3 column at that resolution, partition it with `hex_column=` and that `h3_res` (the column becomes `hex`, so one `h3Column` serves every level), and index it, as in steps 1 and 2.
+A level is an ordinary layer of any type except `composite`: `fused-hex`, `h3`, `geojson`, `scatterplot`, `arc`, `heatmap`, `mvt`, `raster`, a tiled UDF (`udf` + `tile: true`), or a row layer fed by `data`, `sql` or a non-tiled `udf`. It takes exactly the keys a standalone layer of its type takes. Set `type` on every level (a level without one is read as `fused-hex` when it names a `source` path, else detected from its data; do not rely on that). A `fused-hex` level is its own indexed dataset: write each coarse level as Parquet with one row per cell and an integer H3 column at that resolution, partition it with `hex_column=` and that `h3_res` (the column becomes `hex`, so one `h3Column` serves every level), and index it, as in steps 1 and 2.
 
 ```json
 {
   "id": "buildings", "name": "Buildings", "type": "composite", "h3Column": "hex",
   "tooltip": ["hex", "n_buildings"],
   "style": {"opacity": 0.8, "fillColor": {"type": "continuous", "attr": "n_buildings", "palette": "Sunset", "scaleType": "quantile"}},
+  "filters": [{"attr": "n_buildings", "type": "range", "min": 1}],
   "levels": [
-    {"name": "res 5", "maxZoom": 8, "source": {"path": "s3://bucket/buildings/hex5/", "variables": ["n_buildings"]}},
-    {"name": "res 8", "minZoom": 8, "maxZoom": 12, "source": {"path": "s3://bucket/buildings/hex8/", "variables": ["n_buildings"]}},
-    {"name": "buildings", "minZoom": 12, "source": {"path": "s3://bucket/buildings/hex12/", "variables": ["subtype", "height"]},
+    {"id": "z0", "type": "fused-hex", "maxZoom": 8, "source": {"path": "s3://bucket/buildings/hex5/", "variables": ["n_buildings"]}},
+    {"id": "z8", "type": "fused-hex", "minZoom": 8, "maxZoom": 12, "source": {"path": "s3://bucket/buildings/hex8/", "variables": ["n_buildings"]}},
+    {"id": "z12", "type": "fused-hex", "minZoom": 12, "maxZoom": 15, "source": {"path": "s3://bucket/buildings/hex12/", "variables": ["subtype", "height"]},
      "tooltip": ["hex", "subtype", "height"],
-     "style": {"fillColor": {"type": "categorical", "attr": "subtype", "palette": "Bold"}}}
+     "style": {"fillColor": {"type": "categorical", "attr": "subtype", "palette": "Bold"}}},
+    {"id": "z15", "minZoom": 15, "type": "geojson", "udf": "{{building_tiles}}", "tile": true,
+     "tooltip": ["subtype"], "style": {"fillColor": {"type": "categorical", "attr": "subtype", "palette": "Bold"}}}
   ]
 }
 ```
 
-- A level draws while `minZoom <= map zoom < maxZoom`; an unset end is open. One level draws at a time: where bands overlap the higher `minZoom` wins, and a zoom no band covers draws nothing.
-- A level's tiles load from `floor(minZoom)` (0 when unset) up to its `maxZoom`. Keep fine datasets on high bands: a fine level on a low band requests tiles too large for the server.
-- Set on the composite, shared by every level: `h3Column`, `style`, `tooltip`, `filters`, `sql`, `legend`, `visible`, `name`. A level may set its own `h3Column` and `tooltip` (they replace the shared ones) and `style` (merged over the shared one key by key; a level's `fillColor` or `lineColor` replaces the shared one whole). Each level keeps its own colour scale.
-- `filters` and `sql` apply to whichever level draws. A filter on a column the level does not have is skipped at that level, which still draws. A `sql` that fails at a level (it names a column the level lacks, say) draws that level unqueried.
-- Levels are `fused-hex` sources only, read as above (`source.path`, `variables`, `timeColumn`, ...). `source.overview` is ignored on a level: the coarser levels play that role.
-- Not a time-playback target.
+- A level draws while `minZoom <= map zoom < maxZoom`; an unset end is open. One level draws at a time: where bands overlap the higher `minZoom` wins, and a zoom no band covers draws nothing. Make bands meet: each level's `maxZoom` is the next level's `minZoom`.
+- A tiled level's tiles load from `floor(minZoom)` (0 when unset) up to its `maxZoom`. Keep fine datasets on high bands: a fine level on a low band requests tiles too large for the server.
+- **Defaults and differences.** The composite holds the defaults (any layer key but `sql` and `filters`, which stack, see below: `h3Column`, `style`, `tooltip`, `legend`, a shared `source` such as `variables` or `timeColumn`, ...); a level stores only what differs. Plain objects (`style`, `source`, `legend`) merge key by key; colour configs (`style.fillColor`, `style.lineColor`), arrays (`tooltip`, `source.variables`) and scalars replace whole. `null` on a level unsets the composite's value there (`"tooltip": null`). `source.path` and `source.endpoint` are always the level's own, never inherited. Each level keeps its own colour scale.
+- **Only on the composite:** `visible`, `visibleMinZoom`, `visibleMaxZoom` (a level's are ignored; the composite's hide every level at once), and the layer `id` that names its sources.
+- **A level's `id` is its own key inside the composite, not a layer id.** Give every level one (letters, digits, `_`, `-`; unique within the composite), so that adding, removing or reordering levels keeps the right level on screen.
+- **A level's `sql` and `filters` stack on the composite's; they do not replace them.** The level's `sql` runs first over its own rows, then the composite's `sql` runs over that result (its `{{source}}` is the level's result), then a row must pass the level's `filters` AND the composite's. Unset or `null` on a level adds nothing; the composite's always apply, with no opt-out. `mvt` and `raster` levels run no query. A composite filter on a column a level's rows lack is skipped at that level; a composite `sql` that fails at a level (it names a column that level lacks) leaves that level drawing its own rows.
+- Filters run after the composed query, so a composite `sql` that aggregates sees the rows before the level's filters, not after.
+- `source.overview` is ignored on a level: the coarser levels play that role. Not a time-playback target.
 
 Pitfalls:
 
 - **Absolute thresholds on aggregates.** A count per cell grows with the cell, so a filter or `sql` such as `n_buildings > 150` keeps most cells at a coarse level and none at a fine one. Threshold a ratio or density instead, or tell the user that each level keeps a different share of cells.
-- **A column only some levels have.** A filter on it does nothing at the other levels, a `sql` naming it draws them unqueried, and a widget query naming it fails there. Carry the columns that filters, queries and stats read in every level (and its `source.variables`), or say where they apply.
-- **Zoom-gating the levels.** `minZoom`/`maxZoom` on the levels are the bands. Levels take no `visibleMinZoom`/`visibleMaxZoom` (ignored there); on the composite they hide every level at once.
-- **Gaps between bands.** Make bands meet: each level's `maxZoom` is the next level's `minZoom`. At a zoom in a gap the layer draws nothing.
+- **A column only some levels have.** A composite filter on it does nothing at the other levels, a composite `sql` naming it leaves them drawing their own rows, and a widget query naming it fails there. Carry the columns that filters, queries and stats read in every level (and its `source.variables`), or say where they apply.
+- **Zoom-gating the levels.** `minZoom`/`maxZoom` on the levels are the bands, not `visibleMinZoom`/`visibleMaxZoom`.
+- **Gaps between bands.** At a zoom in a gap the layer draws nothing.
+
+### Variable-size hexagons
+
+A hex layer's size (`style.coverage`) is one number per layer. For a size per cell, return the geometry instead: a tile UDF that emits each cell as a hexagon polygon scaled about its centre (scale by a column, say), drawn as a `geojson` layer: `{"type": "geojson", "tile": true, "udf": "{{my_tile_udf?geometry=true}}"}`. It works as a standalone layer and as a composite level, so a coarse `fused-hex` level can hand over to sized hexagons when zoomed in.
 
 ### Stats next to the map
 
-A composite is two canvas SQL sources, both read from the level on screen: `{{buildings}}`, the rows loaded for the view (before the layer's `sql` and `filters`), and `{{buildings_drawn}}`, the rows drawn (after them, one per cell). The map's `sourceParam` has an entry for each with `version`, `loading`, `rows`, `error`, `tiles`, plus `level` (index in `levels`) and `band` (`[minZoom, maxZoom]`, null for an open end). A widget in the same node JSON as the map reads them without an edge; another node needs an edge from the map's node.
+A composite is two canvas SQL sources, both read from the level on screen: `{{buildings}}`, the rows loaded for the view (before any `sql` or filters), and `{{buildings_drawn}}`, the rows drawn (after the level's and the composite's queries and filters, one per cell for a hex level). The map's `sourceParam` has an entry for each with `version`, `loading`, `rows`, `error`, `tiles`, plus `level` (index in `levels`) and `band` (`[minZoom, maxZoom]`, null for an open end). A widget in the same node JSON as the map reads them without an edge; another node needs an edge from the map's node.
 
 Give the map `"sourceParam": "map_sources"` and put this `div` beside it in the node's root `div` (`"style": "display:flex;flex-direction:column;height:100%"`, map last with `"style": "flex:1;min-height:0"`):
 
