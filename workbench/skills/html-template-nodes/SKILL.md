@@ -276,7 +276,7 @@ onParams(fused.params.getAll());
 - To use a UDF instead, replace the h3-query with a `udf` layer (`{ "type": "h3", "udf": "{{my_udf}}", "h3Column": "hex" }`) and an edge from the UDF node.
 - Send every query through `q()`: write params as `@name` and the layer as `{layer}`; `q()` turns them into `$name` and `{{calls}}` at runtime. Written literally, `$name` and `{{...}}` are substituted before the script runs.
 - Re-query only when the layer's `version` or a filter changes, never on a timer. A pan refetches, which bumps `version`. `refresh()` keeps one query in flight (`busy` / `again`); `detail()` passes `key`, so a newer click supersedes the older call.
-- For a dataset at several resolutions, one per zoom band, the map layer is a `composite` (`fused-h3` skill, `map.md`, "Level of detail"). It publishes `{{id}}` (rows loaded) and `{{id_drawn}}` (rows drawn), both from the level on screen, and their `sources` entries add `level` and `band`; query only columns every level has.
+- For a dataset at several resolutions, one per zoom band, the map layer is a `composite` (`fused-h3` skill, `map.md`, "Level of detail"). It publishes `{{id}}` (rows loaded) and `{{id_drawn}}` (rows drawn, after the level's and the composite's `sql` and filters), both from the level on screen, and their `sources` entries add `level` and `band`; query only columns every level has.
 - The histogram leaves its own range out of `WHERE` and only colours it (`hit`), so a brush never empties it. Send an unset bound as `null` so each range stays a `{ min, max }` object.
 - A widget reading a map layer id fails `canvas validate` (`widget_refs`), so the example's `canvas.toml` skips that check.
 
