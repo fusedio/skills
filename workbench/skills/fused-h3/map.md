@@ -39,7 +39,7 @@ A hex dataset that is **indexed** can be drawn with the `fused-map` widget's `fu
 - `source.dateMin` / `source.dateMax` (ISO) bound the time window. `source.timeColumn` names the time column (set it for `/h3/query` datasets). `source.reduce` collapses each cell's rows over the window: `latest` (default), `first`, `mean`, `min`, `max`, `sum`.
 - `source.variables` lists the columns to fetch. Left out, it is the attributes the style, tooltip and filters name.
 - `source.limit` and `source.maxRowGroups` cap each tile request. Raise them only for dense data.
-- `fillColor` is data-driven with `{"type": "continuous", "attr", "domain"?, "palette"?, "steps"?, "reverse"?, "nullColor"?}`, or `{"type": "categorical", "attr", "colors"?, "palette"?, "nullColor"?}`. Continuous palettes include `Sunset`, `Blues`, `Viridis` and diverging `RdYlGn`, `RdBu`, `Spectral`.
+- `fillColor` is data-driven with `{"type": "continuous", "attr", "domain"?, "palette"?, "steps"?, "reverse"?, "nullColor"?}`, or `{"type": "categorical", "attr", "colors"?, "palette"?, "nullColor"?}`. Palette names are listed in `reference.md`/the CLI schema.
 - `sql` on the layer runs before `reduce`; see `json-ui-schemas`.
 
 ### Overview when zoomed out
