@@ -22,7 +22,7 @@ A Fused canvas is a folder containing one `canvas.toml` plus per-UDF source file
 
 > **This folder is a live canvas clone.** fused-render keeps it in sync with the canvas on the server. Never run `fused workbench canvas pull` or `fused workbench canvas push` here (nor `pull --force`, `--no-validate` or `--no-ignore`): they are refused.
 >
-> - Edit the files. The canvas publishes itself only between turns: when your turn ends, or when the folder goes quiet.
+> - Edit the files. The canvas publishes itself when your turn ends, not during it.
 > - Changes made on the server arrive in this folder automatically, and the session hook names the files that changed. Re-read those files before editing them.
 > - Verify with the `canvas_screenshot` tool and `fused workbench canvas validate .`. `fused workbench run` (UDFs) and `fused workbench json-ui validate` (widgets) stay useful.
 -->
@@ -302,7 +302,7 @@ The correct testing approach:
 Running by name resolves the UDF from the server with full canvas context, so `fused.load("other_udf")` inside it can find its sibling.
 <!-- /fused-render:strip -->
 <!-- fused-render:only (this block applies only inside a fused-render canvas clone; ignore it anywhere else)
-Test the UDF by name instead, in the clone's own environment: `fused workbench --env <env> run <canvas> my_udf`, where `<env>` is the segment after `canvas/` in the clone's path (no `--env` for a `custom` clone; see the `fused-workbench-cli` skill). Do not test with a Python `fused.load("my_udf")()` script here: the SDK ignores the clone's environment and runs against whatever `~/.fused/settings.toml` names. Running by name resolves the UDF from the server with full canvas context, so `fused.load("other_udf")` inside it can find its sibling.
+Test the UDF by name instead, in the clone's own environment: `fused workbench --env <env> run <canvas> my_udf`, where `<env>` is the segment after `canvas/` in the clone's path (no `--env` for a `custom` clone; see the `fused-workbench-cli` skill). Do not test with a Python `fused.load("my_udf")()` script here: the SDK ignores the clone's environment and runs against whatever `~/.fused/settings.toml` names. Running by name resolves the UDF from the server with full canvas context, so `fused.load("other_udf")` inside it can find its sibling. A by-name run sees the version published before your turn.
 -->
 
 ## Canvas naming

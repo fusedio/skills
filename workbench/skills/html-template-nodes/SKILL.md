@@ -322,7 +322,7 @@ Confirm auth first: `fused workbench whoami`.
    grep -oE '\{\{ *[A-Za-z_][A-Za-z0-9_-]*|fused\.runPython\( *["'"'"'`][^"'"'"'`]+' *.html | sort -u
    ```
    Every name must be a `udfName` in `canvas.toml` with an edge into the HTML node, or a `fused-map` layer id or `sql-runner` name in reach. Names a page builds at runtime for `fused.query` are not in the grep: check them against the layer ids by eye.
-2. **Look at it**: the `canvas_screenshot` tool photographs the canvas in fused-render. There is no push step: the canvas publishes itself when your turn ends and whenever the folder goes quiet. Page `console.log` output is not in the screenshot; use the browser devtools on the canvas.
+2. **Look at it**: the `canvas_screenshot` tool photographs the canvas in fused-render. There is no push step: the canvas publishes itself when your turn ends. Page `console.log` output is not in the screenshot; use the browser devtools on the canvas.
 -->
 
 Do not report success from `validate` alone: it checks structure, not rendering or data. Look at the screenshot or the page.

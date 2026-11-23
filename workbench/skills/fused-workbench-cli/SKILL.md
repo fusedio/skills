@@ -143,7 +143,7 @@ Most canvas subcommands take a `CANVAS_REF` (name or ID) plus:
 <!-- fused-render:only (this block applies only inside a fused-render canvas clone; ignore it anywhere else)
 > **This folder is a live canvas clone.** fused-render keeps it in sync with the canvas on the server. Never run `fused workbench canvas pull` or `fused workbench canvas push` here (nor `pull --force`, `--no-validate` or `--no-ignore`): they are refused.
 >
-> - Edit the files. The canvas publishes itself only between turns: when your turn ends, or when the folder goes quiet.
+> - Edit the files. The canvas publishes itself when your turn ends, not during it.
 > - Changes made on the server arrive in this folder automatically, and the session hook names the files that changed. Re-read those files before editing them.
 > - Verify with the `canvas_screenshot` tool and `fused workbench canvas validate .`. `fused workbench run` (UDFs) and `fused workbench json-ui validate` (widgets) stay useful, run in the clone's own environment (see **Run in the canvas's environment** under Global flags).
 > - If `canvas_screenshot` says the canvas is not open, open it yourself, then call it again: `open "$FUSED_RENDER_ORIGIN/canvases/<env>/<canvas>"` on macOS.
@@ -356,14 +356,14 @@ Options:
 
 - `--engine [remote|local]`
 - `--instance-type TEXT` — remote instance type override
-- `--max-retry INTEGER` — default 0; re-submits after transport errors, never after a UDF error
+- `--max-retry INTEGER` — default 0; retries any failure except a UDF error
 - `--cache-max-age TEXT` — e.g. `10s`, `5m`, `1h`
 - `--cache / --no-cache`
 - `--disk-size-gb INTEGER`
 - `--stdin` — read UDF source from stdin instead of passing `UDF` (do not pass `UDF` with `--stdin`)
 - `--verbose / --no-verbose` — show UDF stdout/stderr (default on)
 - `--output-file FILE` — write the raw result (Parquet for a DataFrame); a printed DataFrame is truncated
-- `--profile` — per-line timings; wall time includes several seconds of per-call overhead
+- `--profile` — per-line timings
 - `--team`, `--id` — treat `CANVAS` as a team canvas name or a canvas ID
 
 <!-- fused-render:strip -->

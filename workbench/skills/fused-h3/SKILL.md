@@ -278,7 +278,7 @@ run = fused.h3.index(
 ) -> TaskRun
 ```
 
-Starts a run that reads every file's row-group stats, and returns its `TaskRun` at once (a group `Run` when `instances` is above 1, see below). Follow it with `run.tail()`, or poll `run.status()` / `run.done()` / `run.error()`. A realtime run is limited to a few minutes and 1,000 files to read (unchanged folders don't count); over that the call fails at once with a 400 naming the `instances` or `engine` that fits. For a large tree, pass a batch `engine` such as `"large"`, or split the tree over several instances (see "Fanning out an index"). Engines never fall back from one to the other.
+Starts a run that reads every file's row-group stats, and returns its `TaskRun` at once (a group `Run` when `instances` is above 1, see below). Follow it with `run.tail()`, or poll `run.status()` / `run.done()` / `run.error()`. A realtime run is limited to a few minutes and 1,000 files to read per instance (already-indexed folders don't count); over that the call fails at once with a 400 naming the `instances` or `engine` that fits. For a large tree, pass a batch `engine` such as `"large"`, or split the tree over several instances (see "Fanning out an index"). Engines never fall back from one to the other.
 
 - A single `date` partition column is used as time automatically. Otherwise pass `time_column`: an in-file column, or a `key=value` folder holding `YYYY`, `YYYY-MM`, `YYYY-MM-DD` or an ISO instant.
 - Re-running is incremental: unchanged folders are skipped, and a stopped or partly failed run resumes.
@@ -286,7 +286,7 @@ Starts a run that reads every file's row-group stats, and returns its `TaskRun` 
 - `redo=True` with `subset` re-reads every file in those folders while the location keeps serving. Without `subset` it rebuilds the whole index, which is also how to change the location's columns.
 - If some files fail, the rest are indexed and queryable. The run's error names the failed paths, and re-running retries them.
 - Every file must share one H3 resolution. `/mount` paths can't be indexed; partition to `fd://` or `s3://` instead.
-- Any Parquet tree with an H3 column can be indexed, not only `partition` output. Without a `_manifest.json`, pass `partition_columns` or its `key=value` folders can't be filtered; folder values are not added to the rows.
+- Any Parquet tree with an integer H3 column can be indexed, not only `partition` output. Without a `_manifest.json`, pass `partition_columns` or its `key=value` folders can't be filtered; folder values are not added to the rows.
 - The index is keyed by exact path, not stored in the files: a copied or moved folder returns 404 until indexed at its new path.
 - The index belongs to your team, and only your team can re-index or delete it. `fused.h3.set_visibility(path, "public")` (Fused admins only) makes it readable by everyone; the files must be publicly readable on S3.
 
