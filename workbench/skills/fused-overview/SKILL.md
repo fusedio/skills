@@ -7,6 +7,8 @@ description: Orientation to what Fused is and when to use it. Use when deciding 
 
 Fused is a platform for running Python in the cloud, organized into projects and independently callable functions. The two core primitives are **canvases** and **UDFs**.
 
+The active environment is whatever `base_url` in `~/.fused/settings.toml` points at. Some deployments use their own hosts, so never assume `www.fused.io`.
+
 ---
 
 ## The mental model
