@@ -385,7 +385,7 @@ Browse fused.catalog collections, preview one on a map over time and copy the co
       "type": "string"
     },
     "param": {
-      "description": "Canvas parameter the widget writes with what the open collection shows: { collection, bounds: [west, south, east, north], time: \"start/end\" or null, bands: [...], mask_clouds }. A UDF downstream can pass it to fused.catalog.imagery.",
+      "description": "Canvas parameter the widget writes with what the open collection shows: { collection, bounds: [west, south, east, north] or the drawn GeoJSON polygon, time: \"start/end\" or null, bands: [...], mask_clouds, and composite and reducer when one is picked }. A UDF downstream can pass it to fused.catalog.imagery.",
       "type": "string"
     },
     "style": {
@@ -393,7 +393,7 @@ Browse fused.catalog collections, preview one on a map over time and copy the co
       "type": "string"
     }
   },
-  "description": "Browses the datasets fused.catalog serves and previews one. The list shows every collection with a thumbnail, its resolution, time range and bands, by category and search. Opening a collection draws its pixels over the map view straight from the reader (no UDF runs), steps through the scenes of a date range on a time bar with the band's mean over time, and gives the UDF code that reads the same area, dates and bands, ready to copy.\n\n## Example\n\n```json\n{ \"type\": \"data-catalog\", \"props\": { \"style\": \"height: 720px\" } }\n```\n\nOpen one collection and share what it shows:\n\n```json\n{ \"type\": \"data-catalog\", \"props\": { \"collection\": \"hls2-s30\", \"param\": \"imagery\" } }\n```"
+  "description": "Browses the datasets fused.catalog serves and previews one. The list shows every collection with a thumbnail, its resolution, time range and bands, by category and search. Opening a collection draws its pixels over the map view straight from the reader (no UDF runs), steps through the scenes of a date range (the last 6 months of a time series by default) on a time bar with the band's mean over time, and gives the UDF code that reads the same area, dates and bands, ready to copy. The Output toggle (Pixels / H3) switches both the map and the code: H3 draws the reader's H3 cells at the data's resolution (the coarsest whose cells are no larger than a pixel: 12 for 30 m, 13 for 10 m), and the code passes that h3_res. Composite (None by default; Daily, Monthly, Yearly or Full range, by Median, Mean, Min, Max, First or Last) has the reader reduce the scenes to one image per period, and the code passes that composite and reducer. The pencil under the zoom buttons draws a polygon (click its points, then double-click or click the first point; Esc cancels): the reader reads only inside it instead of the map view, and the code passes that geometry; the bin clears it and goes back to the view. The code always reads what Run loads. The basemap is Map or Satellite. Auto-run is off by default: the opening view loads, then Run loads the current view (a zoomed-in part of the loaded area too), or every pan, zoom or setting change loads straight away once Auto-run is on; the dotted outline marks the loaded area.\n\n## Example\n\n```json\n{ \"type\": \"data-catalog\", \"props\": { \"style\": \"height: 720px\" } }\n```\n\nOpen one collection and share what it shows:\n\n```json\n{ \"type\": \"data-catalog\", \"props\": { \"collection\": \"hls2-s30\", \"param\": \"imagery\" } }\n```"
 }
 ~~~
 
@@ -2447,22 +2447,22 @@ Interactive map with tile, UDF and SQL layers.
     },
     "showControls": {
       "default": true,
-      "description": "Show zoom navigation controls",
+      "description": "Show the zoom (+/-) buttons; the corner is controlsPosition",
       "type": "boolean"
     },
     "showScale": {
       "default": true,
-      "description": "Show scale bar",
+      "description": "Show the scale bar; the corner is scalePosition",
       "type": "boolean"
     },
     "showCoordinates": {
       "default": true,
-      "description": "Show the map centre's latitude, longitude and zoom under the scale bar; a click copies them",
+      "description": "Show the map centre's latitude, longitude and zoom (a click copies them); the corner is coordinatesPosition. In a shared corner it sits under the scale bar.",
       "type": "boolean"
     },
     "showSearch": {
       "default": true,
-      "description": "Show a geocoder search in the top-right corner, which accepts place names, \"lat, lng\" pairs, H3 cell IDs.",
+      "description": "Show a geocoder search (in the corner searchPosition sets, top-right by default), which accepts place names, \"lat, lng\" pairs, H3 cell IDs.",
       "type": "boolean"
     },
     "showBasemapSwitcher": {
@@ -2498,6 +2498,81 @@ Interactive map with tile, UDF and SQL layers.
       "default": true,
       "description": "Show the sidebar toggle for editing layer style, filters and SQL at runtime. On your own canvas the edits are written into this config as you make them (undo with Cmd/Ctrl+Z in the sidebar or the code editor); elsewhere they are runtime overrides you can copy into the config.",
       "type": "boolean"
+    },
+    "searchPosition": {
+      "default": "top-right",
+      "description": "Corner the place search (showSearch) sits in; in a bottom corner its results open above the box.",
+      "type": "string",
+      "enum": [
+        "top-left",
+        "top-right",
+        "bottom-left",
+        "bottom-right"
+      ]
+    },
+    "basemapSwitcherPosition": {
+      "default": "top-left",
+      "description": "Corner the floating basemap toggle (showBasemapSwitcher) sits in. Only used when showSidebar is false: with the sidebar on, the basemap choice is its Base map tab.",
+      "type": "string",
+      "enum": [
+        "top-left",
+        "top-right",
+        "bottom-left",
+        "bottom-right"
+      ]
+    },
+    "layerPanelPosition": {
+      "default": "top-left",
+      "description": "Corner the floating layer panel (showLayerPanel) sits in. Only used when showSidebar is false: with the sidebar on, its layer list covers this.",
+      "type": "string",
+      "enum": [
+        "top-left",
+        "top-right",
+        "bottom-left",
+        "bottom-right"
+      ]
+    },
+    "legendPosition": {
+      "default": "bottom-right",
+      "description": "Corner the legend (showLegend) sits in.",
+      "type": "string",
+      "enum": [
+        "top-left",
+        "top-right",
+        "bottom-left",
+        "bottom-right"
+      ]
+    },
+    "controlsPosition": {
+      "default": "bottom-left",
+      "description": "Corner the zoom buttons (showControls) sit in. The scale bar (scalePosition) and the coordinates readout (coordinatesPosition) follow it unless they set their own corner, so setting only this moves all three. Controls sharing a corner stack away from it in a fixed order: zoom buttons, scale bar, coordinates readout; then, past those, the other floating controls placed there by the *Position props (sidebar toggle, search, layer panel, basemap switcher, legend, reset view, clear selection). Their panels open towards the middle of the map. The sidebar toggle, reset view and clear selection buttons always sit top-left.",
+      "type": "string",
+      "enum": [
+        "top-left",
+        "top-right",
+        "bottom-left",
+        "bottom-right"
+      ]
+    },
+    "scalePosition": {
+      "description": "Corner the scale bar (showScale) sits in. Unset: the same corner as the zoom buttons (controlsPosition).",
+      "type": "string",
+      "enum": [
+        "top-left",
+        "top-right",
+        "bottom-left",
+        "bottom-right"
+      ]
+    },
+    "coordinatesPosition": {
+      "description": "Corner the coordinates readout (showCoordinates) sits in. Unset: the same corner as the zoom buttons (controlsPosition).",
+      "type": "string",
+      "enum": [
+        "top-left",
+        "top-right",
+        "bottom-left",
+        "bottom-right"
+      ]
     },
     "param": {
       "description": "Canvas parameter name to sync viewport bounds [west, south, east, north]",
