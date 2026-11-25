@@ -1337,7 +1337,7 @@ Interactive map with tile, UDF and SQL layers.
                 }
               },
               "lineColor": {
-                "description": "Stroke color (target colour for arc): [r,g,b] or [r,g,b,a] array, CSS string, or the same data-driven {type:\"continuous\"|\"categorical\", attr, ...} object as fillColor.",
+                "description": "Stroke color (target colour for arc): [r,g,b] or [r,g,b,a] array, CSS string, or the same data-driven {type:\"continuous\"|\"categorical\", attr, ...} object as fillColor. Shapes, hexagons and points draw no outline by default: setting lineColor or lineWidth turns it on.",
                 "properties": {
                   "palette": {
                     "$ref": "#/$defs/fusedMapPalette"
@@ -1345,7 +1345,7 @@ Interactive map with tile, UDF and SQL layers.
                 }
               },
               "lineWidth": {
-                "description": "Stroke width in pixels",
+                "description": "Stroke width in pixels. Shapes, hexagons and points draw no outline unless lineColor or lineWidth is set; 0 turns a configured outline off. Line features of a geojson layer always draw.",
                 "type": "number"
               },
               "opacity": {
@@ -1357,6 +1357,11 @@ Interactive map with tile, UDF and SQL layers.
               "pointRadius": {
                 "description": "Circle radius for point features",
                 "type": "number"
+              },
+              "minPixels": {
+                "description": "Smallest width on screen, in pixels, of a polygon or an H3 cell. A shape keeps its real geometry until it would draw smaller, then stays this wide about its own centre (and may overlap its neighbours), so it still shows zoomed all the way out, as a stroke and a point do. Defaults to 2; 0 lets shapes shrink with the map. Not applied to extruded shapes.",
+                "type": "number",
+                "minimum": 0
               },
               "coverage": {
                 "description": "H3 hex coverage 0-1 (1 = no gap, 0.8 = small gaps). Defaults to 1 for fused-hex layers, 0.9 for other hex layers.",
@@ -2218,7 +2223,7 @@ Interactive map with tile, UDF and SQL layers.
                         "lineColor": {
                           "anyOf": [
                             {
-                              "description": "Stroke color (target colour for arc): [r,g,b] or [r,g,b,a] array, CSS string, or the same data-driven {type:\"continuous\"|\"categorical\", attr, ...} object as fillColor.",
+                              "description": "Stroke color (target colour for arc): [r,g,b] or [r,g,b,a] array, CSS string, or the same data-driven {type:\"continuous\"|\"categorical\", attr, ...} object as fillColor. Shapes, hexagons and points draw no outline by default: setting lineColor or lineWidth turns it on.",
                               "properties": {
                                 "palette": {
                                   "$ref": "#/$defs/fusedMapPalette"
@@ -2229,19 +2234,19 @@ Interactive map with tile, UDF and SQL layers.
                               "type": "null"
                             }
                           ],
-                          "description": "Stroke color (target colour for arc): [r,g,b] or [r,g,b,a] array, CSS string, or the same data-driven {type:\"continuous\"|\"categorical\", attr, ...} object as fillColor."
+                          "description": "Stroke color (target colour for arc): [r,g,b] or [r,g,b,a] array, CSS string, or the same data-driven {type:\"continuous\"|\"categorical\", attr, ...} object as fillColor. Shapes, hexagons and points draw no outline by default: setting lineColor or lineWidth turns it on."
                         },
                         "lineWidth": {
                           "anyOf": [
                             {
-                              "description": "Stroke width in pixels",
+                              "description": "Stroke width in pixels. Shapes, hexagons and points draw no outline unless lineColor or lineWidth is set; 0 turns a configured outline off. Line features of a geojson layer always draw.",
                               "type": "number"
                             },
                             {
                               "type": "null"
                             }
                           ],
-                          "description": "Stroke width in pixels"
+                          "description": "Stroke width in pixels. Shapes, hexagons and points draw no outline unless lineColor or lineWidth is set; 0 turns a configured outline off. Line features of a geojson layer always draw."
                         },
                         "opacity": {
                           "anyOf": [
@@ -2268,6 +2273,19 @@ Interactive map with tile, UDF and SQL layers.
                             }
                           ],
                           "description": "Circle radius for point features"
+                        },
+                        "minPixels": {
+                          "anyOf": [
+                            {
+                              "description": "Smallest width on screen, in pixels, of a polygon or an H3 cell. A shape keeps its real geometry until it would draw smaller, then stays this wide about its own centre (and may overlap its neighbours), so it still shows zoomed all the way out, as a stroke and a point do. Defaults to 2; 0 lets shapes shrink with the map. Not applied to extruded shapes.",
+                              "type": "number",
+                              "minimum": 0
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ],
+                          "description": "Smallest width on screen, in pixels, of a polygon or an H3 cell. A shape keeps its real geometry until it would draw smaller, then stays this wide about its own centre (and may overlap its neighbours), so it still shows zoomed all the way out, as a stroke and a point do. Defaults to 2; 0 lets shapes shrink with the map. Not applied to extruded shapes."
                         },
                         "coverage": {
                           "anyOf": [
