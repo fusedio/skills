@@ -127,4 +127,5 @@ results = pool.df()
 - `s3-files` — inside a fused-render session that has its S3 tools: finding and reading S3 files available through fused-render
 - `canvas-comments` — reading and resolving `[[canvas.comments]]` threads in `canvas.toml`
 - `fused-h3` — H3 ingestion and querying with `fused.h3`
+- `fused-catalog` - satellite imagery and rasters as H3 cells, pixel chips or per-polygon stats with `fused.catalog`
 - `fused-runtime` — runtime packages and environment for UDFs
