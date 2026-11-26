@@ -24,7 +24,7 @@ A Fused canvas is a folder containing one `canvas.toml` plus per-UDF source file
 >
 > - Edit the files. The canvas publishes itself when your turn ends, not during it.
 > - Changes made on the server arrive in this folder automatically, and the session hook names the files that changed. Re-read those files before editing them.
-> - Verify with the `canvas_screenshot` tool and `fused workbench canvas validate .`. `fused workbench run` (UDFs) and `fused workbench json-ui validate` (widgets) stay useful.
+> - Verify with `fused workbench canvas validate .` and the `canvas_screenshot` tool. `what: "layout"` shows where nodes, folders and edges sit, drawn from this folder's `canvas.toml` as it is now: no open canvas needed, this turn's edits included, nothing run. `what: "canvas"` and `what: "udf"` photograph the user's canvas page, for what a node's output looks like. `fused workbench run` (UDFs) and `fused workbench json-ui validate` (widgets) stay useful.
 -->
 
 ## Folder layout
@@ -388,6 +388,10 @@ Workflow when authoring or editing a canvas:
 4. Adding one node to an existing canvas: `place --near <node>` gives the slot the workbench itself would use (right, then below, above, left); `place --center x,y` spirals out from a point the way the toolbar "add node" does. Then `check`.
 
 `check` output levels: `error` = the workbench will show something different from your file (overlap, folder size); `warn` = probable visual problem (description panel runs into a neighbour, negative coordinates, a folder height off by at most one description line per described row, since the workbench measures descriptions in the browser); `info` = harmless (child x/y differ from the packed position).
+
+<!-- fused-render:only (this block applies only inside a fused-render canvas clone; ignore it anywhere else)
+**Then look at it.** When `check` prints `ok`, call the `canvas_screenshot` tool with `what: "layout"`. It draws this folder's `canvas.toml` the way the workbench lays the canvas out (every node's box with its title and description, notes with their text, folders with their names, edges; a node's output is not drawn), in about a second, with no canvas open, and it already shows the edits of this turn. Fix what is misplaced, overlapping, outside its folder or wired the wrong way, then look again. On a large canvas pass `udf: "<folder or node name>"` to frame one part. Do not use `what: "canvas"` to check a layout: that photographs the user's canvas page, which shows your edits only after they are published.
+-->
 
 ### Node sizes
 

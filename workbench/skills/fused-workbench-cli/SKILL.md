@@ -145,8 +145,8 @@ Most canvas subcommands take a `CANVAS_REF` (name or ID) plus:
 >
 > - Edit the files. The canvas publishes itself when your turn ends, not during it.
 > - Changes made on the server arrive in this folder automatically, and the session hook names the files that changed. Re-read those files before editing them.
-> - Verify with the `canvas_screenshot` tool and `fused workbench canvas validate .`. `fused workbench run` (UDFs) and `fused workbench json-ui validate` (widgets) stay useful, run in the clone's own environment (see **Run in the canvas's environment** under Global flags).
-> - If `canvas_screenshot` says the canvas is not open, open it yourself, then call it again: `open "$FUSED_RENDER_ORIGIN/canvases/<env>/<canvas>"` on macOS.
+> - Verify with `fused workbench canvas validate .` and the `canvas_screenshot` tool. `what: "layout"` shows where nodes, folders and edges sit, drawn from this folder's `canvas.toml` as it is now: no open canvas needed, this turn's edits included, nothing run. `what: "canvas"` and `what: "udf"` photograph the user's canvas page, for what a node's output looks like. `fused workbench run` (UDFs) and `fused workbench json-ui validate` (widgets) stay useful, run in the clone's own environment (see **Run in the canvas's environment** under Global flags).
+> - If a `what: "canvas"` or `what: "udf"` call says the canvas is not open, open it yourself, then call it again: `open "$FUSED_RENDER_ORIGIN/canvases/<env>/<canvas>"` on macOS. A `what: "layout"` call never needs the canvas open.
 
 | Subcommand | Args / notable options |
 | --- | --- |
@@ -174,7 +174,7 @@ fused workbench canvas push ./fused-canvas --canvas feedback_pipeline
 If you're unsure of the remote canvas name, run `fused workbench canvas list` first.
 <!-- /fused-render:strip -->
 <!-- fused-render:only (this block applies only inside a fused-render canvas clone; ignore it anywhere else)
-- To check a change, use the `canvas_screenshot` tool for JSON UI nodes and HTML template nodes, and `fused workbench --env <env> run` for UDFs, in the clone's own environment (see **Run in the canvas's environment**). A by-name run uses the version published before your turn; pass the local `.py` path to run what is on disk (a `fused.load("<sibling>")` in it fails with `UDF not found`).
+- To check a change, use the `canvas_screenshot` tool for JSON UI nodes and HTML template nodes, and `fused workbench --env <env> run` for UDFs, in the clone's own environment (see **Run in the canvas's environment**). To check where nodes, folders and edges sit after you add, move or resize nodes, use `canvas_screenshot` with `what: "layout"` (see `canvas-toml`, "Layout rules"). A by-name run uses the version published before your turn; pass the local `.py` path to run what is on disk (a `fused.load("<sibling>")` in it fails with `UDF not found`).
 -->
 
 ## Reading an existing canvas
