@@ -15,6 +15,7 @@ A hex dataset that is **indexed** can be drawn with the `fused-map` widget's `fu
   "type": "fused-map",
   "props": {
     "style": "height:100%",
+    "basemapGroups": {"aboveData": ["label"]},
     "layers": [{
       "id": "hex",
       "type": "fused-hex",
@@ -24,6 +25,7 @@ A hex dataset that is **indexed** can be drawn with the `fused-map` widget's `fu
         "timeColumn": "date",
         "overview": {}
       },
+      "legend": {"title": "Temperature"},
       "style": {
         "fillColor": {"type": "continuous", "attr": "temp", "palette": "Viridis"},
         "opacity": 0.8
@@ -84,7 +86,7 @@ A level is an ordinary layer of any type except `composite`: `fused-hex`, `h3`, 
 Pitfalls:
 
 - **Absolute thresholds on aggregates.** A count per cell grows with the cell, so a filter or `sql` such as `n_buildings > 150` keeps most cells at a coarse level and none at a fine one. Threshold a ratio or density instead, or tell the user that each level keeps a different share of cells.
-- **A column only some levels have.** A composite filter on it does nothing at the other levels, a composite `sql` naming it leaves them drawing their own rows, and a widget query naming it fails there. Carry the columns that filters, queries and stats read in every level (and its `source.variables`), or say where they apply.
+- **A column only some levels have.** A composite filter on it does nothing at the other levels, a composite `sql` naming it leaves them drawing their own rows, and a widget query naming it fails there. Carry the columns that filters and queries read in every level (and its `source.variables`), or say where they apply.
 - **Zoom-gating the levels.** `minZoom`/`maxZoom` on the levels are the bands, not `visibleMinZoom`/`visibleMaxZoom`.
 - **Gaps between bands.** At a zoom in a gap the layer draws nothing.
 
@@ -104,27 +106,9 @@ A hex layer (`h3`, `fused-hex`, a composite or one of its levels) sizes each cel
 
 Do not draw sized hexagons as polygons from a tile UDF or from SQL that emits shrunk outlines: that was the way before `coverageAttr`.
 
-### Stats next to the map
-
-A composite is two canvas SQL sources, both read from the level on screen: `{{buildings}}`, the rows loaded for the view (before any `sql` or filters), and `{{buildings_drawn}}`, the rows drawn (after the level's and the composite's queries and filters, one per cell for a hex level). The map's `sourceParam` has an entry for each with `version`, `loading`, `rows`, `error`, `tiles`, plus `level` (index in `levels`) and `band` (`[minZoom, maxZoom]`, null for an open end). A widget in the same node JSON as the map reads them without an edge; another node needs an edge from the map's node.
-
-Give the map `"sourceParam": "map_sources"` and put this `div` beside it in the node's root `div` (`"style": "display:flex;flex-direction:column;height:100%"`, map last with `"style": "flex:1;min-height:0"`):
-
-```json
-{"type": "div", "props": {"style": "display:flex;align-items:center;gap:16px;padding:8px;flex:none"}, "children": [
-  {"type": "metric", "props": {"label": "Cells drawn", "sql": "SELECT COUNT(*) FROM {{buildings_drawn}}", "format": "comma", "size": 24}},
-  {"type": "metric", "props": {"label": "Rows loaded", "sql": "SELECT COUNT(*) FROM {{buildings}}", "format": "comma", "size": 24}},
-  {"type": "html", "props": {"style": "flex:1;height:24px", "value": "<div id='lv' style='font:12px sans-serif;color:#aaa'></div><script>function show(p){var s=(p.map_sources||{}).buildings_drawn;if(s)document.getElementById('lv').textContent='level '+s.level+', band '+JSON.stringify(s.band)+', '+s.tiles+' tiles';}fused.params.onChange(show);show(fused.params.getAll());</script>"}}
-]}
-```
-
-- SQL widgets re-run on their own when a source rebuilds (a swap, a settled view, a query result, a filter edit). Read `sourceParam` only for what SQL cannot give (`level`, `band`, `tiles`), or to re-query with `fused.query` when `version` changes.
-- Query only columns every level has: `SUM(n_buildings)` fails while the finest level draws.
-- `canvas validate` knows layer ids but not `<id>_drawn`: add `[validate] known_refs = ["buildings_drawn"]` to `canvas.toml`.
-
 ## Pitfalls
 
-- **Judging by eye.** Tiles can take 30 s on first load, and a res-11 cell is about one pixel wide at zoom 10. Check with a `metric` on `SELECT COUNT(*) FROM {{<layer id>}}`: the rows in view.
+- **Judging by eye.** Tiles can take 30 s on first load, and a res-11 cell is about one pixel wide at zoom 10. When a screenshot is unclear, count the rows in view with a temporary `metric` (`SELECT COUNT(*) FROM {{<layer id>}}`), and take it out before the turn ends.
 - **Not indexed, or stale index.** Empty maps and 404s usually mean `fused.h3.index` never ran, or the data was re-partitioned afterwards. Re-index.
 - **Domain.** Leave `domain` out, or set it to the data's real range. A default like `[0, 100]` on data in `[260, 310]` paints one flat colour.
 - **Chunking is all or nothing for a path.** Appending a `chunk_res_offset` partition onto an unchunked output (or the reverse) is refused. Write a new output path and index that.
